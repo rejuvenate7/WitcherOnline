@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<Config>
+	<Username>Player</Username>
+	<ServerIP>22.222.222.22</ServerIP>
+	<Port>40000</Port>
+	<FirstLoad>false</FirstLoad>
+</Config>

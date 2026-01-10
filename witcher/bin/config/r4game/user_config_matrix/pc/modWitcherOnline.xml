@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserConfig>
+	<Group id="MPGhosts_Main" displayName="Mods.MPGhosts_name">
+		<PresetsArray>
+			<Preset id="0" displayName="MPGhosts_Disabled">
+				<Entry varId="MPGhosts_HideGhosts" value="false"/>
+				<Entry varId="MPGhosts_GhostEffect" value="false"/>
+				<Entry varId="MPGhosts_ShowSelf" value="false"/>
+				<Entry varId="MPGhosts_ShowInCutscene" value="false"/>
+				<Entry varId="MPGhosts_RenderDistance" value="0"/>
+			</Preset>
+		</PresetsArray>
+		<VisibleVars>
+			<Var id="MPGhosts_HideGhosts" displayName="MPGhosts_HideGhosts" displayType="TOGGLE"/>
+			<Var id="MPGhosts_ShowInCutscene" displayName="MPGhosts_ShowInCutscene" displayType="TOGGLE"/>
+			<Var id="MPGhosts_ShowSelf" displayName="MPGhosts_ShowSelf" displayType="TOGGLE"/>
+			<Var id="MPGhosts_GhostEffect" displayName="MPGhosts_GhostEffect" displayType="TOGGLE"/>
+			<Var id="MPGhosts_RenderDistance" displayName="MPGhosts_RenderDistance" displayType="SLIDER;0;100;20"/>
+		</VisibleVars>
+		
+	</Group>
+</UserConfig>
