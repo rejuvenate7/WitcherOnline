@@ -1,0 +1,12 @@
+;meta[language=en]
+; id      |key(hex)|key(str)| text
+2111114000||panel_Mods|Mods
+2111114001||panel_MPGhosts_name|Witcher Online
+2111114002||preset_Mods_MPGhosts_name|Witcher Online Settings
+2111114003||option_MPGhosts_HideGhosts|Hide Ghosts
+2111114004||option_MPGhosts_ShowSelf|Show Your Own Ghost
+2111114005||option_MPGhosts_ShowInCutscene|Show Ghosts in Cutscenes
+2111114006||option_MPGhosts_GhostEffect|Ghosts Have Invisible Effect
+2111114007||option_MPGhosts_RenderDistance|Nametag Render Distance
+2111114009||preset_Mods_gameplay_MPGhosts_name|Witcher Online
+2111114010||preset_value_MPGhosts_Disabled|Default
