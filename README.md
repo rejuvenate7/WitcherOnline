@@ -13,3 +13,5 @@ Witcher Online is a mod that adds multiplayer to **The Witcher 3: Wild Hunt**.
 To play Witcher Online, go to the [nexus page](https://www.nexusmods.com/witcher3/mods/11590).
 
 For general information, go to the [Witcher Online Wiki](https://rejuvenate.gitbook.io/witcheronline).
+
+Special thanks to Werasik2aa for his [multiplayer implementation](https://github.com/werasik2aa/Witcher3-Multiplayer) which helped a lot.
