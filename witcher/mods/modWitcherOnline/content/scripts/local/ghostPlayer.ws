@@ -1,3 +1,5 @@
+// Witcher Online by rejuvenate
+// https://www.nexusmods.com/profile/rejuvenate7
 statemachine class MPDRPlayer extends CNewNPC
 {
 	event OnSpawned( spawnData : SEntitySpawnData )

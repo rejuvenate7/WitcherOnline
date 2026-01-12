@@ -1,3 +1,5 @@
+// Witcher Online by rejuvenate
+// https://www.nexusmods.com/profile/rejuvenate7
 @addField(CR4Game) 
 var r_multiplayerClient: r_MultiplayerClient;
 
@@ -128,13 +130,6 @@ function RaiseAttackFriendlyEvent( actor : CActor ) : bool {
 
     return wrappedMethod(actor);
 }
-
-/*
-@replaceMethod(CR4Player)
-function SendAttackReactionEvent() {
-    //GetWitcherPlayer().DisplayHudMessage("f2");
-    return;
-}*/
 
 @wrapMethod(CR4Player)
 function ShouldPerformFriendlyAction( actor : CActor, inputHeading, attackAngle, clearanceMin, clearanceMax : float ) : bool {

@@ -1,3 +1,5 @@
+// Witcher Online by rejuvenate
+// https://www.nexusmods.com/profile/rejuvenate7
 struct r_AnimRequest
 {
     var anim : name;
@@ -29,8 +31,6 @@ class r_RemotePlayer
     public var heading     : float;
     public var speed     : float;
     public var area     : EAreaName;
-    //public var oneliner     : MP_SU_OnelinerEntity;
-    //public var chatOneliner     : MP_SU_OnelinerEntity;
     public var pin: MP_SU_MapPin;
     public var pinDestroyed: bool;
     public var ghost     : CActor;
@@ -249,7 +249,7 @@ class r_RemotePlayer
 
     public var nextOnelinerEnsureAt : float;
 
-    protected function updateTemplate(templateName : string, prevTemp : CEntityTemplate) : CEntityTemplate
+    private function updateTemplate(templateName : string, prevTemp : CEntityTemplate) : CEntityTemplate
     {
 		var appearanceComponent : CAppearanceComponent;
 		var            template : CEntityTemplate;
@@ -274,7 +274,7 @@ class r_RemotePlayer
         return template;
 	}
 
-    protected function loadHead(newHeadName : name) {
+    private function loadHead(newHeadName : name) {
 		var headManager : CHeadManagerComponent;
 
 		headManager = (CHeadManagerComponent)(ghost.GetComponentByClassName( 'CHeadManagerComponent' ));
@@ -283,14 +283,14 @@ class r_RemotePlayer
 		headManager.SetCustomHead( newHeadName );
 	}
 
-    protected function removeTemplate(temp : CEntityTemplate)
+    private function removeTemplate(temp : CEntityTemplate)
     {
         var appearanceComponent : CAppearanceComponent;
         appearanceComponent = (CAppearanceComponent)ghost.GetComponentByClassName( 'CAppearanceComponent' );
         appearanceComponent.ExcludeAppearanceTemplate(temp);
     }
 
-    public function updateCPC()
+    private function updateCPC()
     {
         if(NR_GetPlayerManager().IsPlayerTypeChangeLocked() || theGame.IsDialogOrCutscenePlaying() || thePlayer.IsInNonGameplayCutscene())
             return;
@@ -585,7 +585,7 @@ class r_RemotePlayer
         lastcpcItem10 = cpcItem10;
     }
 
-    public function queueAnim(anim : name, duration : float, fadeIn : float, fadeOut : float, type : name, optional overrideNow : bool, optional loop : bool)
+    private function queueAnim(anim : name, duration : float, fadeIn : float, fadeOut : float, type : name, optional overrideNow : bool, optional loop : bool)
     {
         var req : r_AnimRequest;
 
@@ -662,7 +662,7 @@ class r_RemotePlayer
         animQueue.PushBack(req);
     }
 
-    public function playAnimFromQueue()
+    private function playAnimFromQueue()
     {
         var request : r_AnimRequest;
 
@@ -709,7 +709,7 @@ class r_RemotePlayer
         lastAnim = request.anim;
     }
 
-    public function stopAllAnims()
+    private function stopAllAnims()
     {
         animQueue.Clear();
 
@@ -825,7 +825,7 @@ class r_RemotePlayer
                 || t == 'sign' || t == 'jump' || t == 'climb' || t == 'dead' || t == 'rend');
     }
 
-    public function ensureOneliners()
+    private function ensureOneliners()
     {
         var tag : string = "MPGhost" + id;
         var statusTag : string = "MPGhostStatus" + id;
@@ -839,7 +839,7 @@ class r_RemotePlayer
         createStatusOneliner();
     }
 
-    public function createOneliner()
+    private function createOneliner()
     {
         var tag : string;
         var oneliner     : MP_SU_OnelinerEntity;
@@ -868,7 +868,7 @@ class r_RemotePlayer
         MP_SUOL_getManager().createOneliner(oneliner);
     }
 
-    public function createStatusOneliner()
+    private function createStatusOneliner()
     {
         var tag : string;
         var chatOneliner     : MP_SU_OnelinerEntity;
@@ -886,11 +886,6 @@ class r_RemotePlayer
         }
         
         chatOneliner = new MP_SU_OnelinerEntity in theInput;
-        chatOneliner.text = (new MP_SUOL_TagBuilder in theInput)
-        .tag("font")
-        .attr("size", "20")
-        .attr("color", "#ffffff")
-        .text("default");
         chatOneliner.offset = Vector(0,0,1.95);
         chatOneliner.visible = false;
         chatOneliner.entity = ghost;
@@ -899,7 +894,7 @@ class r_RemotePlayer
         MP_SUOL_getManager().createOneliner(chatOneliner);
     }
 
-    public function updateUsername()
+    private function updateUsername()
     {
         var oneliner     : MP_SU_OnelinerEntity;
         var tag : string;
@@ -926,7 +921,7 @@ class r_RemotePlayer
         }
     }
 
-    public function updateStatus(msg : string)
+    private function updateStatus(msg : string)
     {
         var tag : string;
         var chatOneliner     : MP_SU_OnelinerEntity;
@@ -947,7 +942,7 @@ class r_RemotePlayer
         MP_SUOL_getManager().updateOneliner(chatOneliner);
     }
 
-    public function createPin()
+    private function createPin()
     {
         pin = new MP_SU_MapPin in thePlayer;
         pin.tag = "MPGhost_" + id;
@@ -960,11 +955,12 @@ class r_RemotePlayer
         pin.appears_on_minimap = true;
         pin.highlighted = false;
         pin.pointed_by_arrow = false;
+        pin.is_fast_travel = true;
 
         MP_SUMP_addCustomPin(pin);
     }
 
-    public function updatePin()
+    private function updatePin()
     {
         var playerAngle         : float;
         playerAngle = -yaw;
@@ -1065,7 +1061,7 @@ class r_RemotePlayer
         return 'down';
     }
 
-    public function spawnGhost()
+    private function spawnGhost()
     {
         var rot : EulerAngles;
         var ids : array<SItemUniqueId>;
@@ -1112,7 +1108,7 @@ class r_RemotePlayer
         ensureOneliners();
     }
 
-    function updateOneliners()
+    private function updateOneliners()
     {
         var tag : string;
         var statusTag : string; 
@@ -1141,11 +1137,20 @@ class r_RemotePlayer
         }
     }
 
+    private function repairGhost()
+    {
+        if(!ghost)
+        {
+            spawnGhost();
+        }
+    }
+
     public function updateGhost()
     {
         var actors : array<CActor>;
         var i : int;
 
+        repairGhost();
         updateAnimState();
         updateChillOut();
         updateGeraltAnims();
@@ -1163,7 +1168,7 @@ class r_RemotePlayer
         prune();
     }
 
-    public function prune()
+    private function prune()
     {
         if((theGame.GetEngineTimeAsSeconds() - lastUpdate) > 10)
         {
@@ -1172,7 +1177,7 @@ class r_RemotePlayer
         }
     }
 
-    function Unmount(itemName: name) {
+    private function Unmount(itemName: name) {
         var i: int;
         var items: array<SItemUniqueId>;
 
@@ -1185,29 +1190,7 @@ class r_RemotePlayer
         }
     }
 
-    function printInventory()
-    {
-        var items : array<SItemUniqueId>;
-        var i, quantity : int;
-        var printables : array<name>;
-        var itemName : name;
-        var dm : CDefinitionsManagerAccessor;
-        
-        Log("==== Showing inventory ====");	
-        dm = theGame.GetDefinitionsManager();
-        ghost.GetInventory().GetAllItems(items);
-        
-        for(i=0; i<items.Size(); i+=1)
-        {	
-            itemName = ghost.GetInventory().GetItemName(items[i]);
-                
-            Log("item " + i + ": " +itemName);
-        }
-        
-        Log("");
-    }
-
-    function unmountItems()
+    private function unmountItems()
     {
         Unmount('Horn');
         Unmount('card_deck');
@@ -1224,7 +1207,7 @@ class r_RemotePlayer
         Unmount('cutlery_rich_knife'); 
     }
 
-    function updateChillOut()
+    private function updateChillOut()
     {
         var chillDur : float;
         var now : float = theGame.GetEngineTimeAsSeconds();
@@ -1268,7 +1251,7 @@ class r_RemotePlayer
         }
     }
 
-    function updateChat()
+    private function updateChat()
     {
         var chatOneliner     : MP_SU_OnelinerEntity;
 
@@ -1311,7 +1294,7 @@ class r_RemotePlayer
         }
     }
 
-    function updateMenuStatus()
+    private function updateMenuStatus()
     {
         var status : string;
         var chatOneliner     : MP_SU_OnelinerEntity;
@@ -1382,7 +1365,7 @@ class r_RemotePlayer
         }
     }
 
-    function playEmotes()
+    private function playEmotes()
     {
         if((theGame.GetEngineTimeAsSeconds() - theGame.r_getMultiplayerClient().getSpawnTime()) < 2)
         {
@@ -1576,7 +1559,7 @@ class r_RemotePlayer
         }
     }
 
-    function unmountHair()
+    private function unmountHair()
     {
         var ids : array<SItemUniqueId>;
         var inv : CInventoryComponent;
@@ -1600,7 +1583,7 @@ class r_RemotePlayer
 		}
     }
 
-    function fixGeraltAppearance()
+    private function fixGeraltAppearance()
     {
         if(cpcPlayerType != ENR_PlayerGeralt)
         {
@@ -1618,7 +1601,7 @@ class r_RemotePlayer
         }
     }
 
-    function giveBodyItem(clear : bool, item : name)
+    private function giveBodyItem(clear : bool, item : name)
     {
         var inv : CInventoryComponent;
         var ids : array<SItemUniqueId>;
@@ -1657,7 +1640,7 @@ class r_RemotePlayer
         }
     }
 
-    function EquipNewItem(inv : CInventoryComponent, out lastItem : name, newItem : name, optional mount : bool, optional hide : bool)
+    private function EquipNewItem(inv : CInventoryComponent, out lastItem : name, newItem : name, optional mount : bool, optional hide : bool)
     {
         var ids : array<SItemUniqueId>;
         var ent : CEntity;
@@ -1703,7 +1686,7 @@ class r_RemotePlayer
         lastItem = newItem;
     }
 
-    function updateEquippedItems()
+    private function updateEquippedItems()
     {
         var ids : array<SItemUniqueId>;
         var id : SItemUniqueId;
@@ -1740,17 +1723,17 @@ class r_RemotePlayer
         EquipNewItem(inv, last_eq_mask, eq_mask);
     }
 
-    function isLastSwordMovement() : bool
+    private function isLastSwordMovement() : bool
     {
         return (lastMovementType == 'sword_idle' || lastMovementType == 'sword_slow_walk' || lastMovementType == 'sword_walk' || lastMovementType == 'sword_run' || lastMovementType == 'sword_sprint');
     }
 
-    function isLastNonSwordMovement() : bool
+    private function isLastNonSwordMovement() : bool
     {
         return (lastMovementType == 'idle' || lastMovementType == 'slow_walk' || lastMovementType == 'walk' || lastMovementType == 'run' || lastMovementType == 'sprint');
     }
 
-    function swim()
+    private function swim()
     {
         // woman complete
         if(curState == 'Swim' && speed == 0)
@@ -2043,7 +2026,7 @@ class r_RemotePlayer
         }
     }
 
-    function updateGeraltAnims()
+    private function updateGeraltAnims()
     {
         var anim : r_Anim;
         var ids : array<SItemUniqueId>;
@@ -3343,8 +3326,6 @@ class r_RemotePlayer
         // woman complete
         if(isMounted)
         {
-            LogChannel('speed', horseSpeed);
-
             if(!lastMounted)
             {
                 if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
@@ -5005,7 +4986,7 @@ class r_RemotePlayer
         }
     }
 
-    function updateHeldItems()
+    private function updateHeldItems()
     {
         var inv : CInventoryComponent;
         var steel, silver : SItemUniqueId;
@@ -5061,12 +5042,12 @@ class r_RemotePlayer
         }
     }
 
-    function setMoveType(entity:CActor , st:int)
+    private function setMoveType(entity:CActor, st:int)
     {
         ((CActor)entity).GetMovingAgentComponent().SetGameplayRelativeMoveSpeed(st);
     }
 
-    function moveEntity(entity:CActor , targpos:Vector)
+    private function moveEntity(entity:CActor , targpos:Vector)
     {
         var dist, verticalDist, waterLevel : float;
         var entpos : Vector;
@@ -5145,19 +5126,13 @@ class r_RemotePlayer
             teleport(entity, targpos);
     }
 
-    function setHeading(entity:CActor , targpos:Vector)
+    private function setHeading(entity:CActor , targpos:Vector)
     {
-        var mvADJ : CMovementAdjustor; 
         ((CActor)entity).GetMovingAgentComponent().SetGameplayMoveDirection(VecHeading(targpos - entity.GetWorldPosition()));
     }
 
-    function teleport(entity:CActor , pos:Vector)
+    private function teleport(entity:CActor , pos:Vector)
     {
         ((CActor)entity).Teleport(pos);
-    }
-
-    public function teleportGhost()
-    {
-        ghost.Teleport(pos);
     }
 }

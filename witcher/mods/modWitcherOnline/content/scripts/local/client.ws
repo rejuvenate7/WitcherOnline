@@ -1,4 +1,5 @@
-// MP ghosts
+// Witcher Online by rejuvenate
+// https://www.nexusmods.com/profile/rejuvenate7
 struct r_ChillDef 
 { 
     var anim : name; 
@@ -61,7 +62,6 @@ class r_MultiplayerClient
     private var lastChat : string;
     private var lastChatTime : float;
     private var prevChatTime : float;
-    //private var chatOneliner     : MP_SU_OnelinerEntity;
     
     public function Init()
     {
@@ -902,7 +902,6 @@ class r_MultiplayerClient
 
         if (!foundGlobal)
         {
-            // create a new global player object
             p = new r_RemotePlayer in this;
             p.id = id;
             p.username = username;
@@ -1026,7 +1025,6 @@ class r_MultiplayerClient
         
         if(theGame.GetCommonMapManager().GetCurrentArea() == area)
         {
-            // not found, creating new player
             p = new r_RemotePlayer in this;
             p.id = id;
             p.username = username;
@@ -1091,7 +1089,6 @@ class r_MultiplayerClient
             p.eq_silverScab = silverScab;
             p.eq_crossbow = crossbow;
             p.eq_mask = mask;
-            //LogChannel('MP', "Spawned coord " +VecToString(p.pos));
             p.Init();
 
             players.PushBack(p);
@@ -1145,9 +1142,6 @@ class r_MultiplayerClient
         {
             if(players[i].id == id)
             {
-                //players[i].oneliner.unregister();
-                //MP_SUOL_getManager().deleteOneliner(players[i].oneliner);
-                //MP_SUOL_getManager().deleteOneliner(players[i].chatOneliner);
                 MP_SUOL_getManager().deleteByTag("MPGhost" + id);
                 MP_SUOL_getManager().deleteByTag("MPGhostStatus" + id);
                 players[i].ghost.Destroy();
@@ -1180,9 +1174,6 @@ class r_MultiplayerClient
         var i : int;
         for(i = 0; i < players.Size(); i+=1)
         {
-            //players[i].oneliner.unregister();
-            //MP_SUOL_getManager().deleteOneliner(players[i].oneliner);
-            //MP_SUOL_getManager().deleteOneliner(players[i].chatOneliner);
             MP_SUOL_getManager().deleteByTag("MPGhost" + players[i].id);
             MP_SUOL_getManager().deleteByTag("MPGhostStatus" + players[i].id);
             players[i].ghost.Destroy();
@@ -2000,12 +1991,10 @@ function mpghosts_emote(num : int)
     else if (num == 9)
     {
         anim = 'audience_in_theatre_standing_loop_02';
-        //mpghosts_playerEmote('audience_in_theatre_standing_loop_02');
     }
     else if (num == 10)
     {
         anim = 'man_work_drunk_puke';
-        //mpghosts_playerEmote('man_work_drunk_puke');
     }
     else if (num == 11)
     {
@@ -2020,7 +2009,6 @@ function mpghosts_emote(num : int)
     else if (num == 13)
     {
         anim = 'q101_man_hitting_alarm_bell_with_hammer_loop_01';
-        //mpghosts_playerEmote('q101_man_hitting_alarm_bell_with_hammer_loop_01');
     }
     else if (num == 14)
     {
@@ -2030,12 +2018,10 @@ function mpghosts_emote(num : int)
     else if (num == 15)
     {
         anim = 'q203_druid_using_wand_1';
-        //mpghosts_playerEmote('q203_druid_using_wand_1');
     }
     else if (num == 16)
     {
         anim = 'geralt_chocking_loop_01';
-        //mpghosts_playerEmote('geralt_chocking_loop_01');
     }
     else if (num == 17)
     {
@@ -2045,7 +2031,6 @@ function mpghosts_emote(num : int)
     else if (num == 18)
     {
         anim = 'ep1_high_standing_determined2_gesture_laugh_01';
-        //mpghosts_playerEmote('ep1_high_standing_determined2_gesture_laugh_01');
     }
     else if (num == 19)
     {
@@ -2075,12 +2060,10 @@ function mpghosts_emote(num : int)
         if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
         {
             anim = 'high_standing_determined_gesture_cough';
-            //mpghosts_playerEmote('high_standing_determined_gesture_cough');
         }
         else
         {
             anim = 'high_standing_determined_gesture_facepalm';
-            //mpghosts_playerEmote('high_standing_determined_gesture_facepalm');
         }
     }
     else if (num == 23)
@@ -2101,31 +2084,26 @@ function mpghosts_emote(num : int)
         if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
         {
             anim = 'q705_anarietta_standing_tense_gesture_angry';
-            //mpghosts_playerEmote('q705_anarietta_standing_tense_gesture_angry');
         }
         else
         {
             anim = 'high_standing_sad_gesture_go_plough_yourself';
-            //mpghosts_playerEmote('high_standing_sad_gesture_go_plough_yourself');
         }
     }
     else if (num == 25)
     {
         anim = 'man_use_horn';
-        //mpghosts_playerEmote('man_use_horn');
     }
     else if (num == 26)
     {
         if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
         {
             anim = 'ep1_mirror_sitting_on_shrine_gesture_explain_04';
-            //mpghosts_playerEmote('ep1_mirror_sitting_on_shrine_gesture_explain_04');
         }
         else
         {
             anim = 'fall_up_idle';
             force = true;
-            //mpghosts_playerEmote('fall_up_idle', true);
         }
     }
     else if (num == 27)
@@ -2191,36 +2169,4 @@ function mpghosts_teleport(user :string)
 exec function teleport(user : string)
 {
     mpghosts_teleport(user);
-}
-
-exec function reset()
-{
-    theInput.MP_newSharedutilsOnelinersManager();
-}
-
-exec function toggle(val : int)
-{
-    theGame.GetInGameConfigWrapper().SetVarValue('MPGhosts_Main', 'MPGhosts_ShowSelf', val);
-}
-
-exec function test()
-{
-    var oneliner: MP_SU_Oneliner;
-
-    oneliner = new MP_SU_Oneliner in theInput;
-    oneliner.text = "Testt";
-    oneliner.position = thePlayer.GetWorldPosition();
-
-    MP_SUOL_getManager().createOneliner(oneliner);
-}
-
-exec function test2()
-{
-    var oneliner: SU_Oneliner;
-
-    oneliner = new SU_Oneliner in thePlayer;
-    oneliner.text = "Testt";
-    oneliner.position = thePlayer.GetWorldPosition();
-
-    SUOL_getManager().createOneliner(oneliner);
 }
