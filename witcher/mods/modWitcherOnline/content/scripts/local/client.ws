@@ -14,6 +14,7 @@ class r_MultiplayerClient
     private var globalPlayers : array<r_RemotePlayer>;
     private var inGame : bool;
     private var spawnTime : float;
+    private var execReceived : bool;
 
     private var lightAttackAnims : array<r_Anim>;
     private var heavyAttackAnims : array<r_Anim>;
@@ -482,6 +483,16 @@ class r_MultiplayerClient
         }
     }
 
+    public function setReceived()
+    {
+        execReceived = true;
+    }
+
+    public function getReceived() : bool
+    {
+        return execReceived;
+    }
+
     public function setUserId(id : string, username : string)
     {
         this.id = id;
@@ -910,11 +921,17 @@ class r_MultiplayerClient
             globalPlayers.PushBack(p);
             if(p.username == "Player")
             {
-                theGame.GetGuiManager().ShowNotification("A player joined");
+                if(!theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_HideJoinNotis'))
+                {       
+                    theGame.GetGuiManager().ShowNotification("A player joined");
+                }
             }
             else
             {
-                theGame.GetGuiManager().ShowNotification(p.username + " joined");
+                if(!theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_HideJoinNotis'))
+                {
+                    theGame.GetGuiManager().ShowNotification(p.username + " joined");
+                }
             }
         }
 
@@ -1161,7 +1178,10 @@ class r_MultiplayerClient
             {
                 if(globalPlayers[i].username != "" && globalPlayers[i].id != id)
                 {
-                    theGame.GetGuiManager().ShowNotification(globalPlayers[i].username + " disconnected");
+                    if(!theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_HideJoinNotis'))
+                    {
+                        theGame.GetGuiManager().ShowNotification(globalPlayers[i].username + " disconnected");
+                    }
                 }
                 globalPlayers.Remove(globalPlayers[i]);
                 return;
@@ -1776,6 +1796,7 @@ exec function mpghosts_destroyAll()
 exec function mpghosts_setUserId(id : string, username : string)
 {
     theGame.r_getMultiplayerClient().setUserId(id, username);
+    theGame.r_getMultiplayerClient().setReceived();
 }
 
 function mpghosts_playerEmote(anim : name, optional noSmooth : bool)
@@ -2169,4 +2190,13 @@ function mpghosts_teleport(user :string)
 exec function teleport(user : string)
 {
     mpghosts_teleport(user);
+}
+
+exec function list()
+{
+    var players : array<r_RemotePlayer>;
+    var localPlayers : array<r_RemotePlayer>;
+    players = theGame.r_getMultiplayerClient().getGlobalPlayers();
+    localPlayers = theGame.r_getMultiplayerClient().getPlayers();
+    GetWitcherPlayer().DisplayHudMessage(players.Size() + " total players connected, " +localPlayers.Size() + " in current region");
 }

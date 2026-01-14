@@ -59,6 +59,13 @@ function OnAfterLoadingScreenGameStart()
     theGame.r_getMultiplayerClient().setEmote(-1);
 
     theInput.MP_newSharedutilsOnelinersManager();
+
+    if(!theGame.r_getMultiplayerClient().getReceived())
+    {
+        GetWitcherPlayer().DisplayHudMessage("Your game is not communicating with the Witcher Online server.");
+        GetWitcherPlayer().DisplayHudMessage("Ensure your game was launched with -net -debugscripts and delete x64.final.redscripts.");
+        GetWitcherPlayer().DisplayHudMessage("Follow all steps from the Troubleshooting page of the wiki.");
+    }
 }
 
 @wrapMethod(CR4Game)
