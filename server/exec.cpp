@@ -209,7 +209,7 @@ struct ClientInfo {
 	std::string username;
 	std::string addr;
 	std::string location;
-
+	std::string ip;
 	std::vector<std::string> data;
 
 	std::atomic<bool> alive{ true };
@@ -230,6 +230,87 @@ static std::mutex g_ban_mu;
 static std::unordered_set<std::string> g_whitelisted_ips;
 static std::mutex g_whitelist_mu;
 static std::atomic<bool> g_whitelist_enabled{ false };
+
+static std::unordered_map<std::string, ClientInfo*> g_ip_owner;
+
+struct IpGate {
+	double tokens = 6.0;
+	std::chrono::steady_clock::time_point last = std::chrono::steady_clock::now();
+
+	int strikes = 0;
+	std::chrono::steady_clock::time_point muted_until = std::chrono::steady_clock::time_point{};
+
+	std::chrono::steady_clock::time_point last_log = std::chrono::steady_clock::time_point{};
+};
+
+static std::unordered_map<std::string, IpGate> g_ip_gate;
+static std::mutex g_ip_gate_mu;
+
+static constexpr double kGateCapacity = 6.0;
+static constexpr double kGateRefillPerSec = 3.0;
+static constexpr int    kStrikeToMute = 8;
+static constexpr auto   kMuteDuration = std::chrono::seconds(20);
+static constexpr auto   kLogInterval = std::chrono::seconds(2);
+static constexpr auto   kGateForgetAfter = std::chrono::minutes(5);
+
+static bool should_log_gate(IpGate& g, std::chrono::steady_clock::time_point now) {
+	if (g.last_log.time_since_epoch().count() == 0 || (now - g.last_log) >= kLogInterval) {
+		g.last_log = now;
+		return true;
+	}
+	return false;
+}
+
+static bool gate_allow(const std::string& ip, bool& out_log_now, const char*& out_reason) {
+	out_log_now = false;
+	out_reason = "rate-limited";
+
+	const auto now = std::chrono::steady_clock::now();
+
+	std::lock_guard<std::mutex> lk(g_ip_gate_mu);
+	auto& g = g_ip_gate[ip];
+
+	if ((now - g.last) > kGateForgetAfter) {
+		g = IpGate{};
+		g.last = now;
+	}
+
+	if (g.muted_until.time_since_epoch().count() != 0 && now < g.muted_until) {
+		out_reason = "cooldown";
+		out_log_now = should_log_gate(g, now);
+		return false;
+	}
+
+	const double dt = std::chrono::duration<double>(now - g.last).count();
+	g.last = now;
+	g.tokens = std::min(kGateCapacity, g.tokens + dt * kGateRefillPerSec);
+
+	if (g.tokens >= 1.0) {
+		g.tokens -= 1.0;
+		if (g.strikes > 0) g.strikes--;
+		return true;
+	}
+
+	g.strikes++;
+	if (g.strikes >= kStrikeToMute) {
+		g.strikes = 0;
+		g.muted_until = now + kMuteDuration;
+		out_reason = "cooldown";
+	}
+	else {
+		out_reason = "rate-limited";
+	}
+
+	out_log_now = should_log_gate(g, now);
+	return false;
+}
+
+static bool gate_log_duplicate(const std::string& ip) {
+	const auto now = std::chrono::steady_clock::now();
+	std::lock_guard<std::mutex> lk(g_ip_gate_mu);
+	auto& g = g_ip_gate[ip];
+	return should_log_gate(g, now);
+}
 
 static bool read_whitelist_flag_from_file(bool& out) {
 	auto confPath = exe_dir() / "server.properties";
@@ -539,23 +620,89 @@ static std::string mk_world_snapshot_json() {
 	return out;
 }
 
+static void close_client(ClientInfo* ci) {
+	if (ci->s != invalid_socket) {
+		closesock(ci->s);
+		ci->s = invalid_socket;
+	}
+	ci->alive.store(false);
+}
+
 static void broadcast_thread() {
 	using namespace std::chrono_literals;
+
+	struct Recip {
+		socket_t s;
+		std::string id;
+	};
+
 	while (g_running.load()) {
-		std::string world = mk_world_snapshot_json();
+		std::string world;
+		std::vector<Recip> recips;
+
 		{
 			std::lock_guard<std::mutex> lk(g_mu);
+
+			world = "WORLD [";
+			bool first = true;
+			recips.reserve(g_clients.size());
+
 			for (auto& kv : g_clients) {
 				ClientInfo* c = kv.second;
 				if (!c) continue;
+
+				if (!first) world += ",";
+				first = false;
+
+				world += "{\"id\":\"" + json_escape(kv.first) + "\",\"d\":[";
+				for (size_t i = 0; i < c->data.size(); ++i) {
+					if (i) world += ",";
+					world += "\"" + json_escape(c->data[i]) + "\"";
+				}
+				world += "]}";
+
 				if (c->alive.load() && c->s != invalid_socket) {
-					(void)send_line(c->s, world);
+					recips.push_back({ c->s, kv.first });
 				}
 			}
+
+			world += "]\n";
 		}
+
+		std::vector<std::string> dead_ids;
+		dead_ids.reserve(8);
+
+		for (const auto& r : recips) {
+			if (!send_line(r.s, world)) {
+				dead_ids.push_back(r.id);
+			}
+		}
+
+		if (!dead_ids.empty()) {
+			std::lock_guard<std::mutex> lk(g_mu);
+			for (const auto& id : dead_ids) {
+				auto it = g_clients.find(id);
+				if (it == g_clients.end()) continue;
+
+				ClientInfo* c = it->second;
+				if (!c) { g_clients.erase(it); continue; }
+
+				if (!c->ip.empty()) {
+					auto itip = g_ip_owner.find(c->ip);
+					if (itip != g_ip_owner.end() && itip->second == c) {
+						g_ip_owner.erase(itip);
+					}
+				}
+
+				close_client(c);
+				g_clients.erase(it);
+			}
+		}
+
 		std::this_thread::sleep_for(100ms);
 	}
 }
+
 
 static void console_thread() {
 	std::string line;
@@ -903,14 +1050,6 @@ static void remove_client(ClientInfo* ci) {
 	}
 }
 
-static void close_client(ClientInfo* ci) {
-	if (ci->s != invalid_socket) {
-		closesock(ci->s);
-		ci->s = invalid_socket;
-	}
-	ci->alive.store(false);
-}
-
 static void broadcast_disconnect(const std::string& id, ClientInfo* exclude) {
 	if (id.empty()) return;
 	std::vector<socket_t> recips;
@@ -929,7 +1068,7 @@ static void broadcast_disconnect(const std::string& id, ClientInfo* exclude) {
 
 static void client_thread(ClientInfo* ci) {
 	set_no_delay(ci->s);
-	set_timeouts(ci->s, 2000, 2000);
+	set_timeouts(ci->s, 2000, 150);
 
 	std::string buffer;
 	buffer.reserve(4096);
@@ -992,6 +1131,13 @@ static void client_thread(ClientInfo* ci) {
 	}
 
 	while (g_running.load() && ci->alive.load()) {
+		const auto now = std::chrono::steady_clock::now();
+
+		// if they haven't sent anything in 15s, drop them.
+		if (std::chrono::duration_cast<std::chrono::seconds>(now - ci->last_seen).count() > 15) {
+			break;
+		}
+
 		if (buffer.find('\n') == std::string::npos) {
 			char tmp[2048];
 			int n = recv(ci->s, tmp, sizeof(tmp), 0);
@@ -1124,8 +1270,17 @@ static void client_thread(ClientInfo* ci) {
 	remove_client(ci);
 	close_client(ci);
 
+	{
+		std::lock_guard<std::mutex> lk(g_mu);
+		auto it = g_ip_owner.find(ci->ip);
+		if (it != g_ip_owner.end() && it->second == ci) {
+			g_ip_owner.erase(it);
+		}
+	}
+
 	delete ci;
 }
+
 
 int main(int argc, char** argv) {
 	uint16_t port = choose_port(argc, argv);
@@ -1199,6 +1354,18 @@ int main(int argc, char** argv) {
 
 		std::string ipStr(addrbuf);
 
+		{
+			bool log_now = false;
+			const char* reason = "";
+			if (!gate_allow(ipStr, log_now, reason)) {
+				if (log_now) {
+					dbg("Dropped connection spam from %s:%hu (%s)\n", addrbuf, cport, reason);
+				}
+				closesock(cs);
+				continue;
+			}
+		}
+
 		if (is_ip_banned(ipStr)) {
 			dbg("Rejected connection from banned IP %s:%hu\n",
 				addrbuf,
@@ -1216,11 +1383,41 @@ int main(int argc, char** argv) {
 			continue;
 		}
 
+		bool isDup = false;
+
+		{
+			std::lock_guard<std::mutex> lk(g_mu);
+			auto it = g_ip_owner.find(ipStr);
+			if (it != g_ip_owner.end()) {
+				ClientInfo* existing = it->second;
+				if (existing && existing->alive.load() && existing->s != invalid_socket) {
+					isDup = true;
+				}
+				else {
+					g_ip_owner.erase(it);
+				}
+			}
+		}
+
+		if (isDup) {
+			if (gate_log_duplicate(ipStr)) {
+				dbg("Rejected duplicate connection from %s:%hu (already connected)\n", addrbuf, cport);
+			}
+			closesock(cs);
+			continue;
+		}
+
 		auto* ci = new ClientInfo();
 		ci->s = cs;
 		ci->connect_time = std::chrono::steady_clock::now();
 		ci->last_seen = ci->connect_time;
 		ci->addr = std::string(addrbuf) + ":" + std::to_string(cport);
+		ci->ip = ipStr;
+
+		{
+			std::lock_guard<std::mutex> lk(g_mu);
+			g_ip_owner[ipStr] = ci;
+		}
 
 		std::thread(client_thread, ci).detach();
 	}
