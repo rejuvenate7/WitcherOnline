@@ -39,6 +39,7 @@ timer function r_updateClient(dt : float, id : int)
     theGame.r_getMultiplayerClient().renderPlayers();
     theGame.r_getMultiplayerClient().updatePlayerChat();
     theGame.r_getMultiplayerClient().UpdateLocalEmoteLoop();
+    theGame.r_getMultiplayerClient().pruneGlobalPlayers(10);
 }
 
 @wrapMethod(CR4GuiManager)

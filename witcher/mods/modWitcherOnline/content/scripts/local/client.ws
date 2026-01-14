@@ -855,6 +855,22 @@ class r_MultiplayerClient
         return globalPlayers;
     }
 
+    public function pruneGlobalPlayers(timeout : float)
+    {
+        var i : int;
+        var now : float;
+
+        now = theGame.GetEngineTimeAsSeconds();
+
+        for (i = globalPlayers.Size() - 1; i >= 0; i -= 1)
+        {
+            if ((now - globalPlayers[i].lastUpdate) > timeout)
+            {
+                globalPlayers.Remove(globalPlayers[i]);
+            }
+        }
+    }
+
     public function updatePlayerData(id : string, username : string, x : float, y : float, z : float, w : float, heading : float, speed : float, 
                                         area : int, clientInGame : bool, heldItem : string, offhandItem : string, inCombat : bool, 
                                         isSwimming : bool, curState : name, lastJumpTime : float, lastJumpType : EJumpType, 
@@ -906,6 +922,7 @@ class r_MultiplayerClient
                 globalPlayers[i].pos = position;
                 globalPlayers[i].username = username;
                 globalPlayers[i].area = area;
+                globalPlayers[i].lastUpdate = theGame.GetEngineTimeAsSeconds(); 
                 foundGlobal = true;
                 break;
             }
@@ -918,6 +935,7 @@ class r_MultiplayerClient
             p.username = username;
             p.pos = position;
             p.area = area;
+            p.lastUpdate = theGame.GetEngineTimeAsSeconds();
             globalPlayers.PushBack(p);
             if(p.username == "Player")
             {
