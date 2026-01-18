@@ -1150,7 +1150,7 @@ class r_MultiplayerClient
                 }
             }
             
-            if(players[i].menuStatusActive || theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_GhostEffect'))
+            if(!theGame.IsDialogOrCutscenePlaying() && (players[i].menuStatusActive || theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_GhostEffect')))
             {
                 if(!players[i].ghost.IsEffectActive('invisible'))
                 {
@@ -1231,6 +1231,17 @@ class r_MultiplayerClient
 
         players.Clear();
     }
+
+    public function DisplayUserMessage(message: WitcherOnline_PlayerNotification) {
+
+		var popup_data: WitcherOnline_PopupData = new WitcherOnline_PopupData in this;
+
+		popup_data.SetMessageTitle( message.message_title );
+		popup_data.SetMessageText( message.message_body );
+		popup_data.PauseGame = true;
+		
+		theGame.RequestMenu('PopupMenu', popup_data);
+	}
 }
 
 exec function mpghosts_getData()
@@ -2210,11 +2221,90 @@ exec function teleport(user : string)
     mpghosts_teleport(user);
 }
 
+class WitcherOnline_PopupData extends BookPopupFeedback {
+
+	public function GetGFxData(parentFlashValueStorage : CScriptedFlashValueStorage) : CScriptedFlashObject {
+		var objResult : CScriptedFlashObject;
+		objResult = super.GetGFxData(parentFlashValueStorage);
+		objResult.SetMemberFlashString("iconPath", "img://icons/inventory/scrolls/scroll2.dds");
+		return objResult;
+	}
+
+	public function SetupOverlayRef(target : CR4MenuPopup) : void {
+		super.SetupOverlayRef(target);
+		PopupRef.GetMenuFlash().GetChildFlashSprite("background").SetAlpha(100.0);
+	}
+}
+
+struct WitcherOnline_PlayerNotification
+{
+	var message_title	: string;
+	var message_body	: string;
+}
+
 exec function list()
 {
     var players : array<r_RemotePlayer>;
     var localPlayers : array<r_RemotePlayer>;
+    var kaerMorhen : int;
+    var whiteOrchard : int;
+    var toussaint : int;
+    var velen : int;
+    var skellige : int;
+    var vizima : int;
+    var i : int;
+    var total : int;
+    var other : int;
+    var messagetitle : string;
+    var messagebody : string;
+
     players = theGame.r_getMultiplayerClient().getGlobalPlayers();
     localPlayers = theGame.r_getMultiplayerClient().getPlayers();
-    GetWitcherPlayer().DisplayHudMessage(players.Size() + " total players connected, " +localPlayers.Size() + " in current region");
+
+    for(i = 0; i < players.Size(); i+=1)
+    {
+        if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "no_mans_land")
+        {
+            velen += 1;
+        }
+        else if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "skellige")
+        {
+            skellige += 1;
+        }
+        else if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "bob")
+        {
+            toussaint += 1;
+        }
+        else if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "prolog_village")
+        {
+            whiteOrchard += 1;
+        }
+        else if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "kaer_morhen")
+        {
+            kaerMorhen += 1;
+        }
+        else if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "wyzima_castle")
+        {
+            vizima += 1;
+        }
+    }
+
+    total = velen + skellige + toussaint + whiteOrchard + kaerMorhen + vizima;
+    other = players.Size() - total;
+
+    messagetitle   = "<p align=\"center\">Player List<br/></p>";
+    messagebody =
+    "<p align=\"center\">"
+    + players.Size() + " total players connected, " + localPlayers.Size() + " in your current region<br/><br/>"
+    + whiteOrchard + " in White Orchard<br/>"
+    + velen + " in Novigrad/Velen<br/>"
+    + skellige + " in Skellige<br/>"
+    + kaerMorhen + " in Kaer Morhen<br/>"
+    + toussaint + " in Toussaint<br/>"
+    + vizima + " in Vizima<br/>"
+    + other + " in Other/Unknown"
+    + "</p>";
+
+
+    theGame.r_getMultiplayerClient().DisplayUserMessage(WitcherOnline_PlayerNotification(messagetitle, messagebody));
 }

@@ -42,6 +42,27 @@ timer function r_updateClient(dt : float, id : int)
     theGame.r_getMultiplayerClient().pruneGlobalPlayers(10);
 }
 
+@addMethod(CR4Player) 
+timer function r_showConnectionAlert(dt : float, id : int)
+{
+    var wo_messagetitle : string;
+    var wo_messagebody  : string;
+
+    wo_messagetitle = "<p align=\"center\">Failed to get Player Data!</p>";
+
+    wo_messagebody =
+        "<p align=\"center\">"
+        + "Your game is not communicating with the Witcher Online server.<br/><br/>"
+        + "Ensure your game was launched with -net -debugscripts and delete x64.final.redscripts.<br/><br/>"
+        + "Follow all steps from the Troubleshooting page of the wiki.<br/>"
+        + "https://rejuvenate.gitbook.io/witcheronline/guides/troubleshooting<br/><br/>"
+        + "Multiple players with the same IP cannot connect to the public server at the same time.<br/>"
+        + "If you want to play with two or more players with the same IP, host your own server."
+        + "</p>";
+    
+    theGame.r_getMultiplayerClient().DisplayUserMessage(WitcherOnline_PlayerNotification(wo_messagetitle, wo_messagebody));
+}
+
 @wrapMethod(CR4GuiManager)
 function OnEnteredMainMenu()
 {
@@ -54,7 +75,6 @@ function OnEnteredMainMenu()
 function OnAfterLoadingScreenGameStart()
 {
     wrappedMethod();
-    //LogChannel('WOLVEN TRAINER', "TRAINER INIT|load trainer");
     theGame.r_getMultiplayerClient().setInGame(true);
     theGame.r_getMultiplayerClient().setSpawnTime(theGame.GetEngineTimeAsSeconds());
     theGame.r_getMultiplayerClient().setEmote(-1);
@@ -63,9 +83,7 @@ function OnAfterLoadingScreenGameStart()
 
     if(!theGame.r_getMultiplayerClient().getReceived())
     {
-        GetWitcherPlayer().DisplayHudMessage("Your game is not communicating with the Witcher Online server.");
-        GetWitcherPlayer().DisplayHudMessage("Ensure your game was launched with -net -debugscripts and delete x64.final.redscripts.");
-        GetWitcherPlayer().DisplayHudMessage("Follow all steps from the Troubleshooting page of the wiki.");
+        thePlayer.AddTimer('r_showConnectionAlert', 1, false);
     }
 }
 
