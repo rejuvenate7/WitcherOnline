@@ -66,8 +66,12 @@ class MP_SU_Oneliner {
   //////////////////////////////////////////////////////////////////////////////
 
   function getVisible(player_position: Vector): bool {
+    if (!this.visible) {
+      return false;
+    }
+
     if (this.render_distance <= 0) {
-      return this.visible;
+      return true;
     }
 
     return VecDistanceSquared2D(

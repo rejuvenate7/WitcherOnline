@@ -839,6 +839,24 @@ class r_RemotePlayer
         createStatusOneliner();
     }
 
+    private function getUsernameColor() : string
+    {
+        var colors : array<r_NameColor>;
+        var i : int;
+
+        colors = theGame.r_getMultiplayerClient().getNameColors();
+
+        for(i = 0; i < colors.Size(); i += 1)
+        {
+            if(colors[i].playerName == username)
+            {
+                return colors[i].color;
+            }
+        }
+
+        return "#EDCBA3";
+    }
+
     private function createOneliner()
     {
         var tag : string;
@@ -859,7 +877,7 @@ class r_RemotePlayer
         oneliner.text = (new MP_SUOL_TagBuilder in theInput)
         .tag("font")
         .attr("size", "20")
-        .attr("color", "#EDCBA3")
+        .attr("color", getUsernameColor())
         .text(username);
         oneliner.visible = true;
         oneliner.entity = ghost;
@@ -890,7 +908,7 @@ class r_RemotePlayer
         chatOneliner.visible = false;
         chatOneliner.entity = ghost;
         chatOneliner.tag = tag;
-        chatOneliner.render_distance = StringToInt(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_RenderDistance'));
+        chatOneliner.render_distance = 100;
         MP_SUOL_getManager().createOneliner(chatOneliner);
     }
 
@@ -913,7 +931,7 @@ class r_RemotePlayer
             oneliner.text = (new MP_SUOL_TagBuilder in theInput)
             .tag("font")
             .attr("size", "20")
-            .attr("color", "#EDCBA3")
+            .attr("color", getUsernameColor())
             .text(username);
 
             oneliner.visible = true;

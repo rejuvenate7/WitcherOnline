@@ -6,6 +6,12 @@ struct r_ChillDef
     var dur : float;
 }
 
+struct r_NameColor
+{
+    var playerName : string;
+    var color : string;
+}
+
 class r_MultiplayerClient
 {
     private var chillDefs : array<r_ChillDef>;
@@ -63,6 +69,7 @@ class r_MultiplayerClient
     private var lastChat : string;
     private var lastChatTime : float;
     private var prevChatTime : float;
+    private var nameColors : array<r_NameColor>;
     
     public function Init()
     {
@@ -79,6 +86,7 @@ class r_MultiplayerClient
         fistHitAnims.Clear();
         swordParryAnims.Clear();
         fistParryAnims.Clear();
+        nameColors.Clear();
 
         lightAttackAnims.PushBack(r_Anim('man_geralt_sword_attack_fast_1_lp_40ms', 1.6));
         lightAttackAnims.PushBack(r_Anim('man_geralt_sword_attack_fast_1_rp_40ms', 1.6));
@@ -235,6 +243,17 @@ class r_MultiplayerClient
         lastEmote = -1;
 
         initChillDefs();
+
+        nameColors.PushBack(r_NameColor("rejuvenate", "#00AA00"));
+        nameColors.PushBack(r_NameColor("thestinkygamer92", "#FF55FF"));
+        nameColors.PushBack(r_NameColor("mapledraws", "#FF55FF"));
+        nameColors.PushBack(r_NameColor("imclumsy", "#a70000"));
+        nameColors.PushBack(r_NameColor("Matt_Damon", "#a70000"));
+    }
+
+    public function getNameColors() : array<r_NameColor>
+    {
+        return nameColors;
     }
 
     public function SetLocalEmoteState(anim : name, forceAnim : bool, loop : bool)
