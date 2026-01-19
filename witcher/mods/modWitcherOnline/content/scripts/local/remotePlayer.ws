@@ -962,7 +962,9 @@ class r_RemotePlayer
 
     private function createPin()
     {
-        pin = new MP_SU_MapPin in thePlayer;
+        MP_SU_removeCustomPin(pin);
+        
+        pin = new MP_SU_MapPin in this;
         pin.tag = "MPGhost_" + id;
         pin.position = ghost.GetWorldPosition();
         pin.description = username + "'s current location.";
