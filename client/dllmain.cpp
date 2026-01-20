@@ -237,51 +237,10 @@ void initScript()
 
 	std::string ip = xml.child("ServerIP").text().as_string();
 	int port = xml.child("Port").text().as_int();
-	bool firstLoad = xml.child("FirstLoad").text().as_bool();
 
 	if (ip.empty())
 	{
 		return;
-	}
-
-	if (!firstLoad)
-	{
-		fs::path witcher3 = getExecutablePath().parent_path();
-		fs::path redScriptsPath = witcher3 / "content" / "content0" / "x64.final.redscripts";
-
-		bool deleted = false;
-
-		try {
-			if (fs::exists(redScriptsPath)) {
-				fs::remove(redScriptsPath);
-				std::cout << "Deleted file: " << redScriptsPath << std::endl;
-				deleted = true;
-			}
-			else {
-				std::cout << "File does not exist: " << redScriptsPath << std::endl;
-			}
-		}
-		catch (const fs::filesystem_error& e) {
-			std::cerr << "Error deleting file: " << e.what() << std::endl;
-		}
-
-		if (deleted)
-		{
-			pugi::xml_node firstLoadNode = xml.child("FirstLoad");
-			if (firstLoadNode) {
-				firstLoadNode.text().set("true");
-			}
-			else {
-				xml.append_child("FirstLoad").text().set("true");
-			}
-
-			if (doc.save_file(fullPath.c_str())) {
-				std::cout << "Updated FirstLoad to true in config.xml" << std::endl;
-			}
-			else {
-				std::cerr << "Failed to save config.xml" << std::endl;
-			}
-		}
 	}
 
 	std::cout << "Username: " << username << std::endl;

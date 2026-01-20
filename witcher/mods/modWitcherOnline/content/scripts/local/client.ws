@@ -244,11 +244,9 @@ class r_MultiplayerClient
 
         initChillDefs();
 
-        nameColors.PushBack(r_NameColor("rejuvenate", "#00AA00"));
-        nameColors.PushBack(r_NameColor("thestinkygamer92", "#FF55FF"));
-        nameColors.PushBack(r_NameColor("mapledraws", "#FF55FF"));
-        nameColors.PushBack(r_NameColor("imclumsy", "#a70000"));
-        nameColors.PushBack(r_NameColor("Matt_Damon", "#a70000"));
+        nameColors.PushBack(r_NameColor("rejuvenate", "#5f90c6"));
+        nameColors.PushBack(r_NameColor("mapledraws", "#5f90c6"));
+        nameColors.PushBack(r_NameColor("imclumsy", "#5f90c6"));
     }
 
     public function getNameColors() : array<r_NameColor>
