@@ -31,8 +31,6 @@ class r_RemotePlayer
     public var heading     : float;
     public var speed     : float;
     public var area     : EAreaName;
-    public var pin: MP_SU_MapPin;
-    public var pinDestroyed: bool;
     public var ghost     : CActor;
     public var inGame : bool;
     public var heldItem : string;
@@ -248,6 +246,7 @@ class r_RemotePlayer
     public var hideHair : bool;
 
     public var nextOnelinerEnsureAt : float;
+    public var cpcNeedsRebuild : bool;
 
     private function updateTemplate(templateName : string, prevTemp : CEntityTemplate) : CEntityTemplate
     {
@@ -292,10 +291,10 @@ class r_RemotePlayer
 
     private function updateCPC()
     {
-        if(NR_GetPlayerManager().IsPlayerTypeChangeLocked() || theGame.IsDialogOrCutscenePlaying() || thePlayer.IsInNonGameplayCutscene())
+        if(NR_GetPlayerManager().IsPlayerTypeChangeLocked() || theGame.IsDialogOrCutscenePlaying() || thePlayer.IsInNonGameplayCutscene() || !ghost)
             return;
         
-        if(lastcpcPlayerType != cpcPlayerType)
+        if(lastcpcPlayerType != cpcPlayerType || cpcNeedsRebuild)
         {
             removeTemplate(cpcHairTemp);
             removeTemplate(cpcBodyTemp);
@@ -362,6 +361,8 @@ class r_RemotePlayer
                 cpcBodyTemp = updateTemplate("characters/models/main_npc/ciri/body_01_wa__ciri.w2ent", cpcBodyTemp);
                 hideBody = true;
             }
+
+            cpcNeedsRebuild = false;
         }
 
         lastcpcPlayerType = cpcPlayerType;
@@ -825,7 +826,7 @@ class r_RemotePlayer
                 || t == 'sign' || t == 'jump' || t == 'climb' || t == 'dead' || t == 'rend');
     }
 
-    private function ensureOneliners()
+    protected function ensureOneliners()
     {
         var tag : string = "MPGhost" + id;
         var statusTag : string = "MPGhostStatus" + id;
@@ -886,6 +887,27 @@ class r_RemotePlayer
         MP_SUOL_getManager().createOneliner(oneliner);
     }
 
+    private function createDummyOneliner()
+    {
+        var oneliner: MP_SU_Oneliner;
+        var tag : string;
+
+        tag = "MPGhostDummy" + id;
+
+        oneliner = new MP_SU_Oneliner in theInput;
+        oneliner.text = (new MP_SUOL_TagBuilder in theInput)
+        .tag("font")
+        .attr("size", "20")
+        .attr("color", getUsernameColor())
+        .text(username);
+        oneliner.position = pos;
+        oneliner.tag = tag;
+        oneliner.visible = true;
+        oneliner.render_distance = StringToInt(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_RenderDistance'));
+
+        MP_SUOL_getManager().createOneliner(oneliner);
+    }
+
     private function createStatusOneliner()
     {
         var tag : string;
@@ -939,6 +961,45 @@ class r_RemotePlayer
         }
     }
 
+    private function updateDummyOneliner()
+    {
+        var oneliner     : MP_SU_Oneliner;
+        var tag : string;
+
+        tag = "MPGhostDummy" + id;
+
+        oneliner = (MP_SU_Oneliner)MP_SUOL_getManager().findByTag(tag);
+    
+        if(!oneliner)
+        {
+            createDummyOneliner();
+            return;
+        }
+        
+        if(lastUsername != username)
+        {
+            lastUsername = username;
+
+            oneliner.text = (new MP_SUOL_TagBuilder in theInput)
+            .tag("font")
+            .attr("size", "30")
+            .attr("color", getUsernameColor())
+            .text(username);
+        }
+        
+        if(!isInRange())
+        {
+            oneliner.visible = true;
+        }
+        else
+        {
+            oneliner.visible = false;
+        }
+
+        oneliner.render_distance = StringToInt(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_RenderDistance'));
+        oneliner.position = pos;
+    }
+
     private function updateStatus(msg : string)
     {
         var tag : string;
@@ -962,11 +1023,19 @@ class r_RemotePlayer
 
     private function createPin()
     {
-        MP_SU_removeCustomPin(pin);
-        
+        var pin: MP_SU_MapPin;
         pin = new MP_SU_MapPin in this;
         pin.tag = "MPGhost_" + id;
-        pin.position = ghost.GetWorldPosition();
+
+        if(ghost)
+        {
+            pin.position = ghost.GetWorldPosition();
+        }
+        else
+        {
+            pin.position = pos;
+        }
+
         pin.description = username + "'s current location.";
         pin.label = username;
         pin.type = "Player";
@@ -977,17 +1046,22 @@ class r_RemotePlayer
         pin.pointed_by_arrow = false;
         pin.is_fast_travel = true;
 
+        MP_SU_removeCustomPinByTag("MPGhost_" + id);
         MP_SUMP_addCustomPin(pin);
     }
 
     private function updatePin()
     {
         var playerAngle         : float;
-        playerAngle = -yaw;
+        var pin : MP_SU_MapPin;
 
-        if(!pin && !pinDestroyed)
+        playerAngle = -yaw;
+        pin = MP_SUMP_getCustomPinByTag("MPGhost_" + id);
+
+        if(!pin)
         {
             createPin();
+            return;
         }
 
         if ( playerAngle < 0 )
@@ -995,7 +1069,15 @@ class r_RemotePlayer
 			playerAngle += 360.0;
 		}
 
-        pin.position = ghost.GetWorldPosition();
+        if(ghost)
+        {
+            pin.position = ghost.GetWorldPosition();
+        }
+        else
+        {
+            pin.position = pos;
+        }
+
         pin.rotation = playerAngle;
         pin.description = username + "'s current location.";
         pin.label = username;
@@ -1005,13 +1087,16 @@ class r_RemotePlayer
 
     public function destroyPin()
     {
-        pinDestroyed = true;
         MP_SU_removeCustomPinByTag("MPGhost_" + id);
     }
 
     public function Init()
     {
-        spawnGhost();
+        if(isInRange())
+        {
+            spawnGhost();
+        }
+
         createPin();
         isAlive = true;
 
@@ -1087,20 +1172,17 @@ class r_RemotePlayer
         var ids : array<SItemUniqueId>;
         var inv : CInventoryComponent;
 
-        if(ghost)
-        {
-            ghost.Destroy();
-        }
+        despawn();
 
         initSmooth = false;
 
         if(cpcPlayerType == ENR_PlayerGeralt || cpcPlayerType == ENR_PlayerWitcher || cpcPlayerType == ENR_PlayerUnknown)
         {
-            ghost = (CActor)theGame.CreateEntity((CEntityTemplate)LoadResource("dlc\dlc_mpmod\data\entities\geralt_npc.w2ent", true ), pos, rot, true, true, false, PM_DontPersist );
+            ghost = (CActor)theGame.CreateEntity(theGame.r_getMultiplayerClient().getMaleTemp(), pos, rot, true, true, false, PM_DontPersist );
         }
         else
         {
-            ghost = (CActor)theGame.CreateEntity((CEntityTemplate)LoadResource("dlc\dlc_mpmod\data\entities\female_npc.w2ent", true ), pos, rot, true, true, false, PM_DontPersist );
+            ghost = (CActor)theGame.CreateEntity(theGame.r_getMultiplayerClient().getFemaleTemp(), pos, rot, true, true, false, PM_DontPersist );
         }
 
         ghost.AddTag('MPEntity');
@@ -1126,12 +1208,14 @@ class r_RemotePlayer
         }
 
         ensureOneliners();
+        cpcNeedsRebuild = true;
     }
 
     private function updateOneliners()
     {
         var tag : string;
         var statusTag : string; 
+        var dummyTag : string; 
         var now : float = theGame.GetEngineTimeAsSeconds();
         var oneliner     : MP_SU_OnelinerEntity;
         var chatOneliner     : MP_SU_OnelinerEntity;
@@ -1155,6 +1239,9 @@ class r_RemotePlayer
         {
             createStatusOneliner();
         }
+
+        oneliner.render_distance = StringToInt(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_RenderDistance'));
+        chatOneliner.render_distance = StringToInt(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_RenderDistance'));
     }
 
     private function repairGhost()
@@ -1165,10 +1252,39 @@ class r_RemotePlayer
         }
     }
 
+    private function isInRange() : bool
+    {
+        if (VecDistance2D( thePlayer.GetWorldPosition(), pos) < 100 )
+        {
+            return true;
+        }  
+
+        return false;
+    }
+
+    public function despawn()
+    {
+        if(ghost)
+        {
+            ghost.Destroy();
+            ghost = NULL;
+        }
+    }
+
     public function updateGhost()
     {
         var actors : array<CActor>;
         var i : int;
+        
+        updateDummyOneliner();
+
+        if (!isInRange())
+        {
+            despawn();   
+            updatePin();
+            prune();
+            return;
+        }
 
         repairGhost();
         updateAnimState();
@@ -1343,7 +1459,9 @@ class r_RemotePlayer
             return;
         }
 
-        if (menuName == "IngameMenu")
+        if(menuName == "InCutscene")
+            status = "In a cutscene";
+        else if (menuName == "IngameMenu")
 			status = "Game paused";
         else if (menuName == "GlossaryBestiaryMenu")
             status = "In the bestiary menu";
@@ -3347,7 +3465,7 @@ class r_RemotePlayer
         if(isMounted)
         {
             if(!lastMounted)
-            {
+            {                
                 if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
                 {
                     queueAnim('horse_mount_L', 1.37, 0.2, 0, 'none', true);

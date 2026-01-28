@@ -17,7 +17,7 @@
 			<Var id="MPGhosts_ShowSelf" displayName="MPGhosts_ShowSelf" displayType="TOGGLE"/>
 			<Var id="MPGhosts_GhostEffect" displayName="MPGhosts_GhostEffect" displayType="TOGGLE"/>
 			<Var id="MPGhosts_HideJoinNotis" displayName="MPGhosts_HideJoinNotis" displayType="TOGGLE"/>
-			<Var id="MPGhosts_RenderDistance" displayName="MPGhosts_RenderDistance" displayType="SLIDER;0;100;20"/>
+			<Var id="MPGhosts_RenderDistance" displayName="MPGhosts_RenderDistance" displayType="SLIDER;0;5000;100"/>
 		</VisibleVars>
 		
 	</Group>

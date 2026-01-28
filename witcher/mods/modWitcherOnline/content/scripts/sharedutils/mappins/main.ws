@@ -97,26 +97,6 @@ function MP_SU_updateMinimapPins() {
   }
 }
 
-function MP_SUMP_onPinUsed(pin_tag: name, area_id: int): bool {
-  var custom_pins: array<MP_SU_MapPin>;
-  var current_pin: MP_SU_MapPin;
-  var i: int;
-
-  custom_pins = MP_SUMP_getCustomPins();
-
-  for (i = 0; i < custom_pins.Size(); i += 1) {
-    current_pin = custom_pins[i];
-
-    if (current_pin.pin_tag == pin_tag) {
-      current_pin.onPinUsed();
-
-      return true;
-    }
-  }
-
-  return false;
-}
-
 function MP_SUMP_addCustomPin(pin: MP_SU_MapPin) {
   var manager: MP_SUMP_Manager;
 
@@ -126,6 +106,22 @@ function MP_SUMP_addCustomPin(pin: MP_SU_MapPin) {
 
 function MP_SUMP_getCustomPins(): array<MP_SU_MapPin> {
   return MP_SUMP_getManager().mappins;
+}
+
+function MP_SUMP_getCustomPinByTag(tag : string): MP_SU_MapPin {
+  var i : int;
+  var thePins : array<MP_SU_MapPin>;
+
+  thePins = MP_SUMP_getManager().mappins;
+  for(i = 0; i < thePins.Size(); i+=1)
+  {
+    if(thePins[i].tag == tag)
+    {
+      return thePins[i];
+    }
+  }
+
+  return NULL;
 }
 
 function MP_SUMP_updateCustomPinsLabel(tag: string, label: string) {

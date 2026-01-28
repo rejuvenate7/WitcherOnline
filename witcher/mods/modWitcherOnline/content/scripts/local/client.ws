@@ -70,6 +70,9 @@ class r_MultiplayerClient
     private var lastChatTime : float;
     private var prevChatTime : float;
     private var nameColors : array<r_NameColor>;
+
+    private var maleTemp : CEntityTemplate;
+    private var femaleTemp : CEntityTemplate;
     
     public function Init()
     {
@@ -87,6 +90,16 @@ class r_MultiplayerClient
         swordParryAnims.Clear();
         fistParryAnims.Clear();
         nameColors.Clear();
+
+        if(!maleTemp)
+        {
+            maleTemp = (CEntityTemplate)LoadResource("dlc\dlc_mpmod\data\entities\geralt_npc.w2ent", true );
+        }
+
+        if(!femaleTemp)
+        {
+            femaleTemp = (CEntityTemplate)LoadResource("dlc\dlc_mpmod\data\entities\female_npc.w2ent", true );
+        }
 
         lightAttackAnims.PushBack(r_Anim('man_geralt_sword_attack_fast_1_lp_40ms', 1.6));
         lightAttackAnims.PushBack(r_Anim('man_geralt_sword_attack_fast_1_rp_40ms', 1.6));
@@ -888,6 +901,27 @@ class r_MultiplayerClient
         }
     }
 
+    public function getMaleTemp() : CEntityTemplate
+    {
+        if(!maleTemp)
+        {
+            GetWitcherPlayer().DisplayHudMessage("temp null 1");
+            maleTemp = (CEntityTemplate)LoadResource("dlc\dlc_mpmod\data\entities\geralt_npc.w2ent", true );
+        }
+        return maleTemp;
+    }
+
+    public function getFemaleTemp() : CEntityTemplate
+    {
+        if(!femaleTemp)
+        {
+            GetWitcherPlayer().DisplayHudMessage("temp null 2");
+            femaleTemp = (CEntityTemplate)LoadResource("dlc\dlc_mpmod\data\entities\female_npc.w2ent", true );
+        }
+
+        return femaleTemp;
+    }
+
     public function updatePlayerData(id : string, username : string, x : float, y : float, z : float, w : float, heading : float, speed : float, 
                                         area : int, clientInGame : bool, heldItem : string, offhandItem : string, inCombat : bool, 
                                         isSwimming : bool, curState : name, lastJumpTime : float, lastJumpType : EJumpType, 
@@ -1196,7 +1230,8 @@ class r_MultiplayerClient
             {
                 MP_SUOL_getManager().deleteByTag("MPGhost" + id);
                 MP_SUOL_getManager().deleteByTag("MPGhostStatus" + id);
-                players[i].ghost.Destroy();
+                MP_SUOL_getManager().deleteByTag("MPGhostDummy" + id);
+                players[i].despawn();
                 players[i].destroyPin();
                 players.Remove(players[i]);
                 return;
@@ -1231,7 +1266,8 @@ class r_MultiplayerClient
         {
             MP_SUOL_getManager().deleteByTag("MPGhost" + players[i].id);
             MP_SUOL_getManager().deleteByTag("MPGhostStatus" + players[i].id);
-            players[i].ghost.Destroy();
+            MP_SUOL_getManager().deleteByTag("MPGhostDummy" + players[i].id);
+            players[i].despawn();
             players[i].destroyPin();
         }
 
@@ -1261,7 +1297,13 @@ class r_MultiplayerClient
 	}
 }
 
-exec function mpghosts_getData()
+exec function mpghosts_setUserId(playerId : string, username : string)
+{
+    theGame.r_getMultiplayerClient().setUserId(playerId, username);
+    theGame.r_getMultiplayerClient().setReceived();
+}
+
+exec function mpghosts_getData(optional playerId : string, optional username : string)
 {
     var pos : Vector;
     var list : string;
@@ -1299,6 +1341,9 @@ exec function mpghosts_getData()
     var appearanceItems : array< array<String> >;
     var heads : array< name >;
     var curType : ENR_PlayerType;
+
+    theGame.r_getMultiplayerClient().setUserId(playerId, username);
+    theGame.r_getMultiplayerClient().setReceived();
 
     inv = thePlayer.GetInventory();
     pos = thePlayer.GetWorldPosition();
@@ -1553,7 +1598,14 @@ exec function mpghosts_getData()
     }
     else
     {
-        list += "none";
+        if(theGame.IsDialogOrCutscenePlaying() || theGame.IsCurrentlyPlayingNonGameplayScene())
+        {
+            list += "InCutscene";
+        }
+        else
+        {
+            list += "none";
+        }
     }
     list += " ";
 
@@ -1837,12 +1889,6 @@ exec function mpghosts_disconnect(id :string)
 exec function mpghosts_destroyAll()
 {
     theGame.r_getMultiplayerClient().destroyAll();
-}
-
-exec function mpghosts_setUserId(id : string, username : string)
-{
-    theGame.r_getMultiplayerClient().setUserId(id, username);
-    theGame.r_getMultiplayerClient().setReceived();
 }
 
 function mpghosts_playerEmote(anim : name, optional noSmooth : bool)

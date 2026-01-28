@@ -181,12 +181,10 @@ static void PollPoseThread() {
 			if (g_world.isConnected() && g_client.IsConnected()) {
 
 				std::string out;
-				std::string code = "mpghosts_setUserId(\"" + g_world.getId() + "\", \"" + username + "\")";
-				g_client.ExecNoWaitLatest("userid", code);
 
 				auto tStart = clock::now();
 
-				bool ok = g_client.ExecTagged("mpghosts_getData()", "mpghosts_cli", out, 500);
+				bool ok = g_client.ExecTagged("mpghosts_getData(\"" + g_world.getId() + "\", \"" + username + "\")", "mpghosts_cli", out, 500);
 				auto tEnd = clock::now();
 
 				auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(tEnd - tStart).count();

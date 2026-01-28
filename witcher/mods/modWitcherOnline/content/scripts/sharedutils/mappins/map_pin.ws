@@ -123,16 +123,6 @@ class MP_SU_MapPin {
 
     return this;
   }
-
-  public function onPinUsed() {
-    var destination: Vector;
-
-    if (this.is_fast_travel) {
-      destination = this.position;
-
-      thePlayer.DebugTeleportToPin(destination.X, destination.Y);
-    }
-  }
 }
 
 

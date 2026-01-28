@@ -21,15 +21,6 @@ function UpdateUserMapPins( out flashArray : CScriptedFlashArray, indexToUpdate 
   }
 }
 
-@wrapMethod(CR4MapMenu)
-function OnStaticMapPinUsed( pinTag : name, areaId : int) {
-  if (MP_SUMP_onPinUsed(pinTag, areaId)) {
-    return true;
-  }
-
-  return wrappedMethod(pinTag, areaId);
-}
-
 @wrapMethod(CR4HudModuleMinimap2)
 function OnConfigUI() {
   MP_SU_updateMinimapPins();
