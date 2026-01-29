@@ -17,7 +17,7 @@ struct r_Anim
     var duration : float;
 }
 
-class r_RemotePlayer 
+statemachine class r_RemotePlayer 
 {
     public var id      : string;
     public var lastUpdate : float;
@@ -248,6 +248,7 @@ class r_RemotePlayer
     public var nextOnelinerEnsureAt : float;
     public var cpcNeedsRebuild : bool;
 
+    /*
     private function updateTemplate(templateName : string, prevTemp : CEntityTemplate) : CEntityTemplate
     {
 		var appearanceComponent : CAppearanceComponent;
@@ -263,7 +264,6 @@ class r_RemotePlayer
 
 		if (appearanceComponent) 
         {
-			/* LOAD */
 			template = (CEntityTemplate)LoadResource( templateName, true );
 			if (template) {
 				appearanceComponent.IncludeAppearanceTemplate(template);
@@ -271,7 +271,7 @@ class r_RemotePlayer
         }
 
         return template;
-	}
+	}*/
 
     private function loadHead(newHeadName : name) {
 		var headManager : CHeadManagerComponent;
@@ -282,7 +282,7 @@ class r_RemotePlayer
 		headManager.SetCustomHead( newHeadName );
 	}
 
-    private function removeTemplate(temp : CEntityTemplate)
+    protected function removeTemplate(temp : CEntityTemplate)
     {
         var appearanceComponent : CAppearanceComponent;
         appearanceComponent = (CAppearanceComponent)ghost.GetComponentByClassName( 'CAppearanceComponent' );
@@ -294,296 +294,10 @@ class r_RemotePlayer
         if(NR_GetPlayerManager().IsPlayerTypeChangeLocked() || theGame.IsDialogOrCutscenePlaying() || thePlayer.IsInNonGameplayCutscene() || !ghost)
             return;
         
-        if((lastcpcPlayerType != cpcPlayerType) || cpcNeedsRebuild)
+        if(this.GetCurrentStateName() != 'UpdateCPC')
         {
-            removeTemplate(cpcHairTemp);
-            removeTemplate(cpcBodyTemp);
-            removeTemplate(cpcTorsoTemp);
-            removeTemplate(cpcArmsTemp);
-            removeTemplate(cpcGlovesTemp);
-            removeTemplate(cpcDressTemp);
-            removeTemplate(cpcLegsTemp);
-            removeTemplate(cpcShoesTemp);
-            removeTemplate(cpcMiscTemp);
-            removeTemplate(cpcItem1Temp);
-            removeTemplate(cpcItem2Temp);
-            removeTemplate(cpcItem3Temp);
-            removeTemplate(cpcItem4Temp);
-            removeTemplate(cpcItem5Temp);
-            removeTemplate(cpcItem6Temp);
-            removeTemplate(cpcItem7Temp);
-            removeTemplate(cpcItem8Temp);
-            removeTemplate(cpcItem9Temp);
-            removeTemplate(cpcItem10Temp);
-            hideBody = false;
-            hideHair = false;
-            last_eq_hair = '';
-            headOverride = false;
-
-            lastcpcHead = '';
-            lastcpcHair = "";
-            lastcpcBody = "";
-            lastcpcTorso = "";
-            lastcpcArms = "";
-            lastcpcGloves = "";
-            lastcpcDress = "";
-            lastcpcLegs = "";
-            lastcpcShoes = "";
-            lastcpcMisc = "";
-            lastcpcItem1 = "";
-            lastcpcItem2 = "";
-            lastcpcItem3 = "";
-            lastcpcItem4 = "";
-            lastcpcItem5 = "";
-            lastcpcItem6 = "";
-            lastcpcItem7 = "";
-            lastcpcItem8 = "";
-            lastcpcItem9 = "";
-            lastcpcItem10 = "";
-
-            spawnGhost();
-
-            if(cpcPlayerType == ENR_PlayerCiri)
-            {
-                // ciri head
-                EquipNewItem(ghost.GetInventory(), last_eq_head, 'nr_h_01_wa__ciri');
-                headOverride = true;
-                
-                unmountHair();
-                hideHair = true;
-
-                //ciri hair
-                cpcHairTemp = updateTemplate("characters/models/main_npc/ciri/c_01_wa__ciri.w2ent", cpcHairTemp);
-                unmountHair();
-                hideHair = true;
-
-                //ciri body
-                cpcBodyTemp = updateTemplate("characters/models/main_npc/ciri/body_01_wa__ciri.w2ent", cpcBodyTemp);
-                hideBody = true;
-            }
-
-            cpcNeedsRebuild = false;
+            this.GotoState('UpdateCPC');
         }
-
-        lastcpcPlayerType = cpcPlayerType;
-
-        if(cpcPlayerType == ENR_PlayerGeralt || cpcPlayerType == ENR_PlayerCiri)
-        {
-            return;
-        }
-
-        if(lastcpcHead != cpcHead && cpcHead != 'none')
-        {
-            EquipNewItem(ghost.GetInventory(), last_eq_head, cpcHead);
-            headOverride = true;
-            
-            unmountHair();
-            hideHair = true;
-        }
-
-        if(lastcpcHair != cpcHair && cpcHair != "none")
-        {
-            cpcHairTemp = updateTemplate(cpcHair, cpcHairTemp);
-
-            unmountHair();
-            hideHair = true;
-        }
-        else if(cpcHair == "none")
-        {
-            unmountHair();
-            removeTemplate(cpcHairTemp);
-            hideHair = true;
-        }
-
-        if(lastcpcBody != cpcBody && cpcBody != "none")
-        {
-            cpcBodyTemp = updateTemplate(cpcBody, cpcBodyTemp);
-            hideBody = true;
-        }
-        else if(cpcBody == "none")
-        {
-            removeTemplate(cpcBodyTemp);
-        }
-
-        if(lastcpcTorso != cpcTorso && cpcTorso != "none")
-        {
-            cpcTorsoTemp = updateTemplate(cpcTorso, cpcTorsoTemp);
-            hideBody = true;
-        }
-        else if(cpcTorso == "none")
-        {
-            removeTemplate(cpcTorsoTemp);
-        }
-
-        if(lastcpcArms != cpcArms && cpcArms != "none")
-        {
-            cpcArmsTemp = updateTemplate(cpcArms, cpcArmsTemp);
-            hideBody = true;
-        }
-        else if(cpcArms == "none")
-        {
-            removeTemplate(cpcArmsTemp);
-        }
-
-        if(lastcpcGloves != cpcGloves && cpcGloves != "none")
-        {
-            cpcGlovesTemp = updateTemplate(cpcGloves, cpcGlovesTemp);
-            hideBody = true;
-        }
-        else if(cpcGloves == "none")
-        {
-            removeTemplate(cpcGlovesTemp);
-        }
-
-        if(lastcpcDress != cpcDress && cpcDress != "none")
-        {
-            cpcDressTemp = updateTemplate(cpcDress, cpcDressTemp);
-            hideBody = true;
-        }
-        else if(cpcDress == "none")
-        {
-            removeTemplate(cpcDressTemp);
-        }
-
-        if(lastcpcLegs != cpcLegs && cpcLegs != "none")
-        {
-            cpcLegsTemp = updateTemplate(cpcLegs, cpcLegsTemp);
-            hideBody = true;
-        }
-        else if(cpcLegs == "none")
-        {
-            removeTemplate(cpcLegsTemp);
-        }
-
-        if(lastcpcShoes != cpcShoes && cpcShoes != "none")
-        {
-            cpcShoesTemp = updateTemplate(cpcShoes, cpcShoesTemp);
-            hideBody = true;
-        }
-        else if(cpcShoes == "none")
-        {
-            removeTemplate(cpcShoesTemp);
-        }
-
-        if(lastcpcMisc != cpcMisc && cpcMisc != "none")
-        {
-            cpcMiscTemp = updateTemplate(cpcMisc, cpcMiscTemp);
-        }
-        else if(cpcMisc == "none")
-        {
-            removeTemplate(cpcMiscTemp);
-        }
-
-        if(lastcpcItem1 != cpcItem1 && cpcItem1 != "none")
-        {
-            cpcItem1Temp = updateTemplate(cpcItem1, cpcItem1Temp);
-        }
-        else if(cpcItem1 == "none")
-        {
-            removeTemplate(cpcItem1Temp);
-        }
-
-        if(lastcpcItem2 != cpcItem2 && cpcItem2 != "none")
-        {
-            cpcItem2Temp = updateTemplate(cpcItem2, cpcItem2Temp);
-        }
-        else if(cpcItem2 == "none")
-        {
-            removeTemplate(cpcItem2Temp);
-        }
-
-        if(lastcpcItem3 != cpcItem3 && cpcItem3 != "none")
-        {
-            cpcItem3Temp = updateTemplate(cpcItem3, cpcItem3Temp);
-        }
-        else if(cpcItem3 == "none")
-        {
-            removeTemplate(cpcItem3Temp);
-        }
-
-        if(lastcpcItem4 != cpcItem4 && cpcItem4 != "none")
-        {
-            cpcItem4Temp = updateTemplate(cpcItem4, cpcItem4Temp);
-        }
-        else if(cpcItem4 == "none")
-        {
-            removeTemplate(cpcItem4Temp);
-        }
-
-        if(lastcpcItem5 != cpcItem5 && cpcItem5 != "none")
-        {
-            cpcItem5Temp = updateTemplate(cpcItem5, cpcItem5Temp);
-        }
-        else if(cpcItem5 == "none")
-        {
-            removeTemplate(cpcItem5Temp);
-        }
-
-        if(lastcpcItem6 != cpcItem6 && cpcItem6 != "none")
-        {
-            cpcItem6Temp = updateTemplate(cpcItem6, cpcItem6Temp);
-        }
-        else if(cpcItem6 == "none")
-        {
-            removeTemplate(cpcItem6Temp);
-        }
-
-        if(lastcpcItem7 != cpcItem7 && cpcItem7 != "none")
-        {
-            cpcItem7Temp = updateTemplate(cpcItem7, cpcItem7Temp);
-        }
-        else if(cpcItem7 == "none")
-        {
-            removeTemplate(cpcItem7Temp);
-        }
-
-        if(lastcpcItem8 != cpcItem8 && cpcItem8 != "none")
-        {
-            cpcItem8Temp = updateTemplate(cpcItem8, cpcItem8Temp);
-        }
-        else if(cpcItem8 == "none")
-        {
-            removeTemplate(cpcItem8Temp);
-        }
-
-        if(lastcpcItem9 != cpcItem9 && cpcItem9 != "none")
-        {
-            cpcItem9Temp = updateTemplate(cpcItem9, cpcItem9Temp);
-        }
-        else if(cpcItem9 == "none")
-        {
-            removeTemplate(cpcItem9Temp);
-        }
-
-        if(lastcpcItem10 != cpcItem10 && cpcItem10 != "none")
-        {
-            cpcItem10Temp = updateTemplate(cpcItem10, cpcItem10Temp);
-        }
-        else if(cpcItem10 == "none")
-        {
-            removeTemplate(cpcItem10Temp);
-        }
-
-        lastcpcHead = cpcHead;
-        lastcpcHair = cpcHair;
-        lastcpcBody = cpcBody;
-        lastcpcTorso = cpcTorso;
-        lastcpcArms = cpcArms;
-        lastcpcGloves = cpcGloves;
-        lastcpcDress = cpcDress;
-        lastcpcLegs = cpcLegs;
-        lastcpcShoes = cpcShoes;
-        lastcpcMisc = cpcMisc;
-        lastcpcItem1 = cpcItem1;
-        lastcpcItem2 = cpcItem2;
-        lastcpcItem3 = cpcItem3;
-        lastcpcItem4 = cpcItem4;
-        lastcpcItem5 = cpcItem5;
-        lastcpcItem6 = cpcItem6;
-        lastcpcItem7 = cpcItem7;
-        lastcpcItem8 = cpcItem8;
-        lastcpcItem9 = cpcItem9;
-        lastcpcItem10 = cpcItem10;
     }
 
     private function queueAnim(anim : name, duration : float, fadeIn : float, fadeOut : float, type : name, optional overrideNow : bool, optional loop : bool)
@@ -1175,7 +889,7 @@ class r_RemotePlayer
         return 'down';
     }
 
-    private function spawnGhost()
+    protected function spawnGhost()
     {
         var rot : EulerAngles;
         var ids : array<SItemUniqueId>;
@@ -1707,7 +1421,7 @@ class r_RemotePlayer
         }
     }
 
-    private function unmountHair()
+    protected function unmountHair()
     {
         var ids : array<SItemUniqueId>;
         var inv : CInventoryComponent;
@@ -1788,7 +1502,7 @@ class r_RemotePlayer
         }
     }
 
-    private function EquipNewItem(inv : CInventoryComponent, out lastItem : name, newItem : name, optional mount : bool, optional hide : bool)
+    protected function EquipNewItem(inv : CInventoryComponent, out lastItem : name, newItem : name, optional mount : bool, optional hide : bool)
     {
         var ids : array<SItemUniqueId>;
         var ent : CEntity;
@@ -5283,4 +4997,344 @@ class r_RemotePlayer
     {
         ((CActor)entity).Teleport(pos);
     }
+}
+
+state UpdateCPC in r_RemotePlayer
+{
+    event OnEnterState(prevStateName : name)
+	{
+		updateCPCEntry();
+	}
+
+    entry function updateCPCEntry()
+	{
+        while(true)
+        {
+            if(NR_GetPlayerManager().IsPlayerTypeChangeLocked() || theGame.IsDialogOrCutscenePlaying() || thePlayer.IsInNonGameplayCutscene() || !parent.ghost)
+            {
+                SleepOneFrame();
+                continue;
+            }
+
+            if((parent.lastcpcPlayerType != parent.cpcPlayerType) || parent.cpcNeedsRebuild)
+            {
+                parent.removeTemplate(parent.cpcHairTemp);
+                parent.removeTemplate(parent.cpcBodyTemp);
+                parent.removeTemplate(parent.cpcTorsoTemp);
+                parent.removeTemplate(parent.cpcArmsTemp);
+                parent.removeTemplate(parent.cpcGlovesTemp);
+                parent.removeTemplate(parent.cpcDressTemp);
+                parent.removeTemplate(parent.cpcLegsTemp);
+                parent.removeTemplate(parent.cpcShoesTemp);
+                parent.removeTemplate(parent.cpcMiscTemp);
+                parent.removeTemplate(parent.cpcItem1Temp);
+                parent.removeTemplate(parent.cpcItem2Temp);
+                parent.removeTemplate(parent.cpcItem3Temp);
+                parent.removeTemplate(parent.cpcItem4Temp);
+                parent.removeTemplate(parent.cpcItem5Temp);
+                parent.removeTemplate(parent.cpcItem6Temp);
+                parent.removeTemplate(parent.cpcItem7Temp);
+                parent.removeTemplate(parent.cpcItem8Temp);
+                parent.removeTemplate(parent.cpcItem9Temp);
+                parent.removeTemplate(parent.cpcItem10Temp);
+                parent.hideBody = false;
+                parent.hideHair = false;
+                parent.last_eq_hair = '';
+                parent.headOverride = false;
+
+                parent.lastcpcHead = '';
+                parent.lastcpcHair = "";
+                parent.lastcpcBody = "";
+                parent.lastcpcTorso = "";
+                parent.lastcpcArms = "";
+                parent.lastcpcGloves = "";
+                parent.lastcpcDress = "";
+                parent.lastcpcLegs = "";
+                parent.lastcpcShoes = "";
+                parent.lastcpcMisc = "";
+                parent.lastcpcItem1 = "";
+                parent.lastcpcItem2 = "";
+                parent.lastcpcItem3 = "";
+                parent.lastcpcItem4 = "";
+                parent.lastcpcItem5 = "";
+                parent.lastcpcItem6 = "";
+                parent.lastcpcItem7 = "";
+                parent.lastcpcItem8 = "";
+                parent.lastcpcItem9 = "";
+                parent.lastcpcItem10 = "";
+
+                parent.spawnGhost();
+
+                if(parent.cpcPlayerType == ENR_PlayerCiri)
+                {
+                    // ciri head
+                    parent.EquipNewItem(parent.ghost.GetInventory(), parent.last_eq_head, 'nr_h_01_wa__ciri');
+                    parent.headOverride = true;
+                    
+                    parent.unmountHair();
+                    parent.hideHair = true;
+
+                    //ciri hair
+                    parent.cpcHairTemp = updateTemplate("characters/models/main_npc/ciri/c_01_wa__ciri.w2ent", parent.cpcHairTemp);
+                    parent.unmountHair();
+                    parent.hideHair = true;
+
+                    //ciri body
+                    parent.cpcBodyTemp = updateTemplate("characters/models/main_npc/ciri/body_01_wa__ciri.w2ent", parent.cpcBodyTemp);
+                    parent.hideBody = true;
+                }
+
+                parent.cpcNeedsRebuild = false;
+            }
+
+            parent.lastcpcPlayerType = parent.cpcPlayerType;
+
+            if(parent.cpcPlayerType == ENR_PlayerGeralt || parent.cpcPlayerType == ENR_PlayerCiri)
+            {
+                SleepOneFrame();
+                continue;
+            }
+
+            if(parent.lastcpcHead != parent.cpcHead && parent.cpcHead != 'none')
+            {
+                parent.EquipNewItem(parent.ghost.GetInventory(), parent.last_eq_head, parent.cpcHead);
+                parent.headOverride = true;
+                
+                parent.unmountHair();
+                parent.hideHair = true;
+            }
+
+            if(parent.lastcpcHair != parent.cpcHair && parent.cpcHair != "none")
+            {
+                parent.cpcHairTemp = updateTemplate(parent.cpcHair, parent.cpcHairTemp);
+
+                parent.unmountHair();
+                parent.hideHair = true;
+            }
+            else if(parent.cpcHair == "none")
+            {
+                parent.unmountHair();
+                parent.removeTemplate(parent.cpcHairTemp);
+                parent.hideHair = true;
+            }
+
+            if(parent.lastcpcBody != parent.cpcBody && parent.cpcBody != "none")
+            {
+                parent.cpcBodyTemp = updateTemplate(parent.cpcBody, parent.cpcBodyTemp);
+                parent.hideBody = true;
+            }
+            else if(parent.cpcBody == "none")
+            {
+                parent.removeTemplate(parent.cpcBodyTemp);
+            }
+
+            if(parent.lastcpcTorso != parent.cpcTorso && parent.cpcTorso != "none")
+            {
+                parent.cpcTorsoTemp = updateTemplate(parent.cpcTorso, parent.cpcTorsoTemp);
+                parent.hideBody = true;
+            }
+            else if(parent.cpcTorso == "none")
+            {
+                parent.removeTemplate(parent.cpcTorsoTemp);
+            }
+
+            if(parent.lastcpcArms != parent.cpcArms && parent.cpcArms != "none")
+            {
+                parent.cpcArmsTemp = updateTemplate(parent.cpcArms, parent.cpcArmsTemp);
+                parent.hideBody = true;
+            }
+            else if(parent.cpcArms == "none")
+            {
+                parent.removeTemplate(parent.cpcArmsTemp);
+            }
+
+            if(parent.lastcpcGloves != parent.cpcGloves && parent.cpcGloves != "none")
+            {
+                parent.cpcGlovesTemp = updateTemplate(parent.cpcGloves, parent.cpcGlovesTemp);
+                parent.hideBody = true;
+            }
+            else if(parent.cpcGloves == "none")
+            {
+                parent.removeTemplate(parent.cpcGlovesTemp);
+            }
+
+            if(parent.lastcpcDress != parent.cpcDress && parent.cpcDress != "none")
+            {
+                parent.cpcDressTemp = updateTemplate(parent.cpcDress, parent.cpcDressTemp);
+                parent.hideBody = true;
+            }
+            else if(parent.cpcDress == "none")
+            {
+                parent.removeTemplate(parent.cpcDressTemp);
+            }
+
+            if(parent.lastcpcLegs != parent.cpcLegs && parent.cpcLegs != "none")
+            {
+                parent.cpcLegsTemp = updateTemplate(parent.cpcLegs, parent.cpcLegsTemp);
+                parent.hideBody = true;
+            }
+            else if(parent.cpcLegs == "none")
+            {
+                parent.removeTemplate(parent.cpcLegsTemp);
+            }
+
+            if(parent.lastcpcShoes != parent.cpcShoes && parent.cpcShoes != "none")
+            {
+                parent.cpcShoesTemp = updateTemplate(parent.cpcShoes, parent.cpcShoesTemp);
+                parent.hideBody = true;
+            }
+            else if(parent.cpcShoes == "none")
+            {
+                parent.removeTemplate(parent.cpcShoesTemp);
+            }
+
+            if(parent.lastcpcMisc != parent.cpcMisc && parent.cpcMisc != "none")
+            {
+                parent.cpcMiscTemp = updateTemplate(parent.cpcMisc, parent.cpcMiscTemp);
+            }
+            else if(parent.cpcMisc == "none")
+            {
+                parent.removeTemplate(parent.cpcMiscTemp);
+            }
+
+            if(parent.lastcpcItem1 != parent.cpcItem1 && parent.cpcItem1 != "none")
+            {
+                parent.cpcItem1Temp = updateTemplate(parent.cpcItem1, parent.cpcItem1Temp);
+            }
+            else if(parent.cpcItem1 == "none")
+            {
+                parent.removeTemplate(parent.cpcItem1Temp);
+            }
+
+            if(parent.lastcpcItem2 != parent.cpcItem2 && parent.cpcItem2 != "none")
+            {
+                parent.cpcItem2Temp = updateTemplate(parent.cpcItem2, parent.cpcItem2Temp);
+            }
+            else if(parent.cpcItem2 == "none")
+            {
+                parent.removeTemplate(parent.cpcItem2Temp);
+            }
+
+            if(parent.lastcpcItem3 != parent.cpcItem3 && parent.cpcItem3 != "none")
+            {
+                parent.cpcItem3Temp = updateTemplate(parent.cpcItem3, parent.cpcItem3Temp);
+            }
+            else if(parent.cpcItem3 == "none")
+            {
+                parent.removeTemplate(parent.cpcItem3Temp);
+            }
+
+            if(parent.lastcpcItem4 != parent.cpcItem4 && parent.cpcItem4 != "none")
+            {
+                parent.cpcItem4Temp = updateTemplate(parent.cpcItem4, parent.cpcItem4Temp);
+            }
+            else if(parent.cpcItem4 == "none")
+            {
+                parent.removeTemplate(parent.cpcItem4Temp);
+            }
+
+            if(parent.lastcpcItem5 != parent.cpcItem5 && parent.cpcItem5 != "none")
+            {
+                parent.cpcItem5Temp = updateTemplate(parent.cpcItem5, parent.cpcItem5Temp);
+            }
+            else if(parent.cpcItem5 == "none")
+            {
+                parent.removeTemplate(parent.cpcItem5Temp);
+            }
+
+            if(parent.lastcpcItem6 != parent.cpcItem6 && parent.cpcItem6 != "none")
+            {
+                parent.cpcItem6Temp = updateTemplate(parent.cpcItem6, parent.cpcItem6Temp);
+            }
+            else if(parent.cpcItem6 == "none")
+            {
+                parent.removeTemplate(parent.cpcItem6Temp);
+            }
+
+            if(parent.lastcpcItem7 != parent.cpcItem7 && parent.cpcItem7 != "none")
+            {
+                parent.cpcItem7Temp = updateTemplate(parent.cpcItem7, parent.cpcItem7Temp);
+            }
+            else if(parent.cpcItem7 == "none")
+            {
+                parent.removeTemplate(parent.cpcItem7Temp);
+            }
+
+            if(parent.lastcpcItem8 != parent.cpcItem8 && parent.cpcItem8 != "none")
+            {
+                parent.cpcItem8Temp = updateTemplate(parent.cpcItem8, parent.cpcItem8Temp);
+            }
+            else if(parent.cpcItem8 == "none")
+            {
+                parent.removeTemplate(parent.cpcItem8Temp);
+            }
+
+            if(parent.lastcpcItem9 != parent.cpcItem9 && parent.cpcItem9 != "none")
+            {
+                parent.cpcItem9Temp = updateTemplate(parent.cpcItem9, parent.cpcItem9Temp);
+            }
+            else if(parent.cpcItem9 == "none")
+            {
+                parent.removeTemplate(parent.cpcItem9Temp);
+            }
+
+            if(parent.lastcpcItem10 != parent.cpcItem10 && parent.cpcItem10 != "none")
+            {
+                parent.cpcItem10Temp = updateTemplate(parent.cpcItem10, parent.cpcItem10Temp);
+            }
+            else if(parent.cpcItem10 == "none")
+            {
+                parent.removeTemplate(parent.cpcItem10Temp);
+            }
+
+            parent.lastcpcHead = parent.cpcHead;
+            parent.lastcpcHair = parent.cpcHair;
+            parent.lastcpcBody = parent.cpcBody;
+            parent.lastcpcTorso = parent.cpcTorso;
+            parent.lastcpcArms = parent.cpcArms;
+            parent.lastcpcGloves = parent.cpcGloves;
+            parent.lastcpcDress = parent.cpcDress;
+            parent.lastcpcLegs = parent.cpcLegs;
+            parent.lastcpcShoes = parent.cpcShoes;
+            parent.lastcpcMisc = parent.cpcMisc;
+            parent.lastcpcItem1 = parent.cpcItem1;
+            parent.lastcpcItem2 = parent.cpcItem2;
+            parent.lastcpcItem3 = parent.cpcItem3;
+            parent.lastcpcItem4 = parent.cpcItem4;
+            parent.lastcpcItem5 = parent.cpcItem5;
+            parent.lastcpcItem6 = parent.cpcItem6;
+            parent.lastcpcItem7 = parent.cpcItem7;
+            parent.lastcpcItem8 = parent.cpcItem8;
+            parent.lastcpcItem9 = parent.cpcItem9;
+            parent.lastcpcItem10 = parent.cpcItem10;
+
+            SleepOneFrame();
+        }
+	}
+
+    latent function updateTemplate(templateName : string, prevTemp : CEntityTemplate) : CEntityTemplate
+    {
+		var appearanceComponent : CAppearanceComponent;
+		var            template : CEntityTemplate;
+		var                   i : int;
+
+		if (templateName == "")
+			return template;
+
+		appearanceComponent = (CAppearanceComponent)parent.ghost.GetComponentByClassName( 'CAppearanceComponent' );
+
+        appearanceComponent.ExcludeAppearanceTemplate(prevTemp);
+
+		if (appearanceComponent) 
+        {
+			/* LOAD */
+			template = (CEntityTemplate)LoadResourceAsync( templateName, true );
+            SleepOneFrame();
+			if (template) {
+				appearanceComponent.IncludeAppearanceTemplate(template);
+			} 
+        }
+
+        return template;
+	}
 }
