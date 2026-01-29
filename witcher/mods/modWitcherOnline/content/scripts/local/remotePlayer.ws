@@ -521,8 +521,6 @@ statemachine class r_RemotePlayer
 
         MP_SUOL_getManager().deleteByTag(tag);
         MP_SUOL_getManager().deleteByTag(statusTag);
-        //MP_SUOL_getManager().deleteOneliner(oneliner);
-        //MP_SUOL_getManager().deleteOneliner(chatOneliner);
 
         createOneliner();
         createStatusOneliner();
@@ -787,16 +785,8 @@ statemachine class r_RemotePlayer
         MP_SU_removeCustomPinByTag("MPGhost_" + id);
     }
 
-    public function Init()
+    private function resetStates()
     {
-        if(isInRange())
-        {
-            spawnGhost();
-        }
-
-        createPin();
-        isAlive = true;
-
         prevJumpTime = 0;
         chatShownAt = -1;
 
@@ -810,6 +800,7 @@ statemachine class r_RemotePlayer
         prevSignTime = -1;
         prevEmoteTime = -1;
         prevChatTime = -1;
+        prevActionTime = -1;
 
         lastMoveDir = 'none';
         lastVerticalMoveDir = 'none';
@@ -817,13 +808,27 @@ statemachine class r_RemotePlayer
         lastSwimType = 'none';
         lastMovementType = 'none';
         lastEmote = -1;
+
+        lastIdleAnim = theGame.GetEngineTimeAsSeconds();
+    }
+
+    public function Init()
+    {
+        if(isInRange())
+        {
+            spawnGhost();
+        }
+
+        createPin();
+        isAlive = true;
+
+        resetStates();
+
         chillRequeueLead = 0.12;
         
         smoothNext = true;
 
         lastcpcPlayerType = ENR_PlayerGeralt;
-
-        lastIdleAnim = theGame.GetEngineTimeAsSeconds();
     }
 
     private function ClassifyMoveDirRelativeToCamera(entpos : Vector, targpos : Vector, camYawDeg : float) : name
@@ -906,6 +911,8 @@ statemachine class r_RemotePlayer
 
         ensureOneliners();
         cpcNeedsRebuild = true;
+
+        resetStates();
     }
 
     private function updateOneliners()
@@ -981,6 +988,11 @@ statemachine class r_RemotePlayer
             despawn();   
             updatePin();
             prune();
+            return;
+        }
+
+        if(theGame.IsPaused() || theGame.GetPhotomodeEnabled())
+        {
             return;
         }
 
