@@ -4,7 +4,7 @@ var MP_sharedutils_mappins: MP_SUMP_Manager;
 @addMethod(CR4Player)
 function MP_getSharedutilsMappinsManager(): MP_SUMP_Manager {
   if (!this.MP_sharedutils_mappins) {
-    MP_SUMP_Logger("SUMP_getManager(), received null, instantiating instance");
+    //MP_SUMP_Logger("SUMP_getManager(), received null, instantiating instance");
     this.MP_sharedutils_mappins = new MP_SUMP_Manager in this;
   }
 

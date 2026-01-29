@@ -41,7 +41,7 @@ function MP_SU_removeCustomPinByTag(tag: String) {
 }
 
 function MP_SUMP_getManager(): MP_SUMP_Manager {
-  MP_SUMP_Logger("SUMP_getManager()");
+  //MP_SUMP_Logger("SUMP_getManager()");
 	
 	return thePlayer.MP_getSharedutilsMappinsManager();
 }

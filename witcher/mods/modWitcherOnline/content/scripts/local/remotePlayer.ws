@@ -248,36 +248,10 @@ statemachine class r_RemotePlayer
     public var nextOnelinerEnsureAt : float;
     public var cpcNeedsRebuild : bool;
 
-    /*
-    private function updateTemplate(templateName : string, prevTemp : CEntityTemplate) : CEntityTemplate
-    {
-		var appearanceComponent : CAppearanceComponent;
-		var            template : CEntityTemplate;
-		var                   i : int;
-
-		if (templateName == "")
-			return template;
-
-		appearanceComponent = (CAppearanceComponent)ghost.GetComponentByClassName( 'CAppearanceComponent' );
-
-        appearanceComponent.ExcludeAppearanceTemplate(prevTemp);
-
-		if (appearanceComponent) 
-        {
-			template = (CEntityTemplate)LoadResource( templateName, true );
-			if (template) {
-				appearanceComponent.IncludeAppearanceTemplate(template);
-			} 
-        }
-
-        return template;
-	}*/
-
     private function loadHead(newHeadName : name) {
 		var headManager : CHeadManagerComponent;
 
 		headManager = (CHeadManagerComponent)(ghost.GetComponentByClassName( 'CHeadManagerComponent' ));
-		//ghost.RememberCustomHead( newHeadName );
 		headManager.BlockGrowing( true );
 		headManager.SetCustomHead( newHeadName );
 	}
@@ -294,9 +268,9 @@ statemachine class r_RemotePlayer
         if(NR_GetPlayerManager().IsPlayerTypeChangeLocked() || theGame.IsDialogOrCutscenePlaying() || thePlayer.IsInNonGameplayCutscene() || !ghost)
             return;
         
-        if(this.GetCurrentStateName() != 'UpdateCPC')
+        if(this.GetCurrentStateName() != 'WO_UpdateCPC')
         {
-            this.GotoState('UpdateCPC');
+            this.GotoState('WO_UpdateCPC');
         }
     }
 
@@ -4999,14 +4973,22 @@ statemachine class r_RemotePlayer
     }
 }
 
-state UpdateCPC in r_RemotePlayer
+state WO_PlayerIdle in r_RemotePlayer {
+  event OnEnterState(previous_state_name: name) 
+  {
+    super.OnEnterState(previous_state_name);
+  }
+}
+
+state WO_UpdateCPC in r_RemotePlayer
 {
     event OnEnterState(prevStateName : name)
 	{
-		updateCPCEntry();
+		this.wo_updateCPCEntry();
+        this.GotoState('WO_PlayerIdle');
 	}
 
-    entry function updateCPCEntry()
+    entry function wo_updateCPCEntry()
 	{
         while(true)
         {

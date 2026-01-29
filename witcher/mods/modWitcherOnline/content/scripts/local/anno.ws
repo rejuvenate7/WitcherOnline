@@ -19,27 +19,9 @@ function OnSpawned(spawnData: SEntitySpawnData)
 {    
     theGame.r_getMultiplayerClient().setInGame(true);
     theGame.r_getMultiplayerClient().setSpawnTime(theGame.GetEngineTimeAsSeconds());
+    theGame.r_getMultiplayerClient().startTick();
     
-    AddTimer('r_updateClient', 0, true);
     wrappedMethod(spawnData);
-}
-
-@addMethod(CR4Player) 
-timer function r_updateClient(dt : float, id : int)
-{
-    if (!theGame.r_getMultiplayerClient().getInGame())
-        return;
-
-    if(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_HideGhosts'))
-    {
-        theGame.r_getMultiplayerClient().destroyAll();
-        return;
-    }
-
-    theGame.r_getMultiplayerClient().renderPlayers();
-    theGame.r_getMultiplayerClient().updatePlayerChat();
-    theGame.r_getMultiplayerClient().UpdateLocalEmoteLoop();
-    theGame.r_getMultiplayerClient().pruneGlobalPlayers(10);
 }
 
 @addMethod(CR4Player) 

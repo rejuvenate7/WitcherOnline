@@ -12,7 +12,7 @@ struct r_NameColor
     var color : string;
 }
 
-class r_MultiplayerClient
+statemachine class r_MultiplayerClient
 {
     private var chillDefs : array<r_ChillDef>;
     private var id, username : string;
@@ -260,6 +260,16 @@ class r_MultiplayerClient
         nameColors.PushBack(r_NameColor("rejuvenate", "#5f90c6"));
         nameColors.PushBack(r_NameColor("mapledraws", "#5f90c6"));
         nameColors.PushBack(r_NameColor("imclumsy", "#5f90c6"));
+
+        this.GotoState('WO_ClientIdle');
+    }
+
+    public function startTick()
+    {
+        if(this.GetCurrentStateName() != 'WO_Tick')
+        {
+            this.GotoState('WO_Tick');
+        }
     }
 
     public function getNameColors() : array<r_NameColor>
@@ -2368,4 +2378,46 @@ exec function list()
 
 
     theGame.r_getMultiplayerClient().DisplayUserMessage(WitcherOnline_PlayerNotification(messagetitle, messagebody));
+}
+
+state WO_ClientIdle in r_MultiplayerClient {
+  event OnEnterState(previous_state_name: name) 
+  {
+    super.OnEnterState(previous_state_name);
+  }
+}
+
+state WO_Tick in r_MultiplayerClient
+{
+    event OnEnterState(prevStateName : name)
+	{
+		this.wo_tickEntry();
+        this.GotoState('WO_ClientIdle');
+	}
+
+    entry function wo_tickEntry()
+	{
+        while(true)
+        {
+            if (!parent.getInGame())
+            {
+                SleepOneFrame();
+                continue;
+            }
+
+            if(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_HideGhosts'))
+            {
+                parent.destroyAll();
+                SleepOneFrame();
+                continue;
+            }
+
+            parent.renderPlayers();
+            parent.updatePlayerChat();
+            parent.UpdateLocalEmoteLoop();
+            parent.pruneGlobalPlayers(10);
+
+            SleepOneFrame();
+        }
+    }
 }

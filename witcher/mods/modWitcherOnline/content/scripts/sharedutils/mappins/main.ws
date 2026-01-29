@@ -173,13 +173,13 @@ function MP_SUMP_updateCustomPinsLabel(tag: string, label: string) {
       return;
     }
   }
-  MP_SUMP_Logger("Unable to update label for map pin: " + tag);
+  //MP_SUMP_Logger("Unable to update label for map pin: " + tag);
 }
 
 function MP_SUMP_Logger(message: string, optional informGUI: bool) {
-	LogChannel('SUMP', message);
+	//LogChannel('SUMP', message);
 	
 	if (informGUI) {
-		theGame.GetGuiManager().ShowNotification("SUMP: " + message, 5, true);
+		//theGame.GetGuiManager().ShowNotification("SUMP: " + message, 5, true);
 	}
 }
