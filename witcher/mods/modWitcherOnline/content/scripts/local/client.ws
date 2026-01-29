@@ -1232,7 +1232,6 @@ class r_MultiplayerClient
                 MP_SUOL_getManager().deleteByTag("MPGhostStatus" + id);
                 MP_SUOL_getManager().deleteByTag("MPGhostDummy" + id);
                 players[i].despawn();
-                players[i].destroyPin();
                 players.Remove(players[i]);
                 return;
             }
@@ -1268,7 +1267,6 @@ class r_MultiplayerClient
             MP_SUOL_getManager().deleteByTag("MPGhostStatus" + players[i].id);
             MP_SUOL_getManager().deleteByTag("MPGhostDummy" + players[i].id);
             players[i].despawn();
-            players[i].destroyPin();
         }
 
         players.Clear();

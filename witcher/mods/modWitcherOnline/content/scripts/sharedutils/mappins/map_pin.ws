@@ -11,6 +11,8 @@ class MP_SU_MapPin {
    var rotation : float;
    default rotation = 0;
 
+   var playerId : int;
+
   /**
    * when set to true the map pin will appear under the 'Quests' label
    * on the world map filter pane.

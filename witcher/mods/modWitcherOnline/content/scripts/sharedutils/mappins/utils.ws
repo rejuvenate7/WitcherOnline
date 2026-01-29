@@ -21,85 +21,29 @@ function MP_SU_removeCustomPin(pin: MP_SU_MapPin, optional manager: MP_SUMP_Mana
   return true;
 }
 
-function MP_SU_removeCustomPinByTagPrefix(prefix: string) {
-  MP_SU_removeCustomPinByPredicate(
-    (new MP_SU_CustomPinRemoverPredicateTagStartsWith in thePlayer)
-      .init(prefix)
-  );
-}
-
 function MP_SU_removeCustomPinByTag(tag: String) {
-  MP_SU_removeCustomPinByPredicate(
-    (new MP_SU_CustomPinRemoverPredicateTagEquals in thePlayer)
-      .init(tag)
-  );
-}
+  var i : int;
+  var custom_pins: array<MP_SU_MapPin>;
+  var manager : MP_SUMP_Manager;
 
-function MP_SU_removeCustomPinByPosition(position: Vector) {
-  MP_SU_removeCustomPinByPredicate(
-    (new MP_SU_CustomPinRemoverPredicatePositionEquals in thePlayer)
-      .init(position)
-  );
+  custom_pins = MP_SUMP_getCustomPins();
+  manager = MP_SUMP_getManager();
+
+  for(i = 0; i < custom_pins.Size(); i+=1)
+  {
+    if(custom_pins[i].tag == tag)
+    {
+      MP_SU_removeMinimapPin(custom_pins[i].playerId);
+      manager.mappins.Erase(i);
+      return;
+    }
+  }
 }
 
 function MP_SUMP_getManager(): MP_SUMP_Manager {
   MP_SUMP_Logger("SUMP_getManager()");
 	
 	return thePlayer.MP_getSharedutilsMappinsManager();
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//       A series of prebuilt predicate removers that may be useful           //
-////////////////////////////////////////////////////////////////////////////////
-
-class MP_SU_CustomPinRemoverPredicateTagIncludesSubstring extends MP_SU_PredicateInterfaceRemovePin {
-  var substring: String;
-
-  function predicate(pin: MP_SU_MapPin): bool {
-    return StrContains(pin.tag, this.substring);
-  }
-}
-
-class MP_SU_CustomPinRemoverPredicateTagStartsWith extends MP_SU_PredicateInterfaceRemovePin {
-  var prefix: String;
-
-  function predicate(pin: MP_SU_MapPin): bool {
-    return StrContains(pin.tag, this.prefix);
-  }
-
-  function init(prefix: String): MP_SU_CustomPinRemoverPredicateTagStartsWith {
-    this.prefix = prefix;
-
-    return this;
-  }
-}
-
-class MP_SU_CustomPinRemoverPredicateTagEquals extends MP_SU_PredicateInterfaceRemovePin {
-  var tag: String;
-
-  function predicate(pin: MP_SU_MapPin): bool {
-    return pin.tag == this.tag;
-  }
-
-  function init(tag: String): MP_SU_CustomPinRemoverPredicateTagEquals {
-    this.tag = tag;
-
-    return this;
-  }
-}
-
-class MP_SU_CustomPinRemoverPredicatePositionEquals extends MP_SU_PredicateInterfaceRemovePin {
-  var position: Vector;
-
-  function predicate(pin: MP_SU_MapPin): bool {
-	return pin.position == this.position;
-  }
-
-  function init(position: Vector): MP_SU_CustomPinRemoverPredicatePositionEquals {
-    this.position = position;
-
-    return this;
-  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

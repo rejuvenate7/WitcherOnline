@@ -294,7 +294,7 @@ class r_RemotePlayer
         if(NR_GetPlayerManager().IsPlayerTypeChangeLocked() || theGame.IsDialogOrCutscenePlaying() || thePlayer.IsInNonGameplayCutscene() || !ghost)
             return;
         
-        if(lastcpcPlayerType != cpcPlayerType || cpcNeedsRebuild)
+        if((lastcpcPlayerType != cpcPlayerType) || cpcNeedsRebuild)
         {
             removeTemplate(cpcHairTemp);
             removeTemplate(cpcBodyTemp);
@@ -1024,8 +1024,18 @@ class r_RemotePlayer
     private function createPin()
     {
         var pin: MP_SU_MapPin;
+        var tagname : name;
+
+        pin = MP_SUMP_getCustomPinByTag("MPGhost_" + id);
+
+        if(pin)
+        {
+            return;
+        }
+
         pin = new MP_SU_MapPin in this;
         pin.tag = "MPGhost_" + id;
+        pin.playerId = StringToInt(id);
 
         if(ghost)
         {
@@ -1046,7 +1056,6 @@ class r_RemotePlayer
         pin.pointed_by_arrow = false;
         pin.is_fast_travel = true;
 
-        MP_SU_removeCustomPinByTag("MPGhost_" + id);
         MP_SUMP_addCustomPin(pin);
     }
 
@@ -1082,7 +1091,7 @@ class r_RemotePlayer
         pin.description = username + "'s current location.";
         pin.label = username;
         pin.region = area;
-        MP_SU_updateMinimapPins();
+        MP_SU_moveMinimapPins();
     }
 
     public function destroyPin()
@@ -1266,6 +1275,7 @@ class r_RemotePlayer
     {
         if(ghost)
         {
+            destroyPin();
             ghost.Destroy();
             ghost = NULL;
         }

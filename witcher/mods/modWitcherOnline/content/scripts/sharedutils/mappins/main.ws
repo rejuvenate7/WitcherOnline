@@ -75,8 +75,8 @@ function MP_SU_updateMinimapPins() {
         }
 
         m_AddMapPin.InvokeSelfNineArgs(
-          FlashArgInt(i),
-          FlashArgString("MPGhost"), // tag
+          FlashArgInt(50000 + pin.playerId),
+          FlashArgString(pin.tag), // tag
           FlashArgString("Companion"), 
           FlashArgNumber(pin.radius), // radius
           FlashArgBool(pin.pointed_by_arrow), // can be pointed by arrows
@@ -87,7 +87,44 @@ function MP_SU_updateMinimapPins() {
         );
 
         m_MovePin.InvokeSelfFourArgs(
-          FlashArgInt(i),
+          FlashArgInt(50000 + pin.playerId),
+          FlashArgNumber(pin.position.X),
+          FlashArgNumber(pin.position.Y),
+          FlashArgNumber(pin.radius)
+        );
+      }
+    }
+  }
+}
+
+function MP_SU_moveMinimapPins() {
+  var minimapModule : CR4HudModuleMinimap2;
+  var m_MovePin : CScriptedFlashFunction;
+  var flashModule : CScriptedFlashSprite;
+  var custom_pins: array<MP_SU_MapPin>;
+  var hud : CR4ScriptedHud;
+  var pin: MP_SU_MapPin;
+  var i: int;
+
+  hud = (CR4ScriptedHud)theGame.GetHud();
+  if (hud) {
+    minimapModule = (CR4HudModuleMinimap2)hud.GetHudModule("Minimap2Module");
+
+    if (minimapModule) {
+      flashModule = minimapModule.GetModuleFlash();
+      m_MovePin = flashModule.GetMemberFlashFunction( "MoveMapPin" );
+
+      custom_pins = MP_SUMP_getCustomPins();
+
+      for (i = 0; i < custom_pins.Size(); i += 1) {
+        pin = custom_pins[i];
+
+        if (!pin.appears_on_minimap) {
+          continue;
+        }
+
+        m_MovePin.InvokeSelfFourArgs(
+          FlashArgInt(50000 + pin.playerId),
           FlashArgNumber(pin.position.X),
           FlashArgNumber(pin.position.Y),
           FlashArgNumber(pin.radius)
@@ -102,6 +139,8 @@ function MP_SUMP_addCustomPin(pin: MP_SU_MapPin) {
 
   manager = MP_SUMP_getManager();
   manager.mappins.PushBack(pin);
+
+  MP_SU_updateMinimapPins();
 }
 
 function MP_SUMP_getCustomPins(): array<MP_SU_MapPin> {
