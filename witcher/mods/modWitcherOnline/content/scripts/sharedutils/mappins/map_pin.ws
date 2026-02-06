@@ -12,7 +12,6 @@ class MP_SU_MapPin {
    default rotation = 0;
 
    var playerId : int;
-   var playerPos : Vector;
 
   /**
    * when set to true the map pin will appear under the 'Quests' label
