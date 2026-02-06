@@ -22,6 +22,7 @@ statemachine class r_RemotePlayer
     public var id      : string;
     public var lastUpdate : float;
     public var username      : string;
+    public var idName      : name;
     public var pos     : Vector;
     public var lastMoveDir : name;
     public var lastMoveDirAlt : name;
@@ -721,6 +722,7 @@ statemachine class r_RemotePlayer
 
         pin = new MP_SU_MapPin in this;
         pin.tag = "MPGhost_" + id;
+        pin.pin_tag = idName;
         pin.playerId = StringToInt(id);
 
         if(ghost)

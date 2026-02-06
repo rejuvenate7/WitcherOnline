@@ -930,7 +930,7 @@ statemachine class r_MultiplayerClient
         return femaleTemp;
     }
 
-    public function updatePlayerData(id : string, username : string, x : float, y : float, z : float, w : float, heading : float, speed : float, 
+    public function updatePlayerData(idName : name, username : string, x : float, y : float, z : float, w : float, heading : float, speed : float, 
                                         area : int, clientInGame : bool, heldItem : string, offhandItem : string, inCombat : bool, 
                                         isSwimming : bool, curState : name, lastJumpTime : float, lastJumpType : EJumpType, 
                                         lastClimbType : EClimbHeightType, isDiving : bool, isFalling : bool, lastLightAttackTime : float, 
@@ -948,6 +948,9 @@ statemachine class r_MultiplayerClient
         var position: Vector;
         var oneliner : MP_SU_Oneliner;
         var foundGlobal : bool;
+        var id : string;
+
+        id = NameToString(idName);
 
         if((id == theGame.r_getMultiplayerClient().getUserId()) && !theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_ShowSelf'))
         {
@@ -980,6 +983,7 @@ statemachine class r_MultiplayerClient
             {
                 globalPlayers[i].pos = position;
                 globalPlayers[i].username = username;
+                globalPlayers[i].idName = idName;
                 globalPlayers[i].area = area;
                 globalPlayers[i].lastUpdate = theGame.GetEngineTimeAsSeconds(); 
                 foundGlobal = true;
@@ -992,6 +996,7 @@ statemachine class r_MultiplayerClient
             p = new r_RemotePlayer in this;
             p.id = id;
             p.username = username;
+            p.idName = idName;
             p.pos = position;
             p.area = area;
             p.lastUpdate = theGame.GetEngineTimeAsSeconds();
@@ -1023,6 +1028,7 @@ statemachine class r_MultiplayerClient
                 }
 
                 players[i].username = username;
+                players[i].idName = idName;
                 players[i].lastUpdate = theGame.GetEngineTimeAsSeconds();
                 players[i].pos = position;
                 players[i].heading = heading;
@@ -1122,6 +1128,7 @@ statemachine class r_MultiplayerClient
             p = new r_RemotePlayer in this;
             p.id = id;
             p.username = username;
+            p.idName = idName;
             p.lastUpdate = theGame.GetEngineTimeAsSeconds();
             p.pos = position;
             p.heading = heading;
@@ -1863,7 +1870,7 @@ exec function mpghosts_getData(optional playerId : string, optional username : s
     Log("mpghosts_cli "+list);
 }
 
-exec function mpghosts_updatePlayerData(id : string, username : string, x : float, y : float, z : float, w : float, heading : float, speed : float, area : int, 
+exec function mpghosts_updatePlayerData(id : name, username : string, x : float, y : float, z : float, w : float, heading : float, speed : float, area : int, 
                                         inGame : bool, heldItem : string, offhandItem : string, inCombat : bool, isSwimming : bool, curState : name, 
                                         lastJumpTime : float, lastJumpType : EJumpType, lastClimbType : EClimbHeightType, isDiving : bool, isFalling : bool,
                                         lastLightAttackTime : float, lastHeavyAttackTime : float, lastDodgeTime : float, lastRollTime : float, isGuarded : bool,

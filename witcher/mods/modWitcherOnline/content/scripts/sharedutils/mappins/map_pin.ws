@@ -12,6 +12,7 @@ class MP_SU_MapPin {
    default rotation = 0;
 
    var playerId : int;
+   var playerPos : Vector;
 
   /**
    * when set to true the map pin will appear under the 'Quests' label
@@ -124,6 +125,27 @@ class MP_SU_MapPin {
     this.is_quest = _is_quest;
 
     return this;
+  }
+
+  public function onPinUsed() {
+    var mapManager 		: CCommonMapManager = theGame.GetCommonMapManager();
+		var rootMenu		: CR4Menu;
+		var mapMenu			: CR4MapMenu;
+      
+    rootMenu = (CR4Menu)theGame.GetGuiManager().GetRootMenu();
+		
+		if ( rootMenu )
+		{
+			mapMenu = (CR4MapMenu)rootMenu.GetSubMenu();
+			
+			if ( mapMenu )
+			{
+
+        rootMenu.CloseMenu();
+      }
+    }
+
+    thePlayer.Teleport(position);
   }
 }
 

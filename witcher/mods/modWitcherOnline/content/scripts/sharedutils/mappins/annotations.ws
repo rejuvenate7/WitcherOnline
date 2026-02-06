@@ -27,3 +27,32 @@ function OnConfigUI() {
 
   return wrappedMethod();
 }
+
+@wrapMethod(CR4MapMenu)
+function OnStaticMapPinUsed( pinTag : name, areaId : int) {
+  if (MP_SUMP_onPinUsed(pinTag, areaId)) {
+    return true;
+  }
+
+  return wrappedMethod(pinTag, areaId);
+}
+
+function MP_SUMP_onPinUsed(pin_tag: name, area_id: int): bool {
+  var custom_pins: array<MP_SU_MapPin>;
+  var current_pin: MP_SU_MapPin;
+  var i: int;
+
+  custom_pins = MP_SUMP_getCustomPins();
+
+  for (i = 0; i < custom_pins.Size(); i += 1) {
+    current_pin = custom_pins[i];
+
+    if (current_pin.pin_tag == pin_tag) {
+      current_pin.onPinUsed();
+
+      return true;
+    }
+  }
+
+  return false;
+}
