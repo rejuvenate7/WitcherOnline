@@ -165,7 +165,6 @@ function MP_SU_moveMinimapPins() {
 
     if (!found)
     {
-      LogChannel('WitcherOnline', "Unflashed unseen pin.");
       MP_SU_removeMinimapPin(seenId);
       manager.seenPinIds.Erase(i);
     }
