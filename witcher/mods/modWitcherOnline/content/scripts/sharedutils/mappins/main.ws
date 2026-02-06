@@ -55,6 +55,9 @@ function MP_SU_updateMinimapPins() {
   var hud : CR4ScriptedHud;
   var pin: MP_SU_MapPin;
   var i: int;
+  var manager: MP_SUMP_Manager;
+
+  manager = MP_SUMP_getManager();
 
   hud = (CR4ScriptedHud)theGame.GetHud();
   if (hud) {
@@ -92,6 +95,11 @@ function MP_SU_updateMinimapPins() {
           FlashArgNumber(pin.position.Y),
           FlashArgNumber(pin.radius)
         );
+
+        if(!manager.seenPinIds.Contains(pin.playerId))
+        {
+          manager.seenPinIds.PushBack(pin.playerId);
+        }
       }
     }
   }
@@ -104,7 +112,13 @@ function MP_SU_moveMinimapPins() {
   var custom_pins: array<MP_SU_MapPin>;
   var hud : CR4ScriptedHud;
   var pin: MP_SU_MapPin;
-  var i: int;
+  var i : int;
+  var j: int;
+  var seenId: int;
+  var found: bool;
+  var manager: MP_SUMP_Manager;
+
+  manager = MP_SUMP_getManager();
 
   hud = (CR4ScriptedHud)theGame.GetHud();
   if (hud) {
@@ -130,6 +144,30 @@ function MP_SU_moveMinimapPins() {
           FlashArgNumber(pin.radius)
         );
       }
+    }
+  }
+
+  for (i = manager.seenPinIds.Size() - 1; i >= 0; i -= 1)
+  {
+    seenId = manager.seenPinIds[i];
+    found = false;
+
+    for (j = 0; j < manager.mappins.Size(); j += 1)
+    {
+      pin = manager.mappins[j];
+
+      if (pin.playerId == seenId)
+      {
+        found = true;
+        break;
+      }
+    }
+
+    if (!found)
+    {
+      LogChannel('WitcherOnline', "Unflashed unseen pin.");
+      MP_SU_removeMinimapPin(seenId);
+      manager.seenPinIds.Erase(i);
     }
   }
 }

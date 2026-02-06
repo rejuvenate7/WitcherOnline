@@ -915,7 +915,6 @@ statemachine class r_MultiplayerClient
     {
         if(!maleTemp)
         {
-            GetWitcherPlayer().DisplayHudMessage("temp null 1");
             maleTemp = (CEntityTemplate)LoadResource("dlc\dlc_mpmod\data\entities\geralt_npc.w2ent", true );
         }
         return maleTemp;
@@ -925,7 +924,6 @@ statemachine class r_MultiplayerClient
     {
         if(!femaleTemp)
         {
-            GetWitcherPlayer().DisplayHudMessage("temp null 2");
             femaleTemp = (CEntityTemplate)LoadResource("dlc\dlc_mpmod\data\entities\female_npc.w2ent", true );
         }
 
@@ -1114,7 +1112,7 @@ statemachine class r_MultiplayerClient
             }
         }
 
-        if(!clientInGame)
+        if(!clientInGame || theGame.IsPaused() || theGame.GetPhotomodeEnabled())
         {
             return;
         }
@@ -2415,7 +2413,8 @@ state WO_Tick in r_MultiplayerClient
             parent.renderPlayers();
             parent.updatePlayerChat();
             parent.UpdateLocalEmoteLoop();
-            parent.pruneGlobalPlayers(10);
+            parent.pruneGlobalPlayers(3);
+            MP_SU_moveMinimapPins();
 
             SleepOneFrame();
         }

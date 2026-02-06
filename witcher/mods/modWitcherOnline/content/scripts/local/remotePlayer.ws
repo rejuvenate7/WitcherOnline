@@ -777,7 +777,6 @@ statemachine class r_RemotePlayer
         pin.description = username + "'s current location.";
         pin.label = username;
         pin.region = area;
-        MP_SU_moveMinimapPins();
     }
 
     public function destroyPin()
@@ -1016,7 +1015,7 @@ statemachine class r_RemotePlayer
 
     private function prune()
     {
-        if((theGame.GetEngineTimeAsSeconds() - lastUpdate) > 10)
+        if((theGame.GetEngineTimeAsSeconds() - lastUpdate) > 3)
         {
             theGame.r_getMultiplayerClient().disconnect(id);
             theGame.r_getMultiplayerClient().disconnectGlobal(id);
