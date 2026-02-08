@@ -70,6 +70,7 @@ statemachine class r_MultiplayerClient
     private var lastChatTime : float;
     private var prevChatTime : float;
     private var nameColors : array<r_NameColor>;
+    private var devManager : r_DevManager;
 
     private var maleTemp : CEntityTemplate;
     private var femaleTemp : CEntityTemplate;
@@ -90,6 +91,9 @@ statemachine class r_MultiplayerClient
         swordParryAnims.Clear();
         fistParryAnims.Clear();
         nameColors.Clear();
+
+        devManager = new r_DevManager in this;
+        devManager.Init(this);
 
         if(!maleTemp)
         {
@@ -521,6 +525,19 @@ statemachine class r_MultiplayerClient
                 deleteChatOneliner();
             }
         }
+    }
+
+    public function UpdateDevManager()
+    {
+        if (devManager)
+        {
+            devManager.Update(thePlayer);
+        }
+    }
+
+    public function GetDevManager() : r_DevManager
+    {
+        return devManager;
     }
 
     public function setReceived()
@@ -2419,6 +2436,7 @@ state WO_Tick in r_MultiplayerClient
 
             parent.renderPlayers();
             parent.updatePlayerChat();
+            parent.UpdateDevManager();
             parent.UpdateLocalEmoteLoop();
             parent.pruneGlobalPlayers(3);
             MP_SU_moveMinimapPins();
