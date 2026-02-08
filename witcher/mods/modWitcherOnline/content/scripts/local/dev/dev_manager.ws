@@ -2,12 +2,14 @@
 class r_DevManager {
     private var debugCoords : r_DebugCoords;
     private var tpWayCmd : r_TpWayCommand;
+    private var tpCmd : r_TpCommand;
 
     public function Init(client : r_MultiplayerClient) {
         debugCoords = new r_DebugCoords in client;
         debugCoords.Init(client);
         
         tpWayCmd = new r_TpWayCommand in client;
+        tpCmd = new r_TpCommand in client;
     }
 
     public function Update(player: CPlayer) {
@@ -16,6 +18,9 @@ class r_DevManager {
         }
         if (tpWayCmd) {
             tpWayCmd.Update(player);
+        }
+        if (tpCmd) {
+            tpCmd.Update(player);
         }
     }
 
@@ -28,5 +33,10 @@ class r_DevManager {
             tpWayCmd.TeleportToPin(thePlayer);
         }
     }
-}
 
+    public function TeleportTo(x : float, y : float, z : float, area : int) {
+        if (tpCmd) {
+            tpCmd.TeleportTo(thePlayer, x, y, z, area);
+        }
+    }
+}
