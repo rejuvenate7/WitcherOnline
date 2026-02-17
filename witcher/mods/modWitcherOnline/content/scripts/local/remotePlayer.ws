@@ -5001,6 +5001,96 @@ state WO_UpdateCPC in r_RemotePlayer
         this.GotoState('WO_PlayerIdle');
 	}
 
+    private function removeTemplates()
+    {
+        parent.removeTemplate(parent.cpcHairTemp);
+        parent.removeTemplate(parent.cpcBodyTemp);
+        parent.removeTemplate(parent.cpcTorsoTemp);
+        parent.removeTemplate(parent.cpcArmsTemp);
+        parent.removeTemplate(parent.cpcGlovesTemp);
+        parent.removeTemplate(parent.cpcDressTemp);
+        parent.removeTemplate(parent.cpcLegsTemp);
+        parent.removeTemplate(parent.cpcShoesTemp);
+        parent.removeTemplate(parent.cpcMiscTemp);
+        parent.removeTemplate(parent.cpcItem1Temp);
+        parent.removeTemplate(parent.cpcItem2Temp);
+        parent.removeTemplate(parent.cpcItem3Temp);
+        parent.removeTemplate(parent.cpcItem4Temp);
+        parent.removeTemplate(parent.cpcItem5Temp);
+        parent.removeTemplate(parent.cpcItem6Temp);
+        parent.removeTemplate(parent.cpcItem7Temp);
+        parent.removeTemplate(parent.cpcItem8Temp);
+        parent.removeTemplate(parent.cpcItem9Temp);
+        parent.removeTemplate(parent.cpcItem10Temp);
+        parent.hideBody = false;
+        parent.hideHair = false;
+        parent.last_eq_hair = '';
+        parent.headOverride = false;
+
+        parent.lastcpcHead = '';
+        parent.lastcpcHair = "";
+        parent.lastcpcBody = "";
+        parent.lastcpcTorso = "";
+        parent.lastcpcArms = "";
+        parent.lastcpcGloves = "";
+        parent.lastcpcDress = "";
+        parent.lastcpcLegs = "";
+        parent.lastcpcShoes = "";
+        parent.lastcpcMisc = "";
+        parent.lastcpcItem1 = "";
+        parent.lastcpcItem2 = "";
+        parent.lastcpcItem3 = "";
+        parent.lastcpcItem4 = "";
+        parent.lastcpcItem5 = "";
+        parent.lastcpcItem6 = "";
+        parent.lastcpcItem7 = "";
+        parent.lastcpcItem8 = "";
+        parent.lastcpcItem9 = "";
+        parent.lastcpcItem10 = "";
+    }
+
+    private function removeTemplatesNoHead()
+    {
+        parent.removeTemplate(parent.cpcBodyTemp);
+        parent.removeTemplate(parent.cpcTorsoTemp);
+        parent.removeTemplate(parent.cpcArmsTemp);
+        parent.removeTemplate(parent.cpcGlovesTemp);
+        parent.removeTemplate(parent.cpcDressTemp);
+        parent.removeTemplate(parent.cpcLegsTemp);
+        parent.removeTemplate(parent.cpcShoesTemp);
+        parent.removeTemplate(parent.cpcMiscTemp);
+        parent.removeTemplate(parent.cpcItem1Temp);
+        parent.removeTemplate(parent.cpcItem2Temp);
+        parent.removeTemplate(parent.cpcItem3Temp);
+        parent.removeTemplate(parent.cpcItem4Temp);
+        parent.removeTemplate(parent.cpcItem5Temp);
+        parent.removeTemplate(parent.cpcItem6Temp);
+        parent.removeTemplate(parent.cpcItem7Temp);
+        parent.removeTemplate(parent.cpcItem8Temp);
+        parent.removeTemplate(parent.cpcItem9Temp);
+        parent.removeTemplate(parent.cpcItem10Temp);
+        parent.hideBody = false;
+
+        parent.lastcpcBody = "";
+        parent.lastcpcTorso = "";
+        parent.lastcpcArms = "";
+        parent.lastcpcGloves = "";
+        parent.lastcpcDress = "";
+        parent.lastcpcLegs = "";
+        parent.lastcpcShoes = "";
+        parent.lastcpcMisc = "";
+        parent.lastcpcItem1 = "";
+        parent.lastcpcItem2 = "";
+        parent.lastcpcItem3 = "";
+        parent.lastcpcItem4 = "";
+        parent.lastcpcItem5 = "";
+        parent.lastcpcItem6 = "";
+        parent.lastcpcItem7 = "";
+        parent.lastcpcItem8 = "";
+        parent.lastcpcItem9 = "";
+        parent.lastcpcItem10 = "";
+    }
+
     entry function wo_updateCPCEntry()
 	{
         while(true)
@@ -5013,51 +5103,7 @@ state WO_UpdateCPC in r_RemotePlayer
 
             if((parent.lastcpcPlayerType != parent.cpcPlayerType) || parent.cpcNeedsRebuild)
             {
-                parent.removeTemplate(parent.cpcHairTemp);
-                parent.removeTemplate(parent.cpcBodyTemp);
-                parent.removeTemplate(parent.cpcTorsoTemp);
-                parent.removeTemplate(parent.cpcArmsTemp);
-                parent.removeTemplate(parent.cpcGlovesTemp);
-                parent.removeTemplate(parent.cpcDressTemp);
-                parent.removeTemplate(parent.cpcLegsTemp);
-                parent.removeTemplate(parent.cpcShoesTemp);
-                parent.removeTemplate(parent.cpcMiscTemp);
-                parent.removeTemplate(parent.cpcItem1Temp);
-                parent.removeTemplate(parent.cpcItem2Temp);
-                parent.removeTemplate(parent.cpcItem3Temp);
-                parent.removeTemplate(parent.cpcItem4Temp);
-                parent.removeTemplate(parent.cpcItem5Temp);
-                parent.removeTemplate(parent.cpcItem6Temp);
-                parent.removeTemplate(parent.cpcItem7Temp);
-                parent.removeTemplate(parent.cpcItem8Temp);
-                parent.removeTemplate(parent.cpcItem9Temp);
-                parent.removeTemplate(parent.cpcItem10Temp);
-                parent.hideBody = false;
-                parent.hideHair = false;
-                parent.last_eq_hair = '';
-                parent.headOverride = false;
-
-                parent.lastcpcHead = '';
-                parent.lastcpcHair = "";
-                parent.lastcpcBody = "";
-                parent.lastcpcTorso = "";
-                parent.lastcpcArms = "";
-                parent.lastcpcGloves = "";
-                parent.lastcpcDress = "";
-                parent.lastcpcLegs = "";
-                parent.lastcpcShoes = "";
-                parent.lastcpcMisc = "";
-                parent.lastcpcItem1 = "";
-                parent.lastcpcItem2 = "";
-                parent.lastcpcItem3 = "";
-                parent.lastcpcItem4 = "";
-                parent.lastcpcItem5 = "";
-                parent.lastcpcItem6 = "";
-                parent.lastcpcItem7 = "";
-                parent.lastcpcItem8 = "";
-                parent.lastcpcItem9 = "";
-                parent.lastcpcItem10 = "";
-
+                removeTemplates();
                 parent.spawnGhost();
 
                 if(parent.cpcPlayerType == ENR_PlayerCiri)
@@ -5111,6 +5157,15 @@ state WO_UpdateCPC in r_RemotePlayer
                 parent.unmountHair();
                 parent.removeTemplate(parent.cpcHairTemp);
                 parent.hideHair = true;
+            }
+
+            if(parent.cpcItem10 == "EquipmentMode")
+            {
+                parent.lastcpcHead = parent.cpcHead;
+                parent.lastcpcHair = parent.cpcHair;
+                removeTemplatesNoHead();
+                SleepOneFrame();
+                continue;
             }
 
             if(parent.lastcpcBody != parent.cpcBody && parent.cpcBody != "none")

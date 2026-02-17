@@ -1854,7 +1854,7 @@ exec function mpghosts_getData(optional playerId : string, optional username : s
     list += " ";
 
     // cpc items
-    for(i = 0; i < 10; i+=1)
+    for(i = 0; i < 9; i+=1)
     {
         if(appearanceItems[curType][i] != "")
         {
@@ -1865,6 +1865,22 @@ exec function mpghosts_getData(optional playerId : string, optional username : s
             list += "none";
         }
         list += " ";
+    }
+
+    if(NR_GetPlayerManager().IsRealEquipmentModeEnabled())
+    {
+        list += "EquipmentMode";
+    }
+    else
+    {
+        if(appearanceItems[curType][9] != "")
+        {
+            list += appearanceItems[curType][9];
+        }
+        else
+        {
+            list += "none";
+        }
     }
 
     Log("mpghosts_cli "+list);
