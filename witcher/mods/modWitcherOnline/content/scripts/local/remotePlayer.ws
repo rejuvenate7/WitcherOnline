@@ -3072,6 +3072,7 @@ statemachine class r_RemotePlayer
                 queueAnim('dialogue_jump_idle', 1.98, 0.2, 0, 'jump', true);
             }
             prevJumpTime = lastJumpTime;
+            prevRollTime = lastRollTime;
             isJumping = true;
         }
         else
