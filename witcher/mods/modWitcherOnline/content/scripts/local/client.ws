@@ -73,7 +73,152 @@ statemachine class r_MultiplayerClient
 
     private var maleTemp : CEntityTemplate;
     private var femaleTemp : CEntityTemplate;
+
+    private var menuOpen : bool;
+    private var menuSelectedPlayer : r_RemotePlayer;
+    private var menuOptions : array<MP_SU_OnelinerEntity>;
+    private var menuSelected : int;
     
+    public function createMenu(player : r_RemotePlayer)
+    {
+        var rideOption: MP_SU_OnelinerEntity;
+        var giftOption: MP_SU_OnelinerEntity;
+
+        if(!player)
+            return;
+        
+        menuSelectedPlayer = player;
+
+        rideOption = new MP_SU_OnelinerEntity in theInput;
+        rideOption.text = (new MP_SUOL_TagBuilder in theInput)
+        .tag("font")
+        .attr("size", "20")
+        .attr("color", "#FFFFFF")
+        .text("Ride");
+        rideOption.tag = "wo_RideOption";
+        rideOption.entity = player.ghost;
+        rideOption.visible = true;
+        MP_SUOL_getManager().createOneliner(rideOption);
+
+        giftOption = new MP_SU_OnelinerEntity in theInput;
+        giftOption.text = (new MP_SUOL_TagBuilder in theInput)
+        .tag("font")
+        .attr("size", "20")
+        .attr("color", "#FFFFFF")
+        .text("Gift");
+        giftOption.tag = "wo_GiftOption";
+        giftOption.entity = player.ghost;
+        giftOption.visible = true;
+        MP_SUOL_getManager().createOneliner(giftOption);
+
+        menuOptions.PushBack(rideOption);
+        menuOptions.PushBack(giftOption);
+
+        updateMenuPositions();
+        menuOpen = true;
+    }
+    
+    private var lastMenuSize : int;
+
+    public function updateMenuPositions()
+    {
+        var heading    : float;
+        var right      : Vector;
+        var off        : Vector;
+
+        var sideOffset : float = 0.55;
+        var height     : float = 1.40;
+        var spacing    : float;
+
+        var ride : MP_SU_OnelinerEntity;
+        var gift : MP_SU_OnelinerEntity;
+
+        var myPos     : Vector;
+        var targetPos : Vector;
+        var dist      : float;
+
+        var sizeMin   : float = 20.0;
+        var sizeMax   : float = 30.0;
+        var k         : float;
+        var nearDist : float = 2.0;
+        var minDist  : float = 0.5;
+
+        var sizeF     : float;
+        var sizeI     : int;
+
+        var spacingNear : float = 0.1;
+        var spacingFar  : float = 0.13;
+        var spacingNearDist : float = 2.0;
+        var spacingFarDist  : float = 4.0;
+
+        var sT : float;
+
+        if(!menuOpen || !menuSelectedPlayer || !menuSelectedPlayer.ghost)
+            return;
+
+        heading = menuSelectedPlayer.ghost.GetHeading();
+        right = VecFromHeading(heading + 90.0);
+        right.Z = 0.0;
+        right.W = 0.0;
+
+        myPos     = GetWitcherPlayer().GetWorldPosition();
+        targetPos = menuSelectedPlayer.ghost.GetWorldPosition();
+        dist      = VecDistance(myPos, targetPos);
+        dist      = MaxF(dist, minDist);
+
+        k     = sizeMax * nearDist;
+        sizeF = k / dist;
+        sizeF = ClampF(sizeF, sizeMin, sizeMax);
+        sizeI = RoundMath(sizeF);
+
+        sT = ClampF((dist - spacingNearDist) / (spacingFarDist - spacingNearDist), 0.0, 1.0);
+        spacing = LerpF(sT, spacingNear, spacingFar, true);
+
+        ride = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag("wo_RideOption");
+        if(ride)
+        {
+            off = Vector(right.X * sideOffset, right.Y * sideOffset, height + spacing * 0, 0.0);
+
+            ride.entity  = menuSelectedPlayer.ghost;
+            ride.offset  = off;
+            ride.visible = true;
+
+            if(sizeI != lastMenuSize)
+            {
+                ride.text = (new MP_SUOL_TagBuilder in theInput)
+                    .tag("font")
+                    .attr("size", "" + sizeI)
+                    .attr("color", "#FFFFFF")
+                    .text("Ride");
+            }
+
+            MP_SUOL_getManager().updateOneliner(ride);
+        }
+
+        gift = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag("wo_GiftOption");
+        if(gift)
+        {
+            off = Vector(right.X * sideOffset, right.Y * sideOffset, height + spacing * 1, 0.0);
+
+            gift.entity  = menuSelectedPlayer.ghost;
+            gift.offset  = off;
+            gift.visible = true;
+
+            if(sizeI != lastMenuSize)
+            {
+                gift.text = (new MP_SUOL_TagBuilder in theInput)
+                    .tag("font")
+                    .attr("size", "" + sizeI)
+                    .attr("color", "#FFFFFF")
+                    .text("Gift");
+            }
+
+            MP_SUOL_getManager().updateOneliner(gift);
+        }
+
+        lastMenuSize = sizeI;
+    }
+
     public function Init()
     {
         lightAttackAnims.Clear();
@@ -2308,6 +2453,24 @@ function mpghosts_teleport(user :string)
     }
 }
 
+function mpghosts_getPlayer(user : string) : r_RemotePlayer
+{
+    var players : array<r_RemotePlayer>;
+    var i : int;
+    players = theGame.r_getMultiplayerClient().getPlayers();
+
+    for(i = 0; i < players.Size(); i+=1)
+    {
+        if(players[i].username == user)
+        {
+            GetWitcherPlayer().DisplayHudMessage("Found player");
+            return players[i];
+        }
+    }
+
+    return NULL;
+}
+
 exec function teleport(user : string)
 {
     mpghosts_teleport(user);
@@ -2438,6 +2601,7 @@ state WO_Tick in r_MultiplayerClient
             parent.UpdateLocalEmoteLoop();
             parent.pruneGlobalPlayers(3);
             MP_SU_moveMinimapPins();
+            parent.updateMenuPositions();
 
             SleepOneFrame();
         }

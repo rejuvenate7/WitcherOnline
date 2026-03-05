@@ -266,3 +266,66 @@ function PlayerStartAction( playerAction : EPlayerExplorationAction, optional an
 
     return val;
 }
+
+@wrapMethod(CR4ItemSelectionPopup)
+function OnCallSelectItem(itemId : SItemUniqueId)
+{
+    if(m_DataObject.wo_isGift)
+    {
+        GetWitcherPlayer().DisplayHudMessage(thePlayer.GetInventory().GetItemName(itemId));
+        ClosePopup();
+    }
+    else
+    {
+        wrappedMethod(itemId);
+    }
+}
+
+@wrapMethod(CR4ItemSelectionPopup)
+function OnConfigUI()
+{
+    wrappedMethod();
+    //m_fxShowCategoryButtons.InvokeSelfOneArg( FlashArgBool(true) );
+
+    if(m_DataObject.wo_isGift)
+    {
+        m_fxSetCategory.InvokeSelfOneArg( FlashArgString("Gifting to " +m_DataObject.wo_toGift) );
+    }
+}
+
+@addField(W3ItemSelectionPopupData)
+var wo_toGift : string;
+
+@addField(W3ItemSelectionPopupData)
+var wo_isGift : bool;
+
+exec function test()
+{
+    var cat : array<name>;
+    var m_popupData : W3ItemSelectionPopupData;
+
+    m_popupData = new W3ItemSelectionPopupData in theGame.GetGuiManager();
+    m_popupData.targetInventory = thePlayer.GetInventory();
+    m_popupData.overrideQuestItemRestrictions = true;
+
+    // pages
+    //m_popupData.selectionMode = EISPM_RadialMenuSlot1;
+    m_popupData.selectionMode = EISPM_RadialMenuSilverOil;
+    m_popupData.wo_isGift = true;
+    m_popupData.wo_toGift = "Rejuvenate";
+    
+    //cat.PushBack('potion');
+    //cat.PushBack('edibles');
+    //m_popupData.categoryFilterList = cat;
+    
+    theGame.RequestPopup('ItemSelectionPopup', m_popupData);
+    
+    //ToggleRadialMenuInput(false);
+    //radialPopupShown = true;
+}
+
+exec function openMenu()
+{
+    //theGame.r_getMultiplayerClient().menuSelectedPlayer = mpghosts_getPlayer("rejuvenate");
+    theGame.r_getMultiplayerClient().createMenu(mpghosts_getPlayer("rejuvenate"));
+}
