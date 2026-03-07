@@ -22,4 +22,69 @@ statemachine class MPDRPlayer extends CNewNPC
 	{
 		
 	}
+
+	event OnInteraction(actionName: string, activator: CEntity) 
+	{
+		if (activator != thePlayer) 
+		{
+			return false;
+		}
+
+		if( actionName == "Interact" )
+		{
+			theGame.r_getMultiplayerClient().createMenu(((CActor)this));
+		}
+		else if( actionName == "Use" )
+		{
+			theGame.r_getMultiplayerClient().useMenu(((CActor)this));
+		}
+	}
+	
+	event OnInteractionActivationTest(interactionComponentName: string, activator: CEntity) 
+	{
+		if( interactionComponentName == "wo_interact" )
+		{
+			if( activator == thePlayer && !theGame.r_getMultiplayerClient().isMenuOpen() && !theGame.r_getMultiplayerClient().isRiding())
+			{	
+				return true;
+			}
+		}
+		else if( interactionComponentName == "wo_use" )
+		{
+			if( activator == thePlayer && theGame.r_getMultiplayerClient().isMenuOpen() && !theGame.r_getMultiplayerClient().isRiding() && (((CActor)this) == theGame.r_getMultiplayerClient().getSelectedPlayer().ghost))
+			{	
+				return true;
+			}
+		}
+		else
+		{
+			return false;
+		}
+
+		return false;
+	}
+
+  /*event OnInteractionActivated(interactionComponentName: string, activator: CEntity) 
+  {
+		if (activator != thePlayer) {
+			return false;
+		}
+
+		if( interactionComponentName == "wo_interact" )
+		{
+			theGame.r_getMultiplayerClient().createMenu(((CActor)this));
+		}
+		else if( interactionComponentName == "wo_use" )
+		{
+			GetWitcherPlayer().DisplayHudMessage("Select");
+		}
+	}
+
+  event OnInteractionDeactivated(interactionComponentName: string, activator: CEntity) {
+		if (activator != thePlayer) {
+			return false;
+		}
+
+		GetWitcherPlayer().DisplayHudMessage(interactionComponentName);
+	}*/
 }

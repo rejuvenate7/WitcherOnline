@@ -327,5 +327,36 @@ exec function test()
 exec function openMenu()
 {
     //theGame.r_getMultiplayerClient().menuSelectedPlayer = mpghosts_getPlayer("rejuvenate");
-    theGame.r_getMultiplayerClient().createMenu(mpghosts_getPlayer("rejuvenate"));
+    //theGame.r_getMultiplayerClient().createMenu(mpghosts_getPlayer("rejuvenate"));
+}
+
+@wrapMethod(CPlayerInput)
+function OnToggleSigns( action : SInputAction )
+{
+    var tolerance : float;
+	tolerance = 2.5f;
+
+    wrappedMethod(action);
+    
+    if( action.value < -tolerance )
+    {
+        theGame.r_getMultiplayerClient().updateMenuIndex(true);
+    }
+    else if( action.value > tolerance )
+    {
+        theGame.r_getMultiplayerClient().updateMenuIndex(false);
+    }
+}
+
+@wrapMethod(CExplorationStateManager) 
+function UpdateCameraIfNeeded( out moveData : SCameraMovementData, dt : float ) : bool
+{
+	if ( (theGame.r_getMultiplayerClient().isRiding()))
+	{
+		return theGame.r_getMultiplayerClient().updateCamera(moveData,dt);
+	}
+	else
+	{
+		return wrappedMethod(moveData, dt);
+	}
 }

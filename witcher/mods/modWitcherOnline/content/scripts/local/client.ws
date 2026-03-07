@@ -78,16 +78,110 @@ statemachine class r_MultiplayerClient
     private var menuSelectedPlayer : r_RemotePlayer;
     private var menuOptions : array<MP_SU_OnelinerEntity>;
     private var menuSelected : int;
+
+    private var ridingEnabled : bool;
+    private var ridingPlayer : r_RemotePlayer;
+
+    public function rideTick()
+    {   
+        var adjustor : CMovementAdjustor; 
+        var ticket : SMovementAdjustmentRequestTicket; 
+        var targpos : Vector;
+        var heading  : float;
+        var forward  : Vector;
+
+        if(!ridingEnabled)
+            return;
+
+        heading = ridingPlayer.ghost.GetHeading();
+
+        forward = VecFromHeading(heading);
+        forward.Z = 0.0;
+        forward.W = 0.0;
+        forward = VecNormalize2D(forward);
+
+        targpos = ridingPlayer.ghost.GetWorldPosition() + Vector(0,0,1.5);
+
+        targpos = targpos - (forward * 0.2);
+
+        adjustor = thePlayer.GetMovingAgentComponent().GetMovementAdjustor();
+        
+        adjustor.Cancel(adjustor.GetRequest('w3mp_ride'));
+        ticket = adjustor.CreateNewRequest('w3mp_ride');
+
+        adjustor.AdjustmentDuration(ticket, 0);
+        adjustor.AdjustLocationVertically(ticket, true);
+        adjustor.ScaleAnimationLocationVertically(ticket, true);
+        adjustor.RotateTo(ticket, ridingPlayer.ghost.GetHeading()); 
+        adjustor.SlideTo(ticket, targpos);
+    }
+
+    public function ridePlayer(actor : CActor)
+    {
+        var player : r_RemotePlayer;
+        player = mpghosts_getPlayerFromActor(actor);
+
+        if(!player)
+            return;
+
+        ridingPlayer = player;
+        ridingEnabled = true;
+
+        thePlayer.EnableCollisions(false);
+
+        mpghosts_emote(29);
+        deleteMenu();
+    }
+
+    function updateCamera( out moveData : SCameraMovementData, dt : float ) : bool
+    {
+        var camera								: CCustomCamera;
+        var cameraPreset						: SCustomCameraPreset;
+        
+        camera = (CCustomCamera)theCamera.GetTopmostCameraObject();
+        cameraPreset = camera.GetActivePreset();
+
+        camera.ChangePivotDistanceController( 'Default' );
+        camera.ChangePivotPositionController( 'Default' );
+        
+        moveData.pivotDistanceController = camera.GetActivePivotDistanceController();
+        moveData.pivotPositionController = camera.GetActivePivotPositionController();
+
+        moveData.pivotDistanceController.SetDesiredDistance(cameraPreset.distance + 1.0f);
+        moveData.pivotPositionController.SetDesiredPosition(thePlayer.GetWorldPosition());
+
+        //moveData.pivotPositionController.offsetZ = 2.25f;
+        return true;
+    }
+
+    public function stopRiding()
+    {
+        if(!ridingEnabled)
+            return;
+
+        ridingEnabled = false;
+        thePlayer.EnableCollisions(true);
+    }
+
+    public function isRiding() : bool
+    {
+        return ridingEnabled;
+    }
     
-    public function createMenu(player : r_RemotePlayer)
+    public function createMenu(actor : CActor)
     {
         var rideOption: MP_SU_OnelinerEntity;
         var giftOption: MP_SU_OnelinerEntity;
+        var closeOption: MP_SU_OnelinerEntity;
+        var player : r_RemotePlayer;
+
+        player = mpghosts_getPlayerFromActor(actor);
 
         if(!player)
             return;
         
         menuSelectedPlayer = player;
+        menuSelected = 0;
 
         rideOption = new MP_SU_OnelinerEntity in theInput;
         rideOption.text = (new MP_SUOL_TagBuilder in theInput)
@@ -111,14 +205,88 @@ statemachine class r_MultiplayerClient
         giftOption.visible = true;
         MP_SUOL_getManager().createOneliner(giftOption);
 
+        closeOption = new MP_SU_OnelinerEntity in theInput;
+        closeOption.text = (new MP_SUOL_TagBuilder in theInput)
+        .tag("font")
+        .attr("size", "20")
+        .attr("color", "#FFFFFF")
+        .text("Close");
+        closeOption.tag = "wo_CloseOption";
+        closeOption.entity = player.ghost;
+        closeOption.visible = true;
+        MP_SUOL_getManager().createOneliner(closeOption);
+
         menuOptions.PushBack(rideOption);
         menuOptions.PushBack(giftOption);
+        menuOptions.PushBack(closeOption);
 
         updateMenuPositions();
         menuOpen = true;
+        theSound.SoundEvent('gui_global_panel_open');
+    }
+
+    public function useMenu(actor : CActor)
+    {
+        if(menuOptions[menuSelected].tag == "wo_CloseOption")
+        {
+            deleteMenu();
+        }
+        else if(menuOptions[menuSelected].tag == "wo_RideOption")
+        {
+            thePlayer.SetExplCamera(false);
+            ridePlayer(actor);
+            thePlayer.SetExplCamera(false);
+        }
+    }
+
+    public function deleteMenu()
+    {
+        MP_SUOL_getManager().deleteByTag("wo_RideOption");
+        MP_SUOL_getManager().deleteByTag("wo_GiftOption");
+        MP_SUOL_getManager().deleteByTag("wo_CloseOption");
+        menuOptions.Clear();
+        menuOpen = false;
+        lastMenuSize = -1;
+        lastMenuIndex = -1;
+
+        theSound.SoundEvent('gui_global_panel_close');
+    }
+
+    public function isMenuOpen() : bool
+    {
+        return menuOpen;
+    }
+
+    public function getSelectedPlayer() : r_RemotePlayer
+    {
+        return menuSelectedPlayer;
+    }
+
+    public function updateMenuIndex(val : bool)
+    {
+        if(val)
+        {
+            menuSelected += 1;
+        }
+        else
+        {
+            menuSelected -= 1;
+        }
+
+        if(menuSelected >= menuOptions.Size())
+        {
+            menuSelected = 0;
+        }
+        if(menuSelected < 0)
+        {
+            menuSelected = menuOptions.Size()-1;
+        }
+
+        theSound.SoundEvent('gui_global_highlight');
     }
     
     private var lastMenuSize : int;
+    private var lastMenuIndex : int;
 
     public function updateMenuPositions()
     {
@@ -132,6 +300,7 @@ statemachine class r_MultiplayerClient
 
         var ride : MP_SU_OnelinerEntity;
         var gift : MP_SU_OnelinerEntity;
+        var close : MP_SU_OnelinerEntity;
 
         var myPos     : Vector;
         var targetPos : Vector;
@@ -153,6 +322,8 @@ statemachine class r_MultiplayerClient
 
         var sT : float;
 
+        var selectedColor : string = "#0b9dff";
+
         if(!menuOpen || !menuSelectedPlayer || !menuSelectedPlayer.ghost)
             return;
 
@@ -161,10 +332,16 @@ statemachine class r_MultiplayerClient
         right.Z = 0.0;
         right.W = 0.0;
 
-        myPos     = GetWitcherPlayer().GetWorldPosition();
+        myPos     = thePlayer.GetWorldPosition();
         targetPos = menuSelectedPlayer.ghost.GetWorldPosition();
         dist      = VecDistance(myPos, targetPos);
         dist      = MaxF(dist, minDist);
+
+        if(dist >= 6)
+        {
+            deleteMenu();
+            return;
+        }
 
         k     = sizeMax * nearDist;
         sizeF = k / dist;
@@ -177,19 +354,30 @@ statemachine class r_MultiplayerClient
         ride = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag("wo_RideOption");
         if(ride)
         {
-            off = Vector(right.X * sideOffset, right.Y * sideOffset, height + spacing * 0, 0.0);
+            off = Vector(right.X * sideOffset, right.Y * sideOffset, height + spacing * 2, 0.0);
 
             ride.entity  = menuSelectedPlayer.ghost;
             ride.offset  = off;
             ride.visible = true;
 
-            if(sizeI != lastMenuSize)
+            if(sizeI != lastMenuSize || menuSelected != lastMenuIndex)
             {
-                ride.text = (new MP_SUOL_TagBuilder in theInput)
-                    .tag("font")
-                    .attr("size", "" + sizeI)
-                    .attr("color", "#FFFFFF")
-                    .text("Ride");
+                if(menuSelected == 0)
+                {
+                    ride.text = (new MP_SUOL_TagBuilder in theInput)
+                        .tag("font")
+                        .attr("size", "" + sizeI)
+                        .attr("color", selectedColor)
+                        .text("Ride");
+                }
+                else
+                {
+                    ride.text = (new MP_SUOL_TagBuilder in theInput)
+                        .tag("font")
+                        .attr("size", "" + sizeI)
+                        .attr("color", "#FFFFFF")
+                        .text("Ride");
+                }
             }
 
             MP_SUOL_getManager().updateOneliner(ride);
@@ -204,19 +392,63 @@ statemachine class r_MultiplayerClient
             gift.offset  = off;
             gift.visible = true;
 
-            if(sizeI != lastMenuSize)
+            if(sizeI != lastMenuSize || menuSelected != lastMenuIndex)
             {
-                gift.text = (new MP_SUOL_TagBuilder in theInput)
-                    .tag("font")
-                    .attr("size", "" + sizeI)
-                    .attr("color", "#FFFFFF")
-                    .text("Gift");
+                if(menuSelected == 1)
+                {
+                    gift.text = (new MP_SUOL_TagBuilder in theInput)
+                        .tag("font")
+                        .attr("size", "" + sizeI)
+                        .attr("color", selectedColor)
+                        .text("Gift");
+                }
+                else
+                {
+                    gift.text = (new MP_SUOL_TagBuilder in theInput)
+                        .tag("font")
+                        .attr("size", "" + sizeI)
+                        .attr("color", "#FFFFFF")
+                        .text("Gift");
+                }
             }
 
             MP_SUOL_getManager().updateOneliner(gift);
         }
 
+        close = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag("wo_CloseOption");
+        if(close)
+        {
+            off = Vector(right.X * sideOffset, right.Y * sideOffset, height + spacing * 0, 0.0);
+
+            close.entity  = menuSelectedPlayer.ghost;
+            close.offset  = off;
+            close.visible = true;
+
+            if(sizeI != lastMenuSize || menuSelected != lastMenuIndex)
+            {
+                if(menuSelected == 2)
+                {
+                    close.text = (new MP_SUOL_TagBuilder in theInput)
+                        .tag("font")
+                        .attr("size", "" + sizeI)
+                        .attr("color", selectedColor)
+                        .text("Close");
+                }
+                else
+                {
+                    close.text = (new MP_SUOL_TagBuilder in theInput)
+                        .tag("font")
+                        .attr("size", "" + sizeI)
+                        .attr("color", "#FFFFFF")
+                        .text("Close");
+                }
+            }
+
+            MP_SUOL_getManager().updateOneliner(close);
+        }
+
         lastMenuSize = sizeI;
+        lastMenuIndex = menuSelected;
     }
 
     public function Init()
@@ -434,6 +666,8 @@ statemachine class r_MultiplayerClient
         localEmoteAnim = '';
         localEmoteForce = false;
         localEmoteLoop = false;
+
+        stopRiding();
     }
 
     private function GetLocalEmoteDuration() : float
@@ -591,6 +825,8 @@ statemachine class r_MultiplayerClient
         addChill('man_work_sit_table_drink_01', 5.67);
         addChill('high_sitting_leaning_sad_gesture_facepalm_1', 6.47);
         addChill('playing_cards_01_loop_03', 7.3);
+
+        addChill('geralt_relaxed_sitting_and_resting_2', 8.7);
     }
 
     public function findChillDuration(t : name) : float 
@@ -2409,6 +2645,11 @@ function mpghosts_emote(num : int)
         anim = 'man_peeing_loop';
         loop = true;
     }
+    else if (num == 29)
+    {
+        anim = 'geralt_relaxed_sitting_and_resting_2';
+        loop = true;
+    }
 
     theGame.r_getMultiplayerClient().setEmote(num);
     theGame.r_getMultiplayerClient().setLastEmoteTime(theGame.GetEngineTimeAsSeconds());
@@ -2463,7 +2704,23 @@ function mpghosts_getPlayer(user : string) : r_RemotePlayer
     {
         if(players[i].username == user)
         {
-            GetWitcherPlayer().DisplayHudMessage("Found player");
+            return players[i];
+        }
+    }
+
+    return NULL;
+}
+
+function mpghosts_getPlayerFromActor(actor : CActor) : r_RemotePlayer
+{
+    var players : array<r_RemotePlayer>;
+    var i : int;
+    players = theGame.r_getMultiplayerClient().getPlayers();
+
+    for(i = 0; i < players.Size(); i+=1)
+    {
+        if(players[i].ghost == actor)
+        {
             return players[i];
         }
     }
@@ -2600,8 +2857,9 @@ state WO_Tick in r_MultiplayerClient
             parent.updatePlayerChat();
             parent.UpdateLocalEmoteLoop();
             parent.pruneGlobalPlayers(3);
-            MP_SU_moveMinimapPins();
             parent.updateMenuPositions();
+            parent.rideTick();
+            MP_SU_moveMinimapPins();
 
             SleepOneFrame();
         }

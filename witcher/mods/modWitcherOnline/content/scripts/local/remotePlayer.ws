@@ -469,7 +469,7 @@ statemachine class r_RemotePlayer
             if (emoteCancelableAt > 0.0f && now >= emoteCancelableAt)
             {
                 if(lastAnim != 'fall_up_idle' && lastAnim != 'ep1_mirror_sitting_on_shrine_gesture_explain_04' && lastAnim != 'locomotion_salsa_cycle_02' && 
-                    lastAnim != 'seaman_working_on_the_ship_loop_01' && lastAnim != 'geralt_drunk_walk')
+                    lastAnim != 'seaman_working_on_the_ship_loop_01' && lastAnim != 'geralt_drunk_walk' && lastAnim != 'geralt_relaxed_sitting_and_resting_2')
                 {
                     stopAllAnims();
                 }
@@ -480,7 +480,7 @@ statemachine class r_RemotePlayer
         {
             if (emoteCancelableAt > 0.0f && now >= emoteCancelableAt)
             {
-                if(lastAnim != 'fall_up_idle')
+                if(lastAnim != 'fall_up_idle' && lastAnim != 'geralt_relaxed_sitting_and_resting_2')
                 {
                     stopAllAnims();
                 }
@@ -1401,6 +1401,10 @@ statemachine class r_RemotePlayer
             else if (lastEmote == 28)
             {
                 queueAnim('man_peeing_loop', 3.07, 0.4, 0, 'emote', true, true);
+            }
+            else if (lastEmote == 29)
+            {
+                queueAnim('geralt_relaxed_sitting_and_resting_2', 8.7, 0.4, 0, 'emote', true, true);
             }
 
             lastEmote = -1;
