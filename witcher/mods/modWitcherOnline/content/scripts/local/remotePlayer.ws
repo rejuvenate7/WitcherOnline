@@ -149,6 +149,9 @@ statemachine class r_RemotePlayer
 
     public var initSmooth : bool;
 
+    public var isRiding : bool;
+    public var ridingPlayerId : string;
+
     // items
     public var eq_steel : name;
     public var eq_silver : name;
@@ -977,6 +980,51 @@ statemachine class r_RemotePlayer
         }
     }
 
+    public function rideTick()
+    {
+        var adjustor : CMovementAdjustor; 
+        var ticket : SMovementAdjustmentRequestTicket; 
+        var targpos : Vector;
+        var heading  : float;
+        var forward  : Vector;
+        var ridingPlayer : r_RemotePlayer;
+        var toRide : CActor;
+
+        if(!isRiding)
+            return;
+
+        ridingPlayer = mpghosts_getPlayerById(ridingPlayerId);
+
+        if(!ridingPlayer)
+            return;
+
+        toRide = ridingPlayer.ghost;
+    
+        heading = toRide.GetHeading();
+
+        forward = VecFromHeading(heading);
+        forward.Z = 0.0;
+        forward.W = 0.0;
+        forward = VecNormalize2D(forward);
+
+        targpos = toRide.GetWorldPosition() + Vector(0,0,1.5);
+
+        targpos = targpos - (forward * 0.2);
+
+        adjustor = ghost.GetMovingAgentComponent().GetMovementAdjustor();
+        
+        adjustor.Cancel(adjustor.GetRequest('w3mp_ghost'));
+        adjustor.Cancel(adjustor.GetRequest('w3mp_rideremote'));
+        ticket = adjustor.CreateNewRequest('w3mp_rideremote');
+
+        adjustor.AdjustmentDuration(ticket, 0);
+        adjustor.AdjustLocationVertically(ticket, true);
+        adjustor.ScaleAnimationLocationVertically(ticket, true);
+        adjustor.RotateTo(ticket, toRide.GetHeading()); 
+        adjustor.SlideTo(ticket, targpos);
+        
+    }
+
     public function updateGhost()
     {
         var actors : array<CActor>;
@@ -1007,7 +1055,16 @@ statemachine class r_RemotePlayer
         updateMenuStatus();
         updateChat();
         updateCPC();
-        moveEntity(ghost, pos);
+
+        if(isRiding)
+        {
+            rideTick();
+        }
+        else
+        {
+            moveEntity(ghost, pos);
+        }
+
         updatePin();
         fixGeraltAppearance();
         updateUsername();

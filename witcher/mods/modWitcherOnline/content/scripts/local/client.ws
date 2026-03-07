@@ -116,6 +116,11 @@ statemachine class r_MultiplayerClient
         adjustor.SlideTo(ticket, targpos);
     }
 
+    public function getRidingPlayer() : r_RemotePlayer
+    {
+        return ridingPlayer;
+    }
+
     public function ridePlayer(actor : CActor)
     {
         var player : r_RemotePlayer;
@@ -128,6 +133,7 @@ statemachine class r_MultiplayerClient
         ridingEnabled = true;
 
         thePlayer.EnableCollisions(false);
+        thePlayer.SetExplCamera(false);
 
         mpghosts_emote(29);
         deleteMenu();
@@ -233,9 +239,7 @@ statemachine class r_MultiplayerClient
         }
         else if(menuOptions[menuSelected].tag == "wo_RideOption")
         {
-            thePlayer.SetExplCamera(false);
             ridePlayer(actor);
-            thePlayer.SetExplCamera(false);
         }
     }
 
@@ -1322,7 +1326,8 @@ statemachine class r_MultiplayerClient
                                         channeling : bool, menuName : string, lastActionTime : float, lastAction : EPlayerExplorationAction,
                                         steel : name, silver : name, armor : name, gloves : name, pants : name, boots : name, head : name, hair : name, steelScab : name, silverScab : name, crossbow : name, mask : name,
                                         cpcPlayerType : ENR_PlayerType, cpcHead : name, cpcHair : string, cpcBody : string, cpcTorso : string, cpcArms : string, cpcGloves : string, cpcDress : string, cpcLegs : string, cpcShoes : string, cpcMisc : string,
-                                        cpcItem1 : string, cpcItem2 : string, cpcItem3 : string, cpcItem4 : string, cpcItem5 : string, cpcItem6 : string, cpcItem7 : string, cpcItem8 : string, cpcItem9 : string, cpcItem10 : string) 
+                                        cpcItem1 : string, cpcItem2 : string, cpcItem3 : string, cpcItem4 : string, cpcItem5 : string, cpcItem6 : string, cpcItem7 : string, cpcItem8 : string, cpcItem9 : string, cpcItem10 : string,
+                                        optional isRiding : bool, optional ridingPlayerId : string) 
     {
         var i : int;
         var p : r_RemotePlayer;
@@ -1457,6 +1462,8 @@ statemachine class r_MultiplayerClient
                 players[i].menuName = menuName;
                 players[i].lastActionTime = lastActionTime;
                 players[i].lastAction = lastAction;
+                players[i].isRiding = isRiding;
+                players[i].ridingPlayerId = ridingPlayerId;
 
                 // armor
                 players[i].eq_steel = steel;
@@ -1557,6 +1564,8 @@ statemachine class r_MultiplayerClient
             p.menuName = menuName;
             p.lastActionTime = lastActionTime;
             p.lastAction = lastAction;
+            p.isRiding = isRiding;
+            p.ridingPlayerId = ridingPlayerId;
 
             // armor
             p.eq_steel = steel;
@@ -2263,6 +2272,13 @@ exec function mpghosts_getData(optional playerId : string, optional username : s
             list += "none";
         }
     }
+    list += " ";
+
+    list += theGame.r_getMultiplayerClient().isRiding();
+    list += " ";
+
+    list += theGame.r_getMultiplayerClient().getRidingPlayer().id;
+    list += " ";
 
     Log("mpghosts_cli "+list);
 }
@@ -2277,7 +2293,8 @@ exec function mpghosts_updatePlayerData(id : name, username : string, x : float,
                                         channeling : bool, menuName : string, lastActionTime : float, lastAction : EPlayerExplorationAction,
                                         steel : name, silver : name, armor : name, gloves : name, pants : name, boots : name, head : name, hair : name, steelScab : name, silverScab : name, crossbow : name, mask : name,
                                         cpcPlayerType : ENR_PlayerType, cpcHead : name, cpcHair : string, cpcBody : string, cpcTorso : string, cpcArms : string, cpcGloves : string, cpcDress : string, cpcLegs : string, cpcShoes : string, cpcMisc : string,
-                                        cpcItem1 : string, cpcItem2 : string, cpcItem3 : string, cpcItem4 : string, cpcItem5 : string, cpcItem6 : string, cpcItem7 : string, cpcItem8 : string, cpcItem9 : string, cpcItem10 : string) 
+                                        cpcItem1 : string, cpcItem2 : string, cpcItem3 : string, cpcItem4 : string, cpcItem5 : string, cpcItem6 : string, cpcItem7 : string, cpcItem8 : string, cpcItem9 : string, cpcItem10 : string,
+                                        optional isRiding : bool, optional ridingPlayerId : string) 
 {
     theGame.r_getMultiplayerClient().updatePlayerData(id, username, x, y, z, w, heading, speed, area, inGame, heldItem, offhandItem, inCombat, isSwimming, 
                                                             curState, lastJumpTime, lastJumpType, lastClimbType, isDiving, isFalling, lastLightAttackTime,
@@ -2287,7 +2304,8 @@ exec function mpghosts_updatePlayerData(id : name, username : string, x : float,
                                                             channeling, menuName, lastActionTime, lastAction,
                                                             steel, silver, armor, gloves, pants, boots, head, hair, steelScab, silverScab, crossbow, mask,
                                                             cpcPlayerType, cpcHead, cpcHair, cpcBody, cpcTorso, cpcArms, cpcGloves, cpcDress, cpcLegs, cpcShoes, cpcMisc,
-                                                            cpcItem1, cpcItem2, cpcItem3, cpcItem4, cpcItem5, cpcItem6, cpcItem7, cpcItem8, cpcItem9, cpcItem10);
+                                                            cpcItem1, cpcItem2, cpcItem3, cpcItem4, cpcItem5, cpcItem6, cpcItem7, cpcItem8, cpcItem9, cpcItem10,
+                                                            isRiding, ridingPlayerId);
 }
 
 exec function mpghosts_disconnect(id :string)
@@ -2703,6 +2721,23 @@ function mpghosts_getPlayer(user : string) : r_RemotePlayer
     for(i = 0; i < players.Size(); i+=1)
     {
         if(players[i].username == user)
+        {
+            return players[i];
+        }
+    }
+
+    return NULL;
+}
+
+function mpghosts_getPlayerById(id : string) : r_RemotePlayer
+{
+    var players : array<r_RemotePlayer>;
+    var i : int;
+    players = theGame.r_getMultiplayerClient().getPlayers();
+
+    for(i = 0; i < players.Size(); i+=1)
+    {
+        if(players[i].id == id)
         {
             return players[i];
         }
