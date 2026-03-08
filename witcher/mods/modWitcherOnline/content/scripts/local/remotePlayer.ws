@@ -155,7 +155,8 @@ statemachine class r_RemotePlayer
     public var outgoingTradeTo : string;
     public var outgoingTradeItem : name;
     public var outgoingTradePrice : int;
-    default outgoingTradePrice = -1;
+    public var outgoingTradeFlag : int;
+    default outgoingTradeFlag = -1;
 
     // items
     public var eq_steel : name;
@@ -834,7 +835,7 @@ statemachine class r_RemotePlayer
         resetStates();
 
         chillRequeueLead = 0.12;
-        outgoingTradePrice = -1;
+        outgoingTradeFlag = -1;
         
         smoothNext = true;
 

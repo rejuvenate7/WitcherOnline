@@ -6,6 +6,7 @@ class r_TradeWindow extends CR4HudModuleDialog {
     super.DialogueSliderDataPopupResult(0, false);
     trade_amount = (int)(value);
 
+    LogChannel('amountt', value);
     theGame.r_getMultiplayerClient().setTradeAmount(trade_amount);
   }
   
@@ -18,8 +19,8 @@ class r_TradeWindow extends CR4HudModuleDialog {
     data.dialogueRef = this;
     data.BlurBackground = false;
     data.minValue = 0;
-    data.maxValue = thePlayer.inv.GetMoney();
-    data.currentValue = Clamp(50, 0, data.maxValue);
+    data.maxValue = 50000;
+    data.currentValue = 25000;
     theGame.RequestMenu('PopupMenu', data);
   }
   
@@ -40,6 +41,7 @@ class r_TradeSliderData extends BettingSliderData
   {
     if (KeyCode=="enter-gamepad_A") 
     {
+      LogChannel('amounttt', currentValue);
       dialogueRef.DialogueSliderDataPopupResult(currentValue);
       ClosePopup();
     }

@@ -277,7 +277,6 @@ function OnCallSelectItem(itemId : SItemUniqueId)
     }
     else if(m_DataObject.wo_isReceivingTrade)
     {
-        GetWitcherPlayer().DisplayHudMessage("Accepted trade from " +m_DataObject.wo_toTrade);
         theGame.r_getMultiplayerClient().acceptTrade();
         ClosePopup();
     }
@@ -292,7 +291,7 @@ function OnCloseSelectionPopup()
 {
     if(m_DataObject.wo_isReceivingTrade)
     {
-        GetWitcherPlayer().DisplayHudMessage("Declined trade from " +m_DataObject.wo_toTrade);
+        GetWitcherPlayer().DisplayHudMessage("The trade was declined.");
         theGame.r_getMultiplayerClient().declineTrade();
         theSound.SoundEvent('gui_global_highlight');
         ClosePopup();
