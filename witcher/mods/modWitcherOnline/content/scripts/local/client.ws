@@ -82,6 +82,105 @@ statemachine class r_MultiplayerClient
     private var ridingEnabled : bool;
     private var ridingPlayer : r_RemotePlayer;
 
+    private var tradeInProgress : bool;
+    private var outgoingTradeTo : r_RemotePlayer;
+    private var outgoingTradeItem : name;
+    private var outgoingTradePrice : int;
+    default outgoingTradePrice = -1;
+
+    public function getOutgoingTradeTo() : string
+    {
+        return outgoingTradeTo.id;
+    }
+
+    public function getOutgoingTradeItem() : name
+    {
+        return outgoingTradeItem;
+    }
+
+    public function getOutgoingTradePrice() : int
+    {
+        return outgoingTradePrice;
+    }
+
+    public function checkOutgoingTrades()
+    {
+        var i : int;
+
+        if(tradeInProgress)
+            return;
+
+        for(i = 0; i < players.Size(); i+=1)
+        {
+            if(players[i].outgoingTradeTo == id)
+            {  
+                if(players[i].outgoingTradePrice >= 0)
+                {
+                    // outgoing trade
+                    openIncomingTrade(players[i].outgoingTradeItem, players[i].outgoingTradePrice);
+                    outgoingTradeTo = players[i];
+                    outgoingTradePrice = -2; // -1 means do nothing, -2 accept, -3 decline
+                    //GetWitcherPlayer().DisplayHudMessage("Received trade from");
+                }
+                else if(players[i].outgoingTradePrice == -2)
+                {
+                    // reset our outgoing trade price
+                    outgoingTradePrice = -1;
+                }
+                else if(players[i].outgoingTradePrice == -3)
+                {
+                    // reset our outgoing trade price
+                    outgoingTradePrice = -1;
+                }
+            }
+        }
+    }
+
+    public function acceptTrade()
+    {
+        outgoingTradePrice = -2;
+        tradeInProgress = false;
+    }
+
+    public function declineTrade()
+    {
+        outgoingTradePrice = -3;
+        tradeInProgress = false;
+    }
+
+    public function openIncomingTrade(itemName : name, price : int)
+    {
+        var cat : array<name>;
+        var m_popupData : W3ItemSelectionPopupData;
+        var inventory : CInventoryComponent;
+        
+        tradeInProgress = true;
+        
+        //inventory = player.ghost.GetInventory();
+        inventory = new CInventoryComponent in thePlayer;
+        inventory.AddAnItem(itemName, 1);
+
+        m_popupData = new W3ItemSelectionPopupData in theGame.GetGuiManager();
+        m_popupData.targetInventory = inventory;
+        m_popupData.overrideQuestItemRestrictions = true;
+
+        // pages
+        //m_popupData.selectionMode = EISPM_RadialMenuSlot1;
+        m_popupData.selectionMode = EISPM_RadialMenuSilverOil;
+        m_popupData.wo_isReceivingTrade = true;
+        m_popupData.wo_toTrade = "Rejuvenate";
+        m_popupData.wo_crownsAmount = outgoingTradePrice;
+        
+        //cat.PushBack('potion');
+        //cat.PushBack('edibles');
+        //m_popupData.categoryFilterList = cat;
+        
+        theGame.RequestPopup('ItemSelectionPopup', m_popupData);
+        
+        //ToggleRadialMenuInput(false);
+        //radialPopupShown = true;
+    }
+
     public function rideTick()
     {   
         var adjustor : CMovementAdjustor; 
@@ -137,6 +236,47 @@ statemachine class r_MultiplayerClient
 
         mpghosts_emote(29);
         deleteMenu();
+    }
+
+    public function tradeWithPlayer(actor : CActor)
+    {
+        var player : r_RemotePlayer;
+        var cat : array<name>;
+        var m_popupData : W3ItemSelectionPopupData;
+        player = mpghosts_getPlayerFromActor(actor);
+
+        if(!player)
+            return;
+
+        outgoingTradeTo = player;
+
+        deleteMenu();
+
+        m_popupData = new W3ItemSelectionPopupData in theGame.GetGuiManager();
+        m_popupData.targetInventory = thePlayer.GetInventory();
+        m_popupData.overrideQuestItemRestrictions = true;
+
+        m_popupData.selectionMode = EISPM_RadialMenuSilverOil;
+        m_popupData.wo_isTrade = true;
+        m_popupData.wo_toTrade = player.username;
+
+        theGame.RequestPopup('ItemSelectionPopup', m_popupData);
+    }
+
+    public function tradeSelectItem(itemId : SItemUniqueId)
+    {
+        var price: r_TradeWindow;
+        outgoingTradeItem = thePlayer.GetInventory().GetItemName(itemId);
+
+        price = new r_TradeWindow in theGame;
+        price.openTradeWindow();
+    }
+
+    public function setTradeAmount(amount : int)
+    {
+        outgoingTradePrice = amount;
+        GetWitcherPlayer().DisplayHudMessage("Trade request sent to " +outgoingTradeTo.username);
+        theSound.SoundEvent('gui_global_highlight');
     }
 
     function updateCamera( out moveData : SCameraMovementData, dt : float ) : bool
@@ -205,7 +345,7 @@ statemachine class r_MultiplayerClient
         .tag("font")
         .attr("size", "20")
         .attr("color", "#FFFFFF")
-        .text("Gift");
+        .text("Trade");
         giftOption.tag = "wo_GiftOption";
         giftOption.entity = player.ghost;
         giftOption.visible = true;
@@ -240,6 +380,10 @@ statemachine class r_MultiplayerClient
         else if(menuOptions[menuSelected].tag == "wo_RideOption")
         {
             ridePlayer(actor);
+        }
+        else if(menuOptions[menuSelected].tag == "wo_GiftOption")
+        {
+            tradeWithPlayer(actor);
         }
     }
 
@@ -404,7 +548,7 @@ statemachine class r_MultiplayerClient
                         .tag("font")
                         .attr("size", "" + sizeI)
                         .attr("color", selectedColor)
-                        .text("Gift");
+                        .text("Trade");
                 }
                 else
                 {
@@ -412,7 +556,7 @@ statemachine class r_MultiplayerClient
                         .tag("font")
                         .attr("size", "" + sizeI)
                         .attr("color", "#FFFFFF")
-                        .text("Gift");
+                        .text("Trade");
                 }
             }
 
@@ -635,6 +779,7 @@ statemachine class r_MultiplayerClient
 
         lastChat = "reserved_string";
         lastEmote = -1;
+        outgoingTradePrice = -1;
 
         initChillDefs();
 
@@ -1327,7 +1472,7 @@ statemachine class r_MultiplayerClient
                                         steel : name, silver : name, armor : name, gloves : name, pants : name, boots : name, head : name, hair : name, steelScab : name, silverScab : name, crossbow : name, mask : name,
                                         cpcPlayerType : ENR_PlayerType, cpcHead : name, cpcHair : string, cpcBody : string, cpcTorso : string, cpcArms : string, cpcGloves : string, cpcDress : string, cpcLegs : string, cpcShoes : string, cpcMisc : string,
                                         cpcItem1 : string, cpcItem2 : string, cpcItem3 : string, cpcItem4 : string, cpcItem5 : string, cpcItem6 : string, cpcItem7 : string, cpcItem8 : string, cpcItem9 : string, cpcItem10 : string,
-                                        optional isRiding : bool, optional ridingPlayerId : string) 
+                                        optional isRiding : bool, optional ridingPlayerId : string, optional outgoingTradeTo : string, optional outgoingTradeItem : name, optional outgoingTradePrice : int) 
     {
         var i : int;
         var p : r_RemotePlayer;
@@ -1464,6 +1609,9 @@ statemachine class r_MultiplayerClient
                 players[i].lastAction = lastAction;
                 players[i].isRiding = isRiding;
                 players[i].ridingPlayerId = ridingPlayerId;
+                players[i].outgoingTradeTo = outgoingTradeTo;
+                players[i].outgoingTradeItem = outgoingTradeItem;
+                players[i].outgoingTradePrice = outgoingTradePrice;
 
                 // armor
                 players[i].eq_steel = steel;
@@ -1744,6 +1892,10 @@ exec function mpghosts_getData(optional playerId : string, optional username : s
     var appearanceItems : array< array<String> >;
     var heads : array< name >;
     var curType : ENR_PlayerType;
+
+    var ridingPlayer : r_RemotePlayer;
+    var outgoingPlayer : string;
+    var outgoingTradeItem : name;
 
     theGame.r_getMultiplayerClient().setUserId(playerId, username);
     theGame.r_getMultiplayerClient().setReceived();
@@ -2277,7 +2429,45 @@ exec function mpghosts_getData(optional playerId : string, optional username : s
     list += theGame.r_getMultiplayerClient().isRiding();
     list += " ";
 
-    list += theGame.r_getMultiplayerClient().getRidingPlayer().id;
+    ridingPlayer = theGame.r_getMultiplayerClient().getRidingPlayer();
+
+    if(ridingPlayer.id != "")
+    {
+        list += ridingPlayer.id;
+    }
+    else
+    {
+        list += "none";
+    }
+    list += " ";
+
+    outgoingPlayer = theGame.r_getMultiplayerClient().getOutgoingTradeTo();
+
+    if(outgoingPlayer != "")
+    {
+        list += outgoingPlayer;
+    }
+    else
+    {
+        list += "none";
+    }
+    list += " ";
+
+    outgoingTradeItem = theGame.r_getMultiplayerClient().getOutgoingTradeItem();
+
+    if(outgoingTradeItem != '')
+    {
+        list += "namestart ";
+        list += outgoingTradeItem;
+        list += " nameend";
+    }
+    else
+    {
+        list += "none";
+    }
+    list += " ";
+
+    list += theGame.r_getMultiplayerClient().getOutgoingTradePrice();
     list += " ";
 
     Log("mpghosts_cli "+list);
@@ -2294,7 +2484,7 @@ exec function mpghosts_updatePlayerData(id : name, username : string, x : float,
                                         steel : name, silver : name, armor : name, gloves : name, pants : name, boots : name, head : name, hair : name, steelScab : name, silverScab : name, crossbow : name, mask : name,
                                         cpcPlayerType : ENR_PlayerType, cpcHead : name, cpcHair : string, cpcBody : string, cpcTorso : string, cpcArms : string, cpcGloves : string, cpcDress : string, cpcLegs : string, cpcShoes : string, cpcMisc : string,
                                         cpcItem1 : string, cpcItem2 : string, cpcItem3 : string, cpcItem4 : string, cpcItem5 : string, cpcItem6 : string, cpcItem7 : string, cpcItem8 : string, cpcItem9 : string, cpcItem10 : string,
-                                        optional isRiding : bool, optional ridingPlayerId : string) 
+                                        optional isRiding : bool, optional ridingPlayerId : string, optional outgoingTradeTo : string, optional outgoingTradeItem : name, optional outgoingTradePrice : int) 
 {
     theGame.r_getMultiplayerClient().updatePlayerData(id, username, x, y, z, w, heading, speed, area, inGame, heldItem, offhandItem, inCombat, isSwimming, 
                                                             curState, lastJumpTime, lastJumpType, lastClimbType, isDiving, isFalling, lastLightAttackTime,
@@ -2305,7 +2495,7 @@ exec function mpghosts_updatePlayerData(id : name, username : string, x : float,
                                                             steel, silver, armor, gloves, pants, boots, head, hair, steelScab, silverScab, crossbow, mask,
                                                             cpcPlayerType, cpcHead, cpcHair, cpcBody, cpcTorso, cpcArms, cpcGloves, cpcDress, cpcLegs, cpcShoes, cpcMisc,
                                                             cpcItem1, cpcItem2, cpcItem3, cpcItem4, cpcItem5, cpcItem6, cpcItem7, cpcItem8, cpcItem9, cpcItem10,
-                                                            isRiding, ridingPlayerId);
+                                                            isRiding, ridingPlayerId, outgoingTradeTo, outgoingTradeItem, outgoingTradePrice);
 }
 
 exec function mpghosts_disconnect(id :string)
@@ -2894,6 +3084,7 @@ state WO_Tick in r_MultiplayerClient
             parent.pruneGlobalPlayers(3);
             parent.updateMenuPositions();
             parent.rideTick();
+            parent.checkOutgoingTrades();
             MP_SU_moveMinimapPins();
 
             SleepOneFrame();

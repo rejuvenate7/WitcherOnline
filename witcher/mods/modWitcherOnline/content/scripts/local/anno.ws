@@ -270,9 +270,15 @@ function PlayerStartAction( playerAction : EPlayerExplorationAction, optional an
 @wrapMethod(CR4ItemSelectionPopup)
 function OnCallSelectItem(itemId : SItemUniqueId)
 {
-    if(m_DataObject.wo_isGift)
+    if(m_DataObject.wo_isTrade)
     {
-        GetWitcherPlayer().DisplayHudMessage(thePlayer.GetInventory().GetItemName(itemId));
+        theGame.r_getMultiplayerClient().tradeSelectItem(itemId);
+        ClosePopup();
+    }
+    else if(m_DataObject.wo_isReceivingTrade)
+    {
+        GetWitcherPlayer().DisplayHudMessage("Accepted trade from " +m_DataObject.wo_toTrade);
+        theGame.r_getMultiplayerClient().acceptTrade();
         ClosePopup();
     }
     else
@@ -282,22 +288,107 @@ function OnCallSelectItem(itemId : SItemUniqueId)
 }
 
 @wrapMethod(CR4ItemSelectionPopup)
+function OnCloseSelectionPopup()
+{
+    if(m_DataObject.wo_isReceivingTrade)
+    {
+        GetWitcherPlayer().DisplayHudMessage("Declined trade from " +m_DataObject.wo_toTrade);
+        theGame.r_getMultiplayerClient().declineTrade();
+        theSound.SoundEvent('gui_global_highlight');
+        ClosePopup();
+    }
+    else
+    {
+        wrappedMethod();
+    }
+}
+
+@wrapMethod(CR4ItemSelectionPopup)
 function OnConfigUI()
 {
-    wrappedMethod();
-    //m_fxShowCategoryButtons.InvokeSelfOneArg( FlashArgBool(true) );
+    var l_flashObject			: CScriptedFlashObject;
+	var l_flashArray			: CScriptedFlashArray;
+    var m_tradeInventory: W3GuiSelectItemComponent;
 
-    if(m_DataObject.wo_isGift)
+    m_DataObject = (W3ItemSelectionPopupData)GetPopupInitData();
+
+    if(m_DataObject.wo_isTrade || m_DataObject.wo_isReceivingTrade)
     {
-        m_fxSetCategory.InvokeSelfOneArg( FlashArgString("Gifting to " +m_DataObject.wo_toGift) );
+        super.OnConfigUI();
+		
+		theInput.StoreContext( 'EMPTY_CONTEXT' );
+		
+		if (!m_DataObject)
+		{
+			ClosePopup();
+		}
+		
+		if (theInput.LastUsedPCInput())
+		{
+			theGame.MoveMouseTo(0.5, 0.5);
+		}
+		
+		m_fxSetItemDescription = GetPopupFlash().GetMemberFlashFunction( "setItemDescription" );
+		m_fxSetCategory = GetPopupFlash().GetMemberFlashFunction( "setCategory" );
+		m_fxShowCategoryButtons = GetPopupFlash().GetMemberFlashFunction( "showCategoryButtons" );
+		m_fxDeselectItem = GetPopupFlash().GetMemberFlashFunction( "deselectItem" );
+
+        m_fxShowCategoryButtons.InvokeSelfOneArg( FlashArgBool(false) );		
+        
+        m_playerInv = new W3GuiSelectItemComponent in this;
+        m_playerInv.Initialize( thePlayer.GetInventory() );
+        m_playerInv.filterTagList = m_DataObject.filterTagsList;
+        m_playerInv.filterForbiddenTagList = m_DataObject.filterForbiddenTagsList;
+        m_playerInv.ignorePosition = true; 
+        m_playerInv.checkTagsOR = m_DataObject.checkTagsOR; 
+
+        m_playerInv.SetFilterType( IFT_None );	
+
+        m_containerOwner = (CGameplayEntity)theGame.GetEntityByTag( m_DataObject.collectorTag );
+		
+		UpdateData();
+		
+		m_guiManager.RequestMouseCursor(true);
+		theGame.ForceUIAnalog(true);
+
+        if(m_DataObject.wo_isTrade)
+        {
+            m_fxSetCategory.InvokeSelfOneArg( FlashArgString("Trading with " +m_DataObject.wo_toTrade) );
+        }
+        else if(m_DataObject.wo_isReceivingTrade)
+        {
+            m_tradeInventory = new W3GuiSelectItemComponent in theGame.GetGuiManager();
+            m_tradeInventory.Initialize( m_DataObject.targetInventory );
+            //m_tradeInventory.filterTagList = tagsP;
+            //m_tradeInventory.filterForbiddenTagList = forbiddenTagsPotion;
+            m_tradeInventory.ignorePosition = true;
+            m_tradeInventory.SetFilterType( IFT_None );
+
+            m_fxSetCategory.InvokeSelfOneArg( FlashArgString(m_DataObject.wo_toTrade + " wants to trade for " + m_DataObject.wo_crownsAmount + " crowns") );
+
+            l_flashObject = m_flashValueStorage.CreateTempFlashObject();
+            l_flashArray = m_flashValueStorage.CreateTempFlashArray();		
+            m_tradeInventory.GetInventoryFlashArray(l_flashArray, l_flashObject);		
+            m_flashValueStorage.SetFlashArray( "repair.grid.player", l_flashArray );
+        }
+    }
+    else
+    {
+        return wrappedMethod();
     }
 }
 
 @addField(W3ItemSelectionPopupData)
-var wo_toGift : string;
+var wo_toTrade : string;
 
 @addField(W3ItemSelectionPopupData)
-var wo_isGift : bool;
+var wo_isTrade : bool;
+
+@addField(W3ItemSelectionPopupData)
+var wo_isReceivingTrade : bool;
+
+@addField(W3ItemSelectionPopupData)
+var wo_crownsAmount : int;
 
 exec function test()
 {
@@ -311,8 +402,72 @@ exec function test()
     // pages
     //m_popupData.selectionMode = EISPM_RadialMenuSlot1;
     m_popupData.selectionMode = EISPM_RadialMenuSilverOil;
-    m_popupData.wo_isGift = true;
-    m_popupData.wo_toGift = "Rejuvenate";
+    m_popupData.wo_isTrade = true;
+    m_popupData.wo_toTrade = "Rejuvenate";
+    
+    //cat.PushBack('potion');
+    //cat.PushBack('edibles');
+    //m_popupData.categoryFilterList = cat;
+    
+    theGame.RequestPopup('ItemSelectionPopup', m_popupData);
+    
+    //ToggleRadialMenuInput(false);
+    //radialPopupShown = true;
+}
+
+exec function test2() 
+{
+
+}
+
+exec function test3() {
+  var tut: W3TutorialPopupData;
+
+  tut = new W3TutorialPopupData in thePlayer;
+
+  tut.managerRef = theGame.GetTutorialSystem();
+  tut.messageTitle = "Test";
+  tut.messageText = "TestBody";
+
+  // You can even add images if you want, i didn't test it however
+  // tut.imagePath = tutorialEntry.GetImagePath();
+
+  tut.enableGlossoryLink = false;
+  tut.autosize = true;
+  tut.blockInput = true;
+  tut.pauseGame = true;
+  tut.fullscreen = true;
+  tut.canBeShownInMenus = true;
+
+  tut.duration = -1; // input
+  tut.posX = 0;
+  tut.posY = 0;
+  tut.enableAcceptButton = true;
+  tut.fullscreen = true;
+
+  theGame.GetTutorialSystem().ShowTutorialHint(tut);
+}
+
+exec function test4()
+{
+    var cat : array<name>;
+    var m_popupData : W3ItemSelectionPopupData;
+    var inventory : CInventoryComponent;
+    
+    //inventory = player.ghost.GetInventory();
+    inventory = new CInventoryComponent in thePlayer;
+    inventory.AddAnItem('Aerondight EP2', 1);
+
+    m_popupData = new W3ItemSelectionPopupData in theGame.GetGuiManager();
+    m_popupData.targetInventory = inventory;
+    m_popupData.overrideQuestItemRestrictions = true;
+
+    // pages
+    //m_popupData.selectionMode = EISPM_RadialMenuSlot1;
+    m_popupData.selectionMode = EISPM_RadialMenuSilverOil;
+    m_popupData.wo_isReceivingTrade = true;
+    m_popupData.wo_toTrade = "Rejuvenate";
+    m_popupData.wo_crownsAmount = 10413;
     
     //cat.PushBack('potion');
     //cat.PushBack('edibles');
@@ -338,13 +493,16 @@ function OnToggleSigns( action : SInputAction )
 
     wrappedMethod(action);
     
-    if( action.value < -tolerance )
+    if(theGame.r_getMultiplayerClient().isMenuOpen())
     {
-        theGame.r_getMultiplayerClient().updateMenuIndex(true);
-    }
-    else if( action.value > tolerance )
-    {
-        theGame.r_getMultiplayerClient().updateMenuIndex(false);
+        if( action.value < -tolerance )
+        {
+            theGame.r_getMultiplayerClient().updateMenuIndex(true);
+        }
+        else if( action.value > tolerance )
+        {
+            theGame.r_getMultiplayerClient().updateMenuIndex(false);
+        }
     }
 }
 
