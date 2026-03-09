@@ -158,6 +158,8 @@ statemachine class r_RemotePlayer
     public var outgoingTradeFlag : int;
     default outgoingTradeFlag = -1;
 
+    public var tradeHandshake : bool;
+
     // items
     public var eq_steel : name;
     public var eq_silver : name;
@@ -1005,6 +1007,9 @@ statemachine class r_RemotePlayer
         if(!ridingPlayer)
             return;
 
+        if(ridingPlayerId == id)
+            return;
+
         toRide = ridingPlayer.ghost;
     
         heading = toRide.GetHeading();
@@ -1027,7 +1032,7 @@ statemachine class r_RemotePlayer
         adjustor.AdjustmentDuration(ticket, 0);
         adjustor.AdjustLocationVertically(ticket, true);
         adjustor.ScaleAnimationLocationVertically(ticket, true);
-        adjustor.RotateTo(ticket, toRide.GetHeading()); 
+        adjustor.RotateTo(ticket, heading); 
         adjustor.SlideTo(ticket, targpos);
         
     }

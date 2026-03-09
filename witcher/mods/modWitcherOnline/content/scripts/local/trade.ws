@@ -20,7 +20,7 @@ class r_TradeWindow extends CR4HudModuleDialog {
     data.BlurBackground = false;
     data.minValue = 0;
     data.maxValue = 50000;
-    data.currentValue = 25000;
+    data.currentValue = Clamp(50, 0, 25000);
     theGame.RequestMenu('PopupMenu', data);
   }
   

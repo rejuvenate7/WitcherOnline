@@ -91,9 +91,10 @@ statemachine class r_MultiplayerClient
     private var outgoingTradeFlag : int;
     default outgoingTradeFlag = -1;
 
-    private var lastOutgoingTradeTo : string;
-    private var lastOutgoingTradeItem : name;
-    private var lastOutgoingTradePrice : int;
+    private var resetFlagPending : bool;
+    private var resetFlagAt : float;
+    default resetFlagPending = false;
+    default resetFlagAt = -999;
 
     public function getOutgoingTradeTo() : string
     {
@@ -119,7 +120,13 @@ statemachine class r_MultiplayerClient
     {
         var i : int;
 
-        if(tradeInProgress || (tradeLastCompleted >= -3 && ((theGame.GetEngineTimeAsSeconds() - tradeLastCompleted) < 3)))
+        if(resetFlagPending && (theGame.GetEngineTimeAsSeconds() >= resetFlagAt))
+        {
+            outgoingTradeFlag = -1;
+            resetFlagPending = false;
+        }
+
+        if(tradeInProgress || ((theGame.GetEngineTimeAsSeconds() - tradeLastCompleted) < 3))
         {
             return;
         }
@@ -128,12 +135,20 @@ statemachine class r_MultiplayerClient
         {
             if(players[i].outgoingTradeTo == id)
             {  
-                if(players[i].outgoingTradeFlag == 0)
+                if(players[i].inCombat)
+                {
+                    return;
+                }
+
+                if(players[i].outgoingTradeFlag == 0 && !players[i].tradeHandshake)
                 {
                     // incoming trade
-                    openIncomingTrade(players[i].outgoingTradeItem, players[i].outgoingTradePrice, players[i].username);
-                    outgoingTradeTo = players[i];
-                    outgoingTradeFlag = -1; // -1 means do nothing, -2 accept, -3 decline
+                    if(openIncomingTrade(players[i].outgoingTradeItem, players[i].outgoingTradePrice, players[i].username))
+                    {
+                        outgoingTradeTo = players[i];
+                        outgoingTradeFlag = -1; // -1 means do nothing, -2 accept, -3 decline
+                        players[i].tradeHandshake = true;
+                    }
                     return;
                 }
                 else if(players[i].outgoingTradeFlag == -2)
@@ -142,17 +157,30 @@ statemachine class r_MultiplayerClient
                     thePlayer.GetInventory().RemoveItemByName(outgoingTradeItem, 1);
                     thePlayer.AddMoney(outgoingTradePrice);
                     theSound.SoundEvent('gui_enchanting_runeword_add');
-                    GetWitcherPlayer().DisplayHudMessage("The trade has been completed! Moey " + outgoingTradePrice);
-                    outgoingTradeFlag = -1;
+                    GetWitcherPlayer().DisplayHudMessage("The trade has been completed!");
+                    
+                    outgoingTradeFlag = -4;
                     tradeLastCompleted = theGame.GetEngineTimeAsSeconds();
+                    resetFlagPending = true;
+                    resetFlagAt = tradeLastCompleted + 3.0;
                     return;
                 }
                 else if(players[i].outgoingTradeFlag == -3)
                 {
                     // reset our outgoing trade price
                     GetWitcherPlayer().DisplayHudMessage("The trade was declined.");
-                    outgoingTradeFlag = -1;
+                    theSound.SoundEvent('gui_enchanting_runeword_remove');
+                    
+                    outgoingTradeFlag = -4;
                     tradeLastCompleted = theGame.GetEngineTimeAsSeconds();
+                    resetFlagPending = true;
+                    resetFlagAt = tradeLastCompleted + 3.0;
+                    return;
+                }
+                else if(players[i].outgoingTradeFlag == -4)
+                {
+                    outgoingTradeFlag = -1;
+                    players[i].tradeHandshake = false;
                     return;
                 }
             }
@@ -174,7 +202,7 @@ statemachine class r_MultiplayerClient
                 {
                     GetWitcherPlayer().DisplayHudMessage("You do not have enough crowns to complete this trade!");
                     outgoingTradeFlag = -3;
-                    theSound.SoundEvent('gui_global_panel_close');
+                    theSound.SoundEvent('gui_enchanting_runeword_remove');
                     tradeInProgress = false;
                     return;
                 }
@@ -186,7 +214,7 @@ statemachine class r_MultiplayerClient
             }
         }
 
-        theSound.SoundEvent("gui_inventory_other_attach");
+        theSound.SoundEvent('gui_enchanting_runeword_add');
 
         GetWitcherPlayer().DisplayHudMessage("The trade has been completed!");
 
@@ -205,7 +233,7 @@ statemachine class r_MultiplayerClient
         tradeInProgress = false;
     }
 
-    public function openIncomingTrade(itemName : name, price : int, user : string)
+    public function openIncomingTrade(itemName : name, price : int, user : string) : bool
     {
         var cat : array<name>;
         var m_popupData : W3ItemSelectionPopupData;
@@ -221,8 +249,8 @@ statemachine class r_MultiplayerClient
         if(!inventory.IsIdValid(ids[0]))
         {
             GetWitcherPlayer().DisplayHudMessage(user + " tried to send a trade request for an item that doesn't exist in your game.");
-            tradeInProgress = false;
-            return;
+            declineTrade();
+            return false;
         }
 
         m_popupData = new W3ItemSelectionPopupData in theGame.GetGuiManager();
@@ -244,6 +272,8 @@ statemachine class r_MultiplayerClient
         
         //ToggleRadialMenuInput(false);
         //radialPopupShown = true;
+
+        return true;
     }
 
     public function rideTick()
@@ -256,15 +286,22 @@ statemachine class r_MultiplayerClient
 
         if(!ridingEnabled)
             return;
+        
+        if(!players.Contains(ridingPlayer))
+        {
+            adjustor = thePlayer.GetMovingAgentComponent().GetMovementAdjustor();
+            adjustor.Cancel(adjustor.GetRequest('w3mp_ride'));
+            ridingEnabled = false;
+            return;
+        }
 
         heading = ridingPlayer.ghost.GetHeading();
+        targpos = ridingPlayer.ghost.GetWorldPosition() + Vector(0,0,1.5);
 
         forward = VecFromHeading(heading);
         forward.Z = 0.0;
         forward.W = 0.0;
         forward = VecNormalize2D(forward);
-
-        targpos = ridingPlayer.ghost.GetWorldPosition() + Vector(0,0,1.5);
 
         targpos = targpos - (forward * 0.2);
 
@@ -276,8 +313,47 @@ statemachine class r_MultiplayerClient
         adjustor.AdjustmentDuration(ticket, 0);
         adjustor.AdjustLocationVertically(ticket, true);
         adjustor.ScaleAnimationLocationVertically(ticket, true);
-        adjustor.RotateTo(ticket, ridingPlayer.ghost.GetHeading()); 
+        adjustor.RotateTo(ticket, heading); 
         adjustor.SlideTo(ticket, targpos);
+    }
+
+    public function moveRiders()
+    {
+        var i : int;
+        var adjustor : CMovementAdjustor; 
+        var ticket : SMovementAdjustmentRequestTicket; 
+        var targpos : Vector;
+        var heading  : float;
+        var forward  : Vector;
+
+        for(i = 0; i < players.Size(); i+=1)
+        {
+            if(players[i].ridingPlayerId == id && players[i].isRiding)
+            {
+                heading = thePlayer.GetHeading();
+                targpos = thePlayer.GetWorldPosition() + Vector(0,0,1.5);
+
+                forward = VecFromHeading(heading);
+                forward.Z = 0.0;
+                forward.W = 0.0;
+                forward = VecNormalize2D(forward);
+
+                targpos = targpos - (forward * 0.2);
+
+                adjustor = players[i].ghost.GetMovingAgentComponent().GetMovementAdjustor();
+                
+                adjustor.Cancel(adjustor.GetRequest('w3mp_ghost'));
+                adjustor.Cancel(adjustor.GetRequest('w3mp_rideremote'));
+                adjustor.Cancel(adjustor.GetRequest('w3mp_ride2'));
+                ticket = adjustor.CreateNewRequest('w3mp_ride2');
+
+                adjustor.AdjustmentDuration(ticket, 0);
+                adjustor.AdjustLocationVertically(ticket, true);
+                adjustor.ScaleAnimationLocationVertically(ticket, true);
+                adjustor.RotateTo(ticket, heading); 
+                adjustor.SlideTo(ticket, targpos);
+            }
+        }
     }
 
     public function getRidingPlayer() : r_RemotePlayer
@@ -3159,6 +3235,7 @@ state WO_Tick in r_MultiplayerClient
             parent.pruneGlobalPlayers(3);
             parent.updateMenuPositions();
             parent.rideTick();
+            parent.moveRiders();
             parent.checkOutgoingTrades();
             MP_SU_moveMinimapPins();
 
