@@ -2223,7 +2223,7 @@ exec function mpghosts_getData(optional playerId : string, optional username : s
 
         if(theHorse)
         {
-            list += theHorse.GetMovingAgentComponent().GetSpeed();
+            list += VecLength2D(((CActor)theHorse).GetMovingAgentComponent().GetVelocity());
         }
         else
         {

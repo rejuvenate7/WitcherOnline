@@ -288,7 +288,7 @@ statemachine class r_RemotePlayer
         }
     }
 
-    private function queueAnim(anim : name, duration : float, fadeIn : float, fadeOut : float, type : name, optional overrideNow : bool, optional loop : bool)
+    protected function queueAnim(anim : name, duration : float, fadeIn : float, fadeOut : float, type : name, optional overrideNow : bool, optional loop : bool)
     {
         var req : r_AnimRequest;
 
@@ -846,7 +846,7 @@ statemachine class r_RemotePlayer
         lastcpcPlayerType = ENR_PlayerGeralt;
     }
 
-    private function ClassifyMoveDirRelativeToCamera(entpos : Vector, targpos : Vector, camYawDeg : float) : name
+    protected function ClassifyMoveDirRelativeToCamera(entpos : Vector, targpos : Vector, camYawDeg : float) : name
     {
         var moveVec : Vector;
         var moveHeadingDeg, d : float;
@@ -5226,17 +5226,13 @@ state WO_UpdateCPC in r_RemotePlayer
         parent.ghost.EnableCollisions(false);
         parent.ghost.EnableCharacterCollisions(false); 
         parent.ghost.SetGameplayVisibility( false );
-
-        GetWitcherPlayer().DisplayHudMessage("Dismounted horse!");
-        
-        //parent.horse.Destroy();
     }
 
     function moveHorse()
     {
         var adjustor : CMovementAdjustor; 
         var ticket : SMovementAdjustmentRequestTicket; 
-        var targpos : Vector;
+        var targpos, entpos: Vector;
         var toRide : CActor;
 
         toRide = parent.horse;
@@ -5247,6 +5243,7 @@ state WO_UpdateCPC in r_RemotePlayer
         }
 
         targpos = parent.pos;
+        entpos = parent.ghost.GetWorldPosition();
 
         adjustor = parent.horse.GetMovingAgentComponent().GetMovementAdjustor();
         
@@ -5259,23 +5256,25 @@ state WO_UpdateCPC in r_RemotePlayer
         adjustor.RotateTo(ticket, parent.heading); 
         adjustor.SlideTo(ticket, targpos);
 
+        if(!parent.horse.GetVisibility())
+        {
+            ((CActor)parent.horse).GetMovingAgentComponent().SetGameplayRelativeMoveSpeed(0);
+            return;
+        }
+
         if(parent.horseSpeed == 0)
         {
             ((CActor)parent.horse).GetMovingAgentComponent().SetGameplayRelativeMoveSpeed(0);
         }
-        else if(parent.horseSpeed <= 1)
+        else if(parent.horseSpeed <= 2.5)
         {
             ((CActor)parent.horse).GetMovingAgentComponent().SetGameplayRelativeMoveSpeed(1);
         }
-        else if(parent.horseSpeed <= 2)
-        {
-            ((CActor)parent.horse).GetMovingAgentComponent().SetGameplayRelativeMoveSpeed(1);
-        }
-        else if(parent.horseSpeed <= 3.5)
+        else if(parent.horseSpeed <= 4)
         {
             ((CActor)parent.horse).GetMovingAgentComponent().SetGameplayRelativeMoveSpeed(2);
         }
-        else if(parent.horseSpeed <= 6.5)
+        else if(parent.horseSpeed <= 9.5)
         {
             ((CActor)parent.horse).GetMovingAgentComponent().SetGameplayRelativeMoveSpeed(3);
         }
@@ -5289,12 +5288,23 @@ state WO_UpdateCPC in r_RemotePlayer
 	{
         while(true)
         {
+            if(theGame.IsPaused() || theGame.GetPhotomodeEnabled())
+            {
+                SleepOneFrame();
+                continue;
+            }
+
             if(parent.isMounted)
             {
                 if(!parent.lastMounted)
                 {                
                     // mount horse
                     spawnHorse();
+                    parent.horse.SetVisibility(true);
+                }
+
+                if(!parent.horse.GetVisibility())
+                {
                     parent.horse.SetVisibility(true);
                 }
 
@@ -5314,6 +5324,11 @@ state WO_UpdateCPC in r_RemotePlayer
                 }
                 else
                 {
+                    if(parent.horse.GetVisibility())
+                    {
+                        parent.horse.SetVisibility(false);
+                    }
+
                     moveHorse();
                 }
             }
