@@ -96,6 +96,18 @@ statemachine class r_MultiplayerClient
     default resetFlagPending = false;
     default resetFlagAt = -999;
 
+    private var spawnHorse : bool;
+
+    public function setHorse(val : bool)
+    {
+        spawnHorse = val;
+    }
+
+    public function getHorse() : bool
+    {
+        return spawnHorse;
+    }
+
     public function getOutgoingTradeTo() : string
     {
         return outgoingTradeTo.id;
@@ -131,15 +143,15 @@ statemachine class r_MultiplayerClient
             return;
         }
 
+        if(thePlayer.IsInCombat() || theGame.IsDialogOrCutscenePlaying())
+        {
+            return;
+        }
+
         for(i = 0; i < players.Size(); i+=1)
         {
             if(players[i].outgoingTradeTo == id)
             {  
-                if(players[i].inCombat)
-                {
-                    return;
-                }
-
                 if(players[i].outgoingTradeFlag == 0 && !players[i].tradeHandshake)
                 {
                     // incoming trade
@@ -3239,7 +3251,131 @@ state WO_Tick in r_MultiplayerClient
             parent.checkOutgoingTrades();
             MP_SU_moveMinimapPins();
 
+            if(parent.getHorse())
+            {
+                spawnHorse();
+                parent.setHorse(false);
+            }
+
             SleepOneFrame();
         }
     }
+
+    /*latent function spawnHorse()
+    {
+        var ent : CEntity;
+        var horseTemplate : CEntityTemplate;
+        var horse : CNewNPC;
+        var pos: Vector;
+        var guy : CActor;
+        var vehicle : CVehicleComponent;	
+        var behaviorsToActivate : array< name >;
+        var preloadResult : bool;
+        behaviorsToActivate.PushBack('rider');
+
+        guy = (CActor)theGame.CreateEntity((CEntityTemplate)LoadResource("dlc\dlc_mpmod\data\entities\geralt_npc.w2ent", true ), thePlayer.GetWorldPosition(), , true, true, false, PM_DontPersist );
+
+        pos = guy.GetWorldPosition();
+        horseTemplate = (CEntityTemplate)LoadResource('horse');
+        horse = (CNewNPC)theGame.CreateEntity(horseTemplate, pos, , true, false, false, PM_DontPersist);
+
+        vehicle = (CVehicleComponent)horse.GetHorseComponent();
+        vehicle.Mount( guy, VMT_ImmediateUse, EVS_driver_slot );			
+
+        guy.SetUsedVehicle((CGameplayEntity)vehicle.GetEntity() );
+        //guy.MountHorseIfNeeded();	
+        //((CActor)guy).SignalGameplayEventParamInt( 'RidingManagerMountHorse', MT_instant | MT_fromScript );
+
+        preloadResult = guy.ActivateBehaviors( behaviorsToActivate );
+
+        if(preloadResult)
+        {
+            GetWitcherPlayer().DisplayHudMessage("Yo");
+        }
+
+        guy.CreateAttachment(vehicle.GetEntity(), 'root');
+
+        GetWitcherPlayer().DisplayHudMessage("Success");
+    }*/
+
+    private var temp, temp_2 : CEntityTemplate;
+    private var ent, ent_2 : CEntity;
+    private var l_aiTree : CAIHorseDoNothingAction;
+    private var horseTag : array<name>;	
+    private var spawnPos: Vector;
+    private var playerRot : EulerAngles;
+
+    latent function spawnHorse()
+    {
+        var entities : array<CGameplayEntity>;
+        var i : int;
+        var j : int;
+
+		//temp = (CEntityTemplate)LoadResourceAsync( "dlc\dlc_acs\data\entities\enemy_riders\enemy_rider_wildhunt.w2ent", true );
+		//temp = (CEntityTemplate)LoadResourceAsync( "quests\epilogues\quest_files\q504_ciri_empress\characters\q504_nilfgaardian_riders.w2ent", true );
+		temp = (CEntityTemplate)LoadResourceAsync("dlc\dlc_mpmod\data\entities\geralt_npc.w2ent", true );
+
+		temp_2 = (CEntityTemplate)LoadResourceAsync( 
+
+		"dlc\dlc_acs\data\entities\enemy_riders\horse_vehicle_wild_hunt.w2ent"
+			
+		, true );
+        spawnPos = thePlayer.GetWorldPosition();
+        playerRot = thePlayer.GetWorldRotation();
+
+        ent = theGame.CreateEntity( temp, spawnPos, playerRot );
+
+        ((CNewNPC)ent).SetAttitude(thePlayer, AIA_Hostile);
+        //((CNewNPC)ent).SetAttitude(ACSGetCActor('ACS_Eredin'), AIA_Friendly);
+        //((CActor)ent).ACS_SetAnimationSpeedMultiplier(1);
+        ((CActor)ent).AddTag( 'ContractTarget' );
+        ((CActor)ent).AddTag('IsBoss');
+        ((CActor)ent).AddAbility('Boss');
+        ((CActor)ent).AddAbility('BounceBoltsWildhunt');
+        ent.AddTag('NoBestiaryEntry');
+        ent.PlayEffectSingle('critical_frozen');
+        
+        horseTag.Clear();
+        horseTag.PushBack('enemy_horse');
+        horseTag.PushBack('online_horse');
+
+        ent_2 = theGame.CreateEntity(temp_2, spawnPos, playerRot,true,false,false,PM_DontPersist,horseTag);
+
+        ent.AddTag( 'ACS_Wild_Hunt_Rider' );
+        ent_2.AddTag( 'ACS_Wild_Hunt_Rider_Horse' );
+
+        l_aiTree = new CAIHorseDoNothingAction in ent;
+        l_aiTree.OnCreated();
+        ((CActor)ent).ForceAIBehavior( l_aiTree, BTAP_Emergency, 'AI_Rider_Load_Forced' );
+        ((CActor)ent).SignalGameplayEventParamInt( 'RidingManagerMountHorse', MT_instant | MT_fromScript );
+
+        Sleep(1);
+
+        ent.Teleport(thePlayer.GetWorldPosition());
+        GetWitcherPlayer().DisplayHudMessage("Success " + ((CActor)ent).IsUsingHorse());
+
+        
+        /*FindGameplayEntitiesInSphere( entities, npc.GetWorldPosition(), 5, 100 );
+
+        for(i = 0; i < entities.Size(); i+=1)
+        {
+            tags = entities[i].GetTags();
+            for(j = 0; j < tags.Size(); j+=1)
+            {
+                LogChannel('TAGS', i + ": " +tags[j]);
+            }
+        }*/
+
+        //((CActor)npc).SignalGameplayEventParamInt( 'RidingManagerDismountHorse', DT_normal );
+    }
+}
+
+exec function spawnHorse()
+{
+    theGame.r_getMultiplayerClient().setHorse(true);
+}
+
+exec function horse()
+{
+
 }

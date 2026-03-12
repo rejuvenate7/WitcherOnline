@@ -260,6 +260,8 @@ statemachine class r_RemotePlayer
     public var nextOnelinerEnsureAt : float;
     public var cpcNeedsRebuild : bool;
 
+    public var horse : CActor;
+
     private function loadHead(newHeadName : name) {
 		var headManager : CHeadManagerComponent;
 
@@ -1987,6 +1989,11 @@ statemachine class r_RemotePlayer
             return;
         }
 
+        if(isMounted)
+        {
+            return;
+        }
+
         if(lastChillOut || chillOutAnim != '')
         {
             lastIdleAnim = theGame.GetEngineTimeAsSeconds();
@@ -3247,6 +3254,7 @@ statemachine class r_RemotePlayer
         }
 
         // woman complete
+        /*
         if(isMounted)
         {
             if(!lastMounted)
@@ -3260,7 +3268,8 @@ statemachine class r_RemotePlayer
                     queueAnim('horse_mount_L', 1.4, 0.2, 0, 'none', true);
                 }
             }
-
+            
+            
             if(horseSpeed == 0)
             {
                 if(lastAnim != 'horse_standing_idle01')
@@ -3322,11 +3331,11 @@ statemachine class r_RemotePlayer
         {
             if(lastMounted)
             {
-                queueAnim('horse_dismount_rf_01', 1.9, 0.2, 0.4, 'none', true);
+                //queueAnim('horse_dismount_rf_01', 1.9, 0.2, 0.4, 'none', true);
                 lastMounted = false;
                 lastIdleAnim = theGame.GetEngineTimeAsSeconds();
             }
-        }
+        }*/
 
         // woman complete
         if(isSailing)
@@ -4982,6 +4991,11 @@ statemachine class r_RemotePlayer
         adjustor = entity.GetMovingAgentComponent().GetMovementAdjustor();
         verticalDist = AbsF(targpos.Z - entpos.Z);
 
+        if(isMounted)
+        {
+            return;
+        }
+
         if (dist > 0.01f)
             lastMoveDir = ClassifyMoveDirRelativeToCamera(entpos, targpos, heading);
         else
@@ -5165,10 +5179,145 @@ state WO_UpdateCPC in r_RemotePlayer
         parent.lastcpcItem10 = "";
     }
 
+    latent function spawnHorse()
+    {
+        var l_aiTree : CAIHorseDoNothingAction;
+        var adjustor : CMovementAdjustor; 
+        var ent_2 : CEntity;
+        var temp_2 : CEntityTemplate;
+        var horseTag : array<name>;
+
+        if(!parent.horse)
+        {
+            //temp_2 = (CEntityTemplate)LoadResourceAsync( "characters\npc_entities\animals\horse\horse_vehicle_wild_hunt.w2ent", true );
+            temp_2 = (CEntityTemplate)LoadResourceAsync( "characters\npc_entities\animals\horse\horse_vehicle.w2ent", true );
+            //temp_2 = (CEntityTemplate)LoadResourceAsync( "dlc\dlc_acs\data\entities\enemy_riders\horse_vehicle_wild_hunt.w2ent", true );
+
+            horseTag.Clear();
+            horseTag.PushBack('online_horse');
+
+            parent.horse = (CActor)theGame.CreateEntity(temp_2, parent.ghost.GetWorldPosition(), parent.ghost.GetWorldRotation(), true,false,false,PM_DontPersist,horseTag);
+
+            ((CActor)parent.horse).EnableCollisions(false);
+            ((CActor)parent.horse).EnableCharacterCollisions(false); 
+            ((CActor)parent.horse).SetGameplayVisibility( false );
+
+            ((CActor)parent.horse).ApplyAppearance("horse_draft_vehicle_02");
+            GetWitcherPlayer().DisplayHudMessage(((CActor)parent.horse).GetAppearance());
+
+            adjustor = parent.ghost.GetMovingAgentComponent().GetMovementAdjustor();
+            adjustor.Cancel(adjustor.GetRequest('w3mp_ghost'));
+
+            l_aiTree = new CAIHorseDoNothingAction in parent.ghost;
+            l_aiTree.OnCreated();
+            ((CActor)parent.ghost).ForceAIBehavior( l_aiTree, BTAP_Emergency, 'AI_Rider_Load_Forced' );
+        }
+
+        ((CActor)parent.ghost).SignalGameplayEventParamInt( 'RidingManagerMountHorse', MT_instant | MT_fromScript );
+    }
+
+    latent function dismountHorse()
+    {
+        var tags : array<name>;
+        var i : int;
+
+        ((CActor)parent.ghost).SignalGameplayEventParamInt( 'RidingManagerDismountHorse', DT_instant | DT_fromScript );
+
+        parent.ghost.EnableCollisions(false);
+        parent.ghost.EnableCharacterCollisions(false); 
+        parent.ghost.SetGameplayVisibility( false );
+
+        GetWitcherPlayer().DisplayHudMessage("Dismounted horse!");
+        
+        //parent.horse.Destroy();
+    }
+
+    function moveHorse()
+    {
+        var adjustor : CMovementAdjustor; 
+        var ticket : SMovementAdjustmentRequestTicket; 
+        var targpos : Vector;
+        var toRide : CActor;
+
+        toRide = parent.horse;
+
+        if(!toRide)
+        {
+            return;
+        }
+
+        targpos = parent.pos;
+
+        adjustor = parent.horse.GetMovingAgentComponent().GetMovementAdjustor();
+        
+        adjustor.Cancel(adjustor.GetRequest('w3mp_horsesync'));
+        ticket = adjustor.CreateNewRequest('w3mp_horsesync');
+
+        adjustor.AdjustmentDuration(ticket, 1);
+        adjustor.AdjustLocationVertically(ticket, true);
+        adjustor.ScaleAnimationLocationVertically(ticket, true);
+        adjustor.RotateTo(ticket, parent.heading); 
+        adjustor.SlideTo(ticket, targpos);
+
+        if(parent.horseSpeed == 0)
+        {
+            ((CActor)parent.horse).GetMovingAgentComponent().SetGameplayRelativeMoveSpeed(0);
+        }
+        else if(parent.horseSpeed <= 1)
+        {
+            ((CActor)parent.horse).GetMovingAgentComponent().SetGameplayRelativeMoveSpeed(1);
+        }
+        else if(parent.horseSpeed <= 2)
+        {
+            ((CActor)parent.horse).GetMovingAgentComponent().SetGameplayRelativeMoveSpeed(1);
+        }
+        else if(parent.horseSpeed <= 3.5)
+        {
+            ((CActor)parent.horse).GetMovingAgentComponent().SetGameplayRelativeMoveSpeed(2);
+        }
+        else if(parent.horseSpeed <= 6.5)
+        {
+            ((CActor)parent.horse).GetMovingAgentComponent().SetGameplayRelativeMoveSpeed(3);
+        }
+        else
+        {
+            ((CActor)parent.horse).GetMovingAgentComponent().SetGameplayRelativeMoveSpeed(4);
+        }
+    }
+
     entry function wo_updateCPCEntry()
 	{
         while(true)
         {
+            if(parent.isMounted)
+            {
+                if(!parent.lastMounted)
+                {                
+                    // mount horse
+                    spawnHorse();
+                    parent.horse.SetVisibility(true);
+                }
+
+                moveHorse();
+
+                parent.lastMounted = true;
+            }
+            else
+            {
+                if(parent.lastMounted)
+                {  
+                    // dismount
+                    dismountHorse();
+                    parent.horse.SetVisibility(false);
+                    parent.lastMounted = false;
+                    parent.lastIdleAnim = theGame.GetEngineTimeAsSeconds();
+                }
+                else
+                {
+                    moveHorse();
+                }
+            }
+
             if(NR_GetPlayerManager().IsPlayerTypeChangeLocked() || theGame.IsDialogOrCutscenePlaying() || thePlayer.IsInNonGameplayCutscene() || !parent.ghost)
             {
                 SleepOneFrame();
