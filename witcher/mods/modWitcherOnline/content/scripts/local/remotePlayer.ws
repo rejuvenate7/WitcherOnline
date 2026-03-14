@@ -2005,7 +2005,7 @@ statemachine class r_RemotePlayer
             return;
         }
 
-        if(isMounted)
+        if(isMounted || isSailing)
         {
             return;
         }
@@ -3352,29 +3352,6 @@ statemachine class r_RemotePlayer
                 lastIdleAnim = theGame.GetEngineTimeAsSeconds();
             }
         }*/
-
-        // woman complete
-        if(isSailing)
-        {
-            if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
-            {
-                if(lastAnim != 'boat_sail_loop')
-                {
-                    queueAnim('boat_sail_loop', 19.13, 0.5, 0, 'sailing');
-                }
-
-                queueAnim('boat_sail_loop', 19.13, 0, 0, 'sailing');
-            }
-            else
-            {
-                if(lastAnim != 'boat_sail_idle')
-                {
-                    queueAnim('boat_sail_idle', 2.33, 0.5, 0, 'sailing');
-                }
-
-                queueAnim('boat_sail_idle', 2.33, 0, 0, 'sailing');
-            }
-        }
         
         swim();
         
@@ -5265,8 +5242,9 @@ state WO_UpdateCPC in r_RemotePlayer
         var anchor : CEntity;
         var anchor_temp : CEntityTemplate;
 
-        temp_2 = (CEntityTemplate)LoadResourceAsync("dlc\dlc_mpmod\data\entities\boat.w2ent", true);
+        //temp_2 = (CEntityTemplate)LoadResourceAsync("dlc\dlc_mpmod\data\entities\boat.w2ent", true);
         //temp_2 = (CEntityTemplate)LoadResourceAsync("dlc\dlc_mpmod\data\entities\boat_copy.w2ent", true);
+        temp_2 = (CEntityTemplate)LoadResourceAsync("dlc\dlc_mpmod\data\entities\boat_copy_copy.w2ent", true);
 
         horseTag.Clear();
         horseTag.PushBack('online_horse');
@@ -5277,9 +5255,9 @@ state WO_UpdateCPC in r_RemotePlayer
         ((CActor)parent.boat).EnableCharacterCollisions(false); 
         ((CActor)parent.boat).SetGameplayVisibility( false );
 
-        Sleep(0.5);
+        //Sleep(0.5);
 
-        boneIndex = parent.boat.GetBoneIndex('boat_base');
+        //boneIndex = parent.boat.GetBoneIndex('boat_base');
 
         /*anchor_temp = (CEntityTemplate)LoadResourceAsync("dlc\dlc_acs\data\entities\other\fx_ent.w2ent", true);
         boneIndex = parent.boat.GetBoneIndex('boat_mast02');
@@ -5290,7 +5268,7 @@ state WO_UpdateCPC in r_RemotePlayer
 
         //parent.ghost.CreateAttachment(anchor);
         //parent.ghost.CreateAttachment(parent.boat);
-        GetWitcherPlayer().DisplayHudMessage("mounted! " + parent.boat.GetBoneIndex('boat_base'));
+        //GetWitcherPlayer().DisplayHudMessage("mounted! " + parent.boat.GetBoneIndex('boat_base'));
     }
 
     latent function dismountBoat()
@@ -5362,27 +5340,32 @@ state WO_UpdateCPC in r_RemotePlayer
         var toRide : CActor;
         var speed : float;
         var linVelocity : Vector;
+        var forwardOffset : float;
+        var rightOffset : float;
         var forward : Vector;
-
-        /*
-        speed = 5.0f;
-
-        forward = VecFromHeading( parent.heading ); 
-        forward.Z = 0.0f; 
-
-        linVelocity = forward * speed;
-
-        ((CBoatBodyComponent)parent.boat.GetComponentByClassName( 'CBoatBodyComponent' )).SetPhysicalObjectLinearVelocity( linVelocity );*/
-
-        //parent.boat.TeleportWithRotation(parent.pos, VecToRotation(VecFromHeading(parent.heading)));
+        var right : Vector;
+        var rot : EulerAngles;
+        var velo : float;
 
         //parent.boat.PlayEffectSingle( 'fake_wind_right' );
-        parent.boat.PlayEffectSingle( 'fake_wind_left' );
-        parent.boat.PlayEffectSingle( 'front_splash' );
+        //parent.boat.PlayEffectSingle( 'fake_wind_left' );
+        //parent.boat.PlayEffectSingle( 'front_splash' );
 
+
+        //rightOffset = 0.35f;
+        rightOffset = 0.33f;
+        forwardOffset = 2.75f;
         
-        targpos = parent.pos;
-        entpos = parent.ghost.GetWorldPosition();
+        forward = VecFromHeading( parent.heading );
+        forward.Z = 0.0f;
+        forward = VecNormalize( forward );
+
+        rot = VecToRotation( forward );
+        right = RotRight( rot );
+        right.Z = 0.0f;
+        right = VecNormalize( right );
+        
+        targpos = parent.pos + forward * forwardOffset + right * rightOffset - Vector(0, 0, 0.25);
 
         adjustor = ((CActor)parent.boat).GetMovingAgentComponent().GetMovementAdjustor();
         
@@ -5394,6 +5377,24 @@ state WO_UpdateCPC in r_RemotePlayer
         adjustor.ScaleAnimationLocationVertically(ticket, true);
         adjustor.RotateTo(ticket, parent.heading); 
         adjustor.SlideTo(ticket, targpos);
+
+        LogChannel('boatvelo', VecLength2D(((CActor)parent.boat).GetMovingAgentComponent().GetVelocity()));
+
+        velo = VecLength2D(((CActor)parent.boat).GetMovingAgentComponent().GetVelocity());
+
+        if(velo > 0.5)
+        {
+            GetWitcherPlayer().DisplayHudMessage("wind");
+            parent.boat.PlayEffectSingle( 'fake_wind_right' );
+            parent.boat.PlayEffectSingle( 'fake_wind_left' );
+            parent.boat.PlayEffectSingle( 'front_splash' );
+        }
+        else
+        {
+            parent.boat.StopEffectIfActive( 'fake_wind_right' );
+			parent.boat.StopEffectIfActive( 'fake_wind_left' );
+			parent.boat.StopEffectIfActive( 'fake_wind_back' );
+        }
     }
 
     private var lastSailing : bool;
@@ -5453,6 +5454,25 @@ state WO_UpdateCPC in r_RemotePlayer
                 {
                     GetWitcherPlayer().DisplayHudMessage("Spawn boat");
                     spawnBoat();
+                }
+
+                if(parent.cpcPlayerType != ENR_PlayerGeralt && parent.cpcPlayerType != ENR_PlayerWitcher && parent.cpcPlayerType != ENR_PlayerUnknown)
+                {
+                    if(parent.lastAnim != 'boat_sail_loop')
+                    {
+                        parent.queueAnim('boat_sail_loop', 19.13, 0.5, 0, 'sailing');
+                    }
+
+                    parent.queueAnim('boat_sail_loop', 19.13, 0, 0, 'sailing');
+                }
+                else
+                {
+                    if(parent.lastAnim != 'boat_sail_idle')
+                    {
+                        parent.queueAnim('boat_sail_idle', 2.33, 0.5, 0, 'sailing');
+                    }
+
+                    parent.queueAnim('boat_sail_idle', 2.33, 0, 0, 'sailing');
                 }
                 
                 moveBoat();
@@ -5760,4 +5780,42 @@ state WO_UpdateCPC in r_RemotePlayer
 
         return template;
 	}
+}
+
+exec function lambert()
+{
+
+    var l_aiTree : CAIHorseDoNothingAction;
+    var adjustor : CMovementAdjustor; 
+    var ent_2 : CEntity;
+    var temp_2 : CEntityTemplate;
+    var horseTag : array<name>;
+
+    var bonePosition : Vector;
+    var boneRotation : EulerAngles;
+    var boneIndex : int;
+    var anchor : CEntity;
+    var boat : CActor;
+    var lambert : CNewNPC;
+    var anchor_temp : CEntityTemplate;
+
+    //temp_2 = (CEntityTemplate)LoadResourceAsync("dlc\dlc_mpmod\data\entities\boat.w2ent", true);
+    //temp_2 = (CEntityTemplate)LoadResourceAsync("dlc\dlc_mpmod\data\entities\boat_copy.w2ent", true);
+    //.temp_2 = (CEntityTemplate)LoadResourceAsync("dlc\dlc_mpmod\data\entities\boat_copy_copy.w2ent", true);
+    temp_2 = (CEntityTemplate)LoadResource('boat');
+
+    horseTag.Clear();
+    horseTag.PushBack('online_horse');
+
+    boat = (CActor)theGame.CreateEntity(temp_2, thePlayer.GetWorldPosition(), thePlayer.GetWorldRotation(), true,false,false,PM_DontPersist,horseTag);
+    lambert = (CNewNPC)theGame.CreateEntity((CEntityTemplate)LoadResource("characters\npc_entities\main_npc\lambert.w2ent", true), thePlayer.GetWorldPosition(), thePlayer.GetWorldRotation(), true,false,false,PM_DontPersist,horseTag);
+
+    //((CActor)parent.boat).EnableCollisions(false);
+    //((CActor)parent.boat).EnableCharacterCollisions(false); 
+    //((CActor)parent.boat).SetGameplayVisibility( false );
+
+    //Sleep(0.5);
+
+    lambert.SignalGameplayEventParamInt( 'RidingManagerMountBoat', MT_instant );
+    
 }
