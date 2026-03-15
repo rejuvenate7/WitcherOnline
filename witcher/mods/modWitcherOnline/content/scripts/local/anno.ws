@@ -389,36 +389,6 @@ var wo_isReceivingTrade : bool;
 @addField(W3ItemSelectionPopupData)
 var wo_crownsAmount : int;
 
-exec function test()
-{
-    var cat : array<name>;
-    var m_popupData : W3ItemSelectionPopupData;
-
-    m_popupData = new W3ItemSelectionPopupData in theGame.GetGuiManager();
-    m_popupData.targetInventory = thePlayer.GetInventory();
-    m_popupData.overrideQuestItemRestrictions = true;
-
-    // pages
-    //m_popupData.selectionMode = EISPM_RadialMenuSlot1;
-    m_popupData.selectionMode = EISPM_RadialMenuSilverOil;
-    m_popupData.wo_isTrade = true;
-    m_popupData.wo_toTrade = "Rejuvenate";
-    
-    //cat.PushBack('potion');
-    //cat.PushBack('edibles');
-    //m_popupData.categoryFilterList = cat;
-    
-    theGame.RequestPopup('ItemSelectionPopup', m_popupData);
-    
-    //ToggleRadialMenuInput(false);
-    //radialPopupShown = true;
-}
-
-exec function test2() 
-{
-
-}
-
 exec function test3() {
   var tut: W3TutorialPopupData;
 
@@ -445,43 +415,6 @@ exec function test3() {
   tut.fullscreen = true;
 
   theGame.GetTutorialSystem().ShowTutorialHint(tut);
-}
-
-exec function test4()
-{
-    var cat : array<name>;
-    var m_popupData : W3ItemSelectionPopupData;
-    var inventory : CInventoryComponent;
-    
-    //inventory = player.ghost.GetInventory();
-    inventory = new CInventoryComponent in thePlayer;
-    inventory.AddAnItem('Aerondight EP2', 1);
-
-    m_popupData = new W3ItemSelectionPopupData in theGame.GetGuiManager();
-    m_popupData.targetInventory = inventory;
-    m_popupData.overrideQuestItemRestrictions = true;
-
-    // pages
-    //m_popupData.selectionMode = EISPM_RadialMenuSlot1;
-    m_popupData.selectionMode = EISPM_RadialMenuSilverOil;
-    m_popupData.wo_isReceivingTrade = true;
-    m_popupData.wo_toTrade = "Rejuvenate";
-    m_popupData.wo_crownsAmount = 10413;
-    
-    //cat.PushBack('potion');
-    //cat.PushBack('edibles');
-    //m_popupData.categoryFilterList = cat;
-    
-    theGame.RequestPopup('ItemSelectionPopup', m_popupData);
-    
-    //ToggleRadialMenuInput(false);
-    //radialPopupShown = true;
-}
-
-exec function openMenu()
-{
-    //theGame.r_getMultiplayerClient().menuSelectedPlayer = mpghosts_getPlayer("rejuvenate");
-    //theGame.r_getMultiplayerClient().createMenu(mpghosts_getPlayer("rejuvenate"));
 }
 
 @wrapMethod(CPlayerInput)

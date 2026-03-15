@@ -96,18 +96,6 @@ statemachine class r_MultiplayerClient
     default resetFlagPending = false;
     default resetFlagAt = -999;
 
-    private var spawnHorse : bool;
-
-    public function setHorse(val : bool)
-    {
-        spawnHorse = val;
-    }
-
-    public function getHorse() : bool
-    {
-        return spawnHorse;
-    }
-
     public function getOutgoingTradeTo() : string
     {
         return outgoingTradeTo.id;
@@ -288,86 +276,6 @@ statemachine class r_MultiplayerClient
         return true;
     }
 
-    public function rideTick()
-    {   
-        var adjustor : CMovementAdjustor; 
-        var ticket : SMovementAdjustmentRequestTicket; 
-        var targpos : Vector;
-        var heading  : float;
-        var forward  : Vector;
-
-        if(!ridingEnabled)
-            return;
-        
-        if(!players.Contains(ridingPlayer))
-        {
-            adjustor = thePlayer.GetMovingAgentComponent().GetMovementAdjustor();
-            adjustor.Cancel(adjustor.GetRequest('w3mp_ride'));
-            ridingEnabled = false;
-            return;
-        }
-
-        heading = ridingPlayer.ghost.GetHeading();
-        targpos = ridingPlayer.ghost.GetWorldPosition() + Vector(0,0,1.5);
-
-        forward = VecFromHeading(heading);
-        forward.Z = 0.0;
-        forward.W = 0.0;
-        forward = VecNormalize2D(forward);
-
-        targpos = targpos - (forward * 0.2);
-
-        adjustor = thePlayer.GetMovingAgentComponent().GetMovementAdjustor();
-        
-        adjustor.Cancel(adjustor.GetRequest('w3mp_ride'));
-        ticket = adjustor.CreateNewRequest('w3mp_ride');
-
-        adjustor.AdjustmentDuration(ticket, 0);
-        adjustor.AdjustLocationVertically(ticket, true);
-        adjustor.ScaleAnimationLocationVertically(ticket, true);
-        adjustor.RotateTo(ticket, heading); 
-        adjustor.SlideTo(ticket, targpos);
-    }
-
-    public function moveRiders()
-    {
-        var i : int;
-        var adjustor : CMovementAdjustor; 
-        var ticket : SMovementAdjustmentRequestTicket; 
-        var targpos : Vector;
-        var heading  : float;
-        var forward  : Vector;
-
-        for(i = 0; i < players.Size(); i+=1)
-        {
-            if(players[i].ridingPlayerId == id && players[i].isRiding)
-            {
-                heading = thePlayer.GetHeading();
-                targpos = thePlayer.GetWorldPosition() + Vector(0,0,1.5);
-
-                forward = VecFromHeading(heading);
-                forward.Z = 0.0;
-                forward.W = 0.0;
-                forward = VecNormalize2D(forward);
-
-                targpos = targpos - (forward * 0.2);
-
-                adjustor = players[i].ghost.GetMovingAgentComponent().GetMovementAdjustor();
-                
-                adjustor.Cancel(adjustor.GetRequest('w3mp_ghost'));
-                adjustor.Cancel(adjustor.GetRequest('w3mp_rideremote'));
-                adjustor.Cancel(adjustor.GetRequest('w3mp_ride2'));
-                ticket = adjustor.CreateNewRequest('w3mp_ride2');
-
-                adjustor.AdjustmentDuration(ticket, 0);
-                adjustor.AdjustLocationVertically(ticket, true);
-                adjustor.ScaleAnimationLocationVertically(ticket, true);
-                adjustor.RotateTo(ticket, heading); 
-                adjustor.SlideTo(ticket, targpos);
-            }
-        }
-    }
-
     public function getRidingPlayer() : r_RemotePlayer
     {
         return ridingPlayer;
@@ -386,9 +294,52 @@ statemachine class r_MultiplayerClient
 
         thePlayer.EnableCollisions(false);
         thePlayer.SetExplCamera(false);
-
         mpghosts_emote(29);
+
+        if(player.isSailing)
+        {
+            attachRiderBoat(thePlayer, actor);
+        }
+        else
+        {
+            attachRider(thePlayer, actor);
+        }
+
         deleteMenu();
+    }
+
+    public function attachRider(rider : CActor, toAttach : CActor)
+    {
+        var boneRotation, attach_rot : EulerAngles;
+        var bonePosition, attach_vec : Vector;
+
+        attach_rot.Roll = 0.0f;
+		attach_rot.Pitch = 0.0f;
+		attach_rot.Yaw = 0.0f;
+		attach_vec.X = 0.0f;
+		attach_vec.Y = -0.2f;
+		attach_vec.Z = 1.0f;
+    
+        //actor.GetBoneWorldPositionAndRotationByIndex(actor.GetBoneIndex('torso'), bonePosition, boneRotation);
+        //thePlayer.CreateAttachmentAtBoneWS(actor, 'torso', bonePosition, attach_rot);
+        rider.CreateAttachment(toAttach, , attach_vec, attach_rot);
+    }
+
+    public function attachRiderBoat(rider : CActor, toAttach : CActor)
+    {
+        var boneRotation, attach_rot : EulerAngles;
+        var bonePosition, attach_vec : Vector;
+
+        attach_rot.Roll = 0.0f;
+		attach_rot.Pitch = 0.0f;
+		attach_rot.Yaw = 180.0f;
+		attach_vec.X = 0.3f;
+		attach_vec.Y = 5.5f;
+		attach_vec.Z = 0.0f;
+    
+        //actor.GetBoneWorldPositionAndRotationByIndex(actor.GetBoneIndex('torso'), bonePosition, boneRotation);
+        //thePlayer.CreateAttachmentAtBoneWS(actor, 'torso', bonePosition, attach_rot);
+        rider.CreateAttachment(toAttach, , attach_vec, attach_rot);
     }
 
     public function tradeWithPlayer(actor : CActor)
@@ -461,6 +412,7 @@ statemachine class r_MultiplayerClient
 
         ridingEnabled = false;
         thePlayer.EnableCollisions(true);
+        thePlayer.BreakAttachment();
     }
 
     public function isRiding() : bool
@@ -1131,6 +1083,7 @@ statemachine class r_MultiplayerClient
         addChill('playing_cards_01_loop_03', 7.3);
 
         addChill('geralt_relaxed_sitting_and_resting_2', 8.7);
+        addChill('man_work_relaxed_sitting_and_resting_1', 11.43);
     }
 
     public function findChillDuration(t : name) : float 
@@ -3018,7 +2971,15 @@ function mpghosts_emote(num : int)
     }
     else if (num == 29)
     {
-        anim = 'geralt_relaxed_sitting_and_resting_2';
+        if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
+        {
+            anim = 'man_work_relaxed_sitting_and_resting_1';
+        }
+        else
+        {
+            anim = 'geralt_relaxed_sitting_and_resting_2';
+        }
+        
         loop = true;
     }
 
@@ -3246,136 +3207,10 @@ state WO_Tick in r_MultiplayerClient
             parent.UpdateLocalEmoteLoop();
             parent.pruneGlobalPlayers(3);
             parent.updateMenuPositions();
-            parent.rideTick();
-            parent.moveRiders();
             parent.checkOutgoingTrades();
             MP_SU_moveMinimapPins();
-
-            if(parent.getHorse())
-            {
-                spawnHorse();
-                parent.setHorse(false);
-            }
 
             SleepOneFrame();
         }
     }
-
-    /*latent function spawnHorse()
-    {
-        var ent : CEntity;
-        var horseTemplate : CEntityTemplate;
-        var horse : CNewNPC;
-        var pos: Vector;
-        var guy : CActor;
-        var vehicle : CVehicleComponent;	
-        var behaviorsToActivate : array< name >;
-        var preloadResult : bool;
-        behaviorsToActivate.PushBack('rider');
-
-        guy = (CActor)theGame.CreateEntity((CEntityTemplate)LoadResource("dlc\dlc_mpmod\data\entities\geralt_npc.w2ent", true ), thePlayer.GetWorldPosition(), , true, true, false, PM_DontPersist );
-
-        pos = guy.GetWorldPosition();
-        horseTemplate = (CEntityTemplate)LoadResource('horse');
-        horse = (CNewNPC)theGame.CreateEntity(horseTemplate, pos, , true, false, false, PM_DontPersist);
-
-        vehicle = (CVehicleComponent)horse.GetHorseComponent();
-        vehicle.Mount( guy, VMT_ImmediateUse, EVS_driver_slot );			
-
-        guy.SetUsedVehicle((CGameplayEntity)vehicle.GetEntity() );
-        //guy.MountHorseIfNeeded();	
-        //((CActor)guy).SignalGameplayEventParamInt( 'RidingManagerMountHorse', MT_instant | MT_fromScript );
-
-        preloadResult = guy.ActivateBehaviors( behaviorsToActivate );
-
-        if(preloadResult)
-        {
-            GetWitcherPlayer().DisplayHudMessage("Yo");
-        }
-
-        guy.CreateAttachment(vehicle.GetEntity(), 'root');
-
-        GetWitcherPlayer().DisplayHudMessage("Success");
-    }*/
-
-    private var temp, temp_2 : CEntityTemplate;
-    private var ent, ent_2 : CEntity;
-    private var l_aiTree : CAIHorseDoNothingAction;
-    private var horseTag : array<name>;	
-    private var spawnPos: Vector;
-    private var playerRot : EulerAngles;
-
-    latent function spawnHorse()
-    {
-        var entities : array<CGameplayEntity>;
-        var i : int;
-        var j : int;
-
-		//temp = (CEntityTemplate)LoadResourceAsync( "dlc\dlc_acs\data\entities\enemy_riders\enemy_rider_wildhunt.w2ent", true );
-		//temp = (CEntityTemplate)LoadResourceAsync( "quests\epilogues\quest_files\q504_ciri_empress\characters\q504_nilfgaardian_riders.w2ent", true );
-		temp = (CEntityTemplate)LoadResourceAsync("dlc\dlc_mpmod\data\entities\geralt_npc.w2ent", true );
-
-		temp_2 = (CEntityTemplate)LoadResourceAsync( 
-
-		"dlc\dlc_acs\data\entities\enemy_riders\horse_vehicle_wild_hunt.w2ent"
-			
-		, true );
-        spawnPos = thePlayer.GetWorldPosition();
-        playerRot = thePlayer.GetWorldRotation();
-
-        ent = theGame.CreateEntity( temp, spawnPos, playerRot );
-
-        ((CNewNPC)ent).SetAttitude(thePlayer, AIA_Hostile);
-        //((CNewNPC)ent).SetAttitude(ACSGetCActor('ACS_Eredin'), AIA_Friendly);
-        //((CActor)ent).ACS_SetAnimationSpeedMultiplier(1);
-        ((CActor)ent).AddTag( 'ContractTarget' );
-        ((CActor)ent).AddTag('IsBoss');
-        ((CActor)ent).AddAbility('Boss');
-        ((CActor)ent).AddAbility('BounceBoltsWildhunt');
-        ent.AddTag('NoBestiaryEntry');
-        ent.PlayEffectSingle('critical_frozen');
-        
-        horseTag.Clear();
-        horseTag.PushBack('enemy_horse');
-        horseTag.PushBack('online_horse');
-
-        ent_2 = theGame.CreateEntity(temp_2, spawnPos, playerRot,true,false,false,PM_DontPersist,horseTag);
-
-        ent.AddTag( 'ACS_Wild_Hunt_Rider' );
-        ent_2.AddTag( 'ACS_Wild_Hunt_Rider_Horse' );
-
-        l_aiTree = new CAIHorseDoNothingAction in ent;
-        l_aiTree.OnCreated();
-        ((CActor)ent).ForceAIBehavior( l_aiTree, BTAP_Emergency, 'AI_Rider_Load_Forced' );
-        ((CActor)ent).SignalGameplayEventParamInt( 'RidingManagerMountHorse', MT_instant | MT_fromScript );
-
-        Sleep(1);
-
-        ent.Teleport(thePlayer.GetWorldPosition());
-        GetWitcherPlayer().DisplayHudMessage("Success " + ((CActor)ent).IsUsingHorse());
-
-        
-        /*FindGameplayEntitiesInSphere( entities, npc.GetWorldPosition(), 5, 100 );
-
-        for(i = 0; i < entities.Size(); i+=1)
-        {
-            tags = entities[i].GetTags();
-            for(j = 0; j < tags.Size(); j+=1)
-            {
-                LogChannel('TAGS', i + ": " +tags[j]);
-            }
-        }*/
-
-        //((CActor)npc).SignalGameplayEventParamInt( 'RidingManagerDismountHorse', DT_normal );
-    }
-}
-
-exec function spawnHorse()
-{
-    theGame.r_getMultiplayerClient().setHorse(true);
-}
-
-exec function horse()
-{
-
 }

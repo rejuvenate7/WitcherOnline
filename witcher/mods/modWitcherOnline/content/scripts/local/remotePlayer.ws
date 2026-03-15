@@ -483,7 +483,8 @@ statemachine class r_RemotePlayer
             if (emoteCancelableAt > 0.0f && now >= emoteCancelableAt)
             {
                 if(lastAnim != 'fall_up_idle' && lastAnim != 'ep1_mirror_sitting_on_shrine_gesture_explain_04' && lastAnim != 'locomotion_salsa_cycle_02' && 
-                    lastAnim != 'seaman_working_on_the_ship_loop_01' && lastAnim != 'geralt_drunk_walk' && lastAnim != 'geralt_relaxed_sitting_and_resting_2')
+                    lastAnim != 'seaman_working_on_the_ship_loop_01' && lastAnim != 'geralt_drunk_walk' && lastAnim != 'geralt_relaxed_sitting_and_resting_2' 
+                    && lastAnim != 'man_work_relaxed_sitting_and_resting_1')
                 {
                     stopAllAnims();
                 }
@@ -494,7 +495,7 @@ statemachine class r_RemotePlayer
         {
             if (emoteCancelableAt > 0.0f && now >= emoteCancelableAt)
             {
-                if(lastAnim != 'fall_up_idle' && lastAnim != 'geralt_relaxed_sitting_and_resting_2')
+                if(lastAnim != 'fall_up_idle' && lastAnim != 'geralt_relaxed_sitting_and_resting_2' && lastAnim != 'man_work_relaxed_sitting_and_resting_1')
                 {
                     stopAllAnims();
                 }
@@ -990,10 +991,7 @@ statemachine class r_RemotePlayer
             ghost.Destroy();
             ghost = NULL;
         }
-    }
 
-    public function despawnHorse()
-    {
         if(horse)
         {
             if(isMounted)
@@ -1004,54 +1002,72 @@ statemachine class r_RemotePlayer
             horse.Destroy();
             horse = NULL;
         }
+
+        if(boat)
+        {
+            boat.Destroy();
+            boat = NULL;
+        }
     }
 
-    public function rideTick()
+    public function checkRidingAttachment()
     {
-        var adjustor : CMovementAdjustor; 
-        var ticket : SMovementAdjustmentRequestTicket; 
-        var targpos : Vector;
-        var heading  : float;
-        var forward  : Vector;
         var ridingPlayer : r_RemotePlayer;
         var toRide : CActor;
+        var isPlayer : bool;
 
-        if(!isRiding)
+        if(isMounted)
+        {
             return;
+        }
 
-        ridingPlayer = mpghosts_getPlayerById(ridingPlayerId);
+        if(isRiding)
+        {
+            if(!ghost.HasAttachment())
+            {
+                // attach
+                ridingPlayer = mpghosts_getPlayerById(ridingPlayerId);
 
-        if(!ridingPlayer)
-            return;
+                if(!ridingPlayer)
+                {
+                    if(ridingPlayerId == theGame.r_getMultiplayerClient().getId())
+                    {
+                        isPlayer = true;
+                    }
+                    else
+                    {
+                        return;
+                    }
+                }
 
-        if(ridingPlayerId == id)
-            return;
+                toRide = ridingPlayer.ghost;
 
-        toRide = ridingPlayer.ghost;
-    
-        heading = toRide.GetHeading();
+                if(isPlayer || (ridingPlayerId == theGame.r_getMultiplayerClient().getId()))
+                {
+                    toRide = thePlayer;
+                }
 
-        forward = VecFromHeading(heading);
-        forward.Z = 0.0;
-        forward.W = 0.0;
-        forward = VecNormalize2D(forward);
+                if(ridingPlayer.isSailing || (toRide == thePlayer && thePlayer.IsSailing()))
+                {
+                    theGame.r_getMultiplayerClient().attachRiderBoat(ghost, toRide);
+                }
+                else
+                {
+                    theGame.r_getMultiplayerClient().attachRider(ghost, toRide);
+                }
 
-        targpos = toRide.GetWorldPosition() + Vector(0,0,1.5);
-
-        targpos = targpos - (forward * 0.2);
-
-        adjustor = ghost.GetMovingAgentComponent().GetMovementAdjustor();
-        
-        adjustor.Cancel(adjustor.GetRequest('w3mp_ghost'));
-        adjustor.Cancel(adjustor.GetRequest('w3mp_rideremote'));
-        ticket = adjustor.CreateNewRequest('w3mp_rideremote');
-
-        adjustor.AdjustmentDuration(ticket, 0);
-        adjustor.AdjustLocationVertically(ticket, true);
-        adjustor.ScaleAnimationLocationVertically(ticket, true);
-        adjustor.RotateTo(ticket, heading); 
-        adjustor.SlideTo(ticket, targpos);
-        
+                GetWitcherPlayer().DisplayHudMessage("Attached!");
+            }
+        }
+        else
+        {
+            if(ghost.HasAttachment())
+            {
+                // detach
+                ghost.BreakAttachment();
+                GetWitcherPlayer().DisplayHudMessage("Detached!");
+            }
+        }
     }
 
     public function updateGhost()
@@ -1064,7 +1080,6 @@ statemachine class r_RemotePlayer
         if (!isInRange())
         {
             despawn();   
-            despawnHorse();
             updatePin();
             prune();
             return;
@@ -1086,14 +1101,8 @@ statemachine class r_RemotePlayer
         updateChat();
         updateCPC();
 
-        if(isRiding)
-        {
-            rideTick();
-        }
-        else
-        {
-            moveEntity(ghost, pos);
-        }
+        checkRidingAttachment();
+        moveEntity(ghost, pos);
 
         updatePin();
         fixGeraltAppearance();
@@ -1491,7 +1500,14 @@ statemachine class r_RemotePlayer
             }
             else if (lastEmote == 29)
             {
-                queueAnim('geralt_relaxed_sitting_and_resting_2', 8.7, 0.4, 0, 'emote', true, true);
+                if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
+                {
+                    queueAnim('man_work_relaxed_sitting_and_resting_1', 11.43, 0.4, 0, 'emote', true, true);
+                }
+                else
+                {
+                    queueAnim('geralt_relaxed_sitting_and_resting_2', 8.7, 0.4, 0, 'emote', true, true);
+                }
             }
 
             lastEmote = -1;
@@ -4994,7 +5010,7 @@ statemachine class r_RemotePlayer
         adjustor = entity.GetMovingAgentComponent().GetMovementAdjustor();
         verticalDist = AbsF(targpos.Z - entpos.Z);
 
-        if(isMounted)
+        if(isMounted || isRiding)
         {
             return;
         }
@@ -5206,7 +5222,6 @@ state WO_UpdateCPC in r_RemotePlayer
             ((CActor)parent.horse).SetGameplayVisibility( false );
 
             ((CActor)parent.horse).ApplyAppearance("horse_draft_vehicle_02");
-            GetWitcherPlayer().DisplayHudMessage(((CActor)parent.horse).GetAppearance());
 
             adjustor = parent.ghost.GetMovingAgentComponent().GetMovementAdjustor();
             adjustor.Cancel(adjustor.GetRequest('w3mp_ghost'));
@@ -5242,8 +5257,6 @@ state WO_UpdateCPC in r_RemotePlayer
         var anchor : CEntity;
         var anchor_temp : CEntityTemplate;
 
-        //temp_2 = (CEntityTemplate)LoadResourceAsync("dlc\dlc_mpmod\data\entities\boat.w2ent", true);
-        //temp_2 = (CEntityTemplate)LoadResourceAsync("dlc\dlc_mpmod\data\entities\boat_copy.w2ent", true);
         temp_2 = (CEntityTemplate)LoadResourceAsync("dlc\dlc_mpmod\data\entities\boat_copy_copy.w2ent", true);
 
         horseTag.Clear();
@@ -5254,24 +5267,9 @@ state WO_UpdateCPC in r_RemotePlayer
         ((CActor)parent.boat).EnableCollisions(false);
         ((CActor)parent.boat).EnableCharacterCollisions(false); 
         ((CActor)parent.boat).SetGameplayVisibility( false );
-
-        //Sleep(0.5);
-
-        //boneIndex = parent.boat.GetBoneIndex('boat_base');
-
-        /*anchor_temp = (CEntityTemplate)LoadResourceAsync("dlc\dlc_acs\data\entities\other\fx_ent.w2ent", true);
-        boneIndex = parent.boat.GetBoneIndex('boat_mast02');
-        parent.boat.GetBoneWorldPositionAndRotationByIndex(boneIndex, bonePosition, boneRotation);
-        anchor = (CEntity)theGame.CreateEntity(anchor_temp, parent.boat.GetWorldPosition());
-        anchor.CreateAttachmentAtBoneWS(parent.boat, 'boat_mast02', bonePosition, boneRotation);*/
-        //anchor.CreateAttachment(parent.boat);
-
-        //parent.ghost.CreateAttachment(anchor);
-        //parent.ghost.CreateAttachment(parent.boat);
-        //GetWitcherPlayer().DisplayHudMessage("mounted! " + parent.boat.GetBoneIndex('boat_base'));
     }
 
-    latent function dismountBoat()
+    latent function destroyBoat()
     {
         parent.boat.Destroy();
     }
@@ -5378,22 +5376,21 @@ state WO_UpdateCPC in r_RemotePlayer
         adjustor.RotateTo(ticket, parent.heading); 
         adjustor.SlideTo(ticket, targpos);
 
-        LogChannel('boatvelo', VecLength2D(((CActor)parent.boat).GetMovingAgentComponent().GetVelocity()));
+        //LogChannel('boatvelo', VecLength2D(((CActor)parent.boat).GetMovingAgentComponent().GetVelocity()));
 
         velo = VecLength2D(((CActor)parent.boat).GetMovingAgentComponent().GetVelocity());
 
         if(velo > 0.5)
         {
-            GetWitcherPlayer().DisplayHudMessage("wind");
             parent.boat.PlayEffectSingle( 'fake_wind_right' );
             parent.boat.PlayEffectSingle( 'fake_wind_left' );
-            parent.boat.PlayEffectSingle( 'front_splash' );
+            parent.boat.PlayEffectSingle( 'water_trail' );
         }
         else
         {
             parent.boat.StopEffectIfActive( 'fake_wind_right' );
 			parent.boat.StopEffectIfActive( 'fake_wind_left' );
-			parent.boat.StopEffectIfActive( 'fake_wind_back' );
+			parent.boat.StopEffectIfActive( 'water_trail' );
         }
     }
 
@@ -5452,7 +5449,6 @@ state WO_UpdateCPC in r_RemotePlayer
             {
                 if(!lastSailing)
                 {
-                    GetWitcherPlayer().DisplayHudMessage("Spawn boat");
                     spawnBoat();
                 }
 
@@ -5482,8 +5478,7 @@ state WO_UpdateCPC in r_RemotePlayer
             {
                 if(lastSailing)
                 {
-                    GetWitcherPlayer().DisplayHudMessage("Dismount boat");
-                    dismountBoat();
+                    destroyBoat();
                     lastSailing = false;
                 }
             }
@@ -5780,42 +5775,4 @@ state WO_UpdateCPC in r_RemotePlayer
 
         return template;
 	}
-}
-
-exec function lambert()
-{
-
-    var l_aiTree : CAIHorseDoNothingAction;
-    var adjustor : CMovementAdjustor; 
-    var ent_2 : CEntity;
-    var temp_2 : CEntityTemplate;
-    var horseTag : array<name>;
-
-    var bonePosition : Vector;
-    var boneRotation : EulerAngles;
-    var boneIndex : int;
-    var anchor : CEntity;
-    var boat : CActor;
-    var lambert : CNewNPC;
-    var anchor_temp : CEntityTemplate;
-
-    //temp_2 = (CEntityTemplate)LoadResourceAsync("dlc\dlc_mpmod\data\entities\boat.w2ent", true);
-    //temp_2 = (CEntityTemplate)LoadResourceAsync("dlc\dlc_mpmod\data\entities\boat_copy.w2ent", true);
-    //.temp_2 = (CEntityTemplate)LoadResourceAsync("dlc\dlc_mpmod\data\entities\boat_copy_copy.w2ent", true);
-    temp_2 = (CEntityTemplate)LoadResource('boat');
-
-    horseTag.Clear();
-    horseTag.PushBack('online_horse');
-
-    boat = (CActor)theGame.CreateEntity(temp_2, thePlayer.GetWorldPosition(), thePlayer.GetWorldRotation(), true,false,false,PM_DontPersist,horseTag);
-    lambert = (CNewNPC)theGame.CreateEntity((CEntityTemplate)LoadResource("characters\npc_entities\main_npc\lambert.w2ent", true), thePlayer.GetWorldPosition(), thePlayer.GetWorldRotation(), true,false,false,PM_DontPersist,horseTag);
-
-    //((CActor)parent.boat).EnableCollisions(false);
-    //((CActor)parent.boat).EnableCharacterCollisions(false); 
-    //((CActor)parent.boat).SetGameplayVisibility( false );
-
-    //Sleep(0.5);
-
-    lambert.SignalGameplayEventParamInt( 'RidingManagerMountBoat', MT_instant );
-    
 }
