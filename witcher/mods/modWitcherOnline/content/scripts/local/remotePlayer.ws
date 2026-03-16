@@ -383,6 +383,12 @@ statemachine class r_RemotePlayer
         var now : float;
         now = theGame.GetEngineTimeAsSeconds();
         
+        if(lastAnim != request.anim && request.type == 'emote' && request.loop)
+        {
+            request.fadeIn = 0.4f;
+            GetWitcherPlayer().DisplayHudMessage("init fade emote");
+        }
+
         ghost.GetRootAnimatedComponent().PlaySlotAnimationAsync(
             request.anim, 
             'NPC_ANIM_SLOT',
@@ -436,13 +442,13 @@ statemachine class r_RemotePlayer
         var now : float = theGame.GetEngineTimeAsSeconds();
         var req : r_AnimRequest;
 
-        if (isAnimPlaying && now >= currentAnimEndTime)
+        if (isAnimPlaying && theGame.GetEngineTimeAsSeconds() >= currentAnimEndTime)
         {
             if (currentType == 'emote' && currentEmoteLoops && animQueue.Size() == 0)
             {
                 req.anim = lastAnim;
                 req.duration = currentEmoteLoopDur;
-                req.fadeIn = 0.4f;
+                req.fadeIn = 0.0f;
                 req.fadeOut = 0.0f;
                 req.type = 'emote';
                 req.overrideNow = true;
@@ -484,7 +490,7 @@ statemachine class r_RemotePlayer
             {
                 if(lastAnim != 'fall_up_idle' && lastAnim != 'ep1_mirror_sitting_on_shrine_gesture_explain_04' && lastAnim != 'locomotion_salsa_cycle_02' && 
                     lastAnim != 'seaman_working_on_the_ship_loop_01' && lastAnim != 'geralt_drunk_walk' && lastAnim != 'geralt_relaxed_sitting_and_resting_2' 
-                    && lastAnim != 'man_work_relaxed_sitting_and_resting_1')
+                    && lastAnim != 'man_work_relaxed_sitting_and_resting_1' && lastAnim != 'boat_passenger_sit_idle')
                 {
                     stopAllAnims();
                 }
@@ -495,7 +501,7 @@ statemachine class r_RemotePlayer
         {
             if (emoteCancelableAt > 0.0f && now >= emoteCancelableAt)
             {
-                if(lastAnim != 'fall_up_idle' && lastAnim != 'geralt_relaxed_sitting_and_resting_2' && lastAnim != 'man_work_relaxed_sitting_and_resting_1')
+                if(lastAnim != 'fall_up_idle' && lastAnim != 'geralt_relaxed_sitting_and_resting_2' && lastAnim != 'man_work_relaxed_sitting_and_resting_1' && lastAnim != 'boat_passenger_sit_idle')
                 {
                     stopAllAnims();
                 }
@@ -985,6 +991,32 @@ statemachine class r_RemotePlayer
 
     public function despawn()
     {
+        var players : array<r_RemotePlayer>;
+        var i : int;
+        var ridingPlayer : r_RemotePlayer;
+
+        ridingPlayer = theGame.r_getMultiplayerClient().getRidingPlayer();
+        players = theGame.r_getMultiplayerClient().getPlayers();
+
+        for(i = 0; i < players.Size(); i+=1)
+        {
+            if(players[i].ghost.HasAttachment() && players[i].isRiding && players[i].ridingPlayerId == id)
+            {
+                players[i].ghost.BreakAttachment();
+                GetWitcherPlayer().DisplayHudMessage("Break ghost attachment, dc");
+            }
+        }
+        
+        if(ridingPlayer && theGame.r_getMultiplayerClient().isRiding())
+        {
+            if(thePlayer.HasAttachment() && ridingPlayer == this)
+            {
+                thePlayer.BreakAttachment();
+                GetWitcherPlayer().DisplayHudMessage("Break player attachment, dc");
+                mpghosts_stopeemote();
+            }
+        }
+
         if(ghost)
         {
             destroyPin();
@@ -1010,6 +1042,8 @@ statemachine class r_RemotePlayer
         }
     }
 
+    var lastMountType : string;
+
     public function checkRidingAttachment()
     {
         var ridingPlayer : r_RemotePlayer;
@@ -1023,40 +1057,59 @@ statemachine class r_RemotePlayer
 
         if(isRiding)
         {
+            ridingPlayer = mpghosts_getPlayerById(ridingPlayerId);
+
+            if(!ridingPlayer)
+            {
+                if(ridingPlayerId == theGame.r_getMultiplayerClient().getId())
+                {
+                    isPlayer = true;
+                }
+                else
+                {
+                    return;
+                }
+            }
+
+            toRide = ridingPlayer.ghost;
+
+            if(isPlayer || (ridingPlayerId == theGame.r_getMultiplayerClient().getId()))
+            {
+                toRide = thePlayer;
+            }
+
             if(!ghost.HasAttachment())
             {
                 // attach
-                ridingPlayer = mpghosts_getPlayerById(ridingPlayerId);
-
-                if(!ridingPlayer)
-                {
-                    if(ridingPlayerId == theGame.r_getMultiplayerClient().getId())
-                    {
-                        isPlayer = true;
-                    }
-                    else
-                    {
-                        return;
-                    }
-                }
-
-                toRide = ridingPlayer.ghost;
-
-                if(isPlayer || (ridingPlayerId == theGame.r_getMultiplayerClient().getId()))
-                {
-                    toRide = thePlayer;
-                }
-
                 if(ridingPlayer.isSailing || (toRide == thePlayer && thePlayer.IsSailing()))
                 {
                     theGame.r_getMultiplayerClient().attachRiderBoat(ghost, toRide);
+                    lastMountType = "boat";
                 }
                 else
                 {
                     theGame.r_getMultiplayerClient().attachRider(ghost, toRide);
+                    lastMountType = "player";
                 }
 
                 GetWitcherPlayer().DisplayHudMessage("Attached!");
+            }
+            else
+            {
+                if((ridingPlayer.isSailing || (toRide == thePlayer && thePlayer.IsSailing())) && lastMountType != "boat")
+                {
+                    ghost.BreakAttachment();
+                    GetWitcherPlayer().DisplayHudMessage("Swap attachment 1");
+                    theGame.r_getMultiplayerClient().attachRiderBoat(ghost, toRide);
+                    lastMountType = "boat";
+                }
+                else if(!(ridingPlayer.isSailing || (toRide == thePlayer && thePlayer.IsSailing())) && lastMountType == "boat")
+                {
+                    ghost.BreakAttachment();
+                    GetWitcherPlayer().DisplayHudMessage("Swap attachment 2");
+                    theGame.r_getMultiplayerClient().attachRider(ghost, toRide);
+                    lastMountType = "player";
+                }
             }
         }
         else
@@ -1066,6 +1119,7 @@ statemachine class r_RemotePlayer
                 // detach
                 ghost.BreakAttachment();
                 GetWitcherPlayer().DisplayHudMessage("Detached!");
+                lastMountType = "none";
             }
         }
     }
@@ -1325,7 +1379,7 @@ statemachine class r_RemotePlayer
         {
             if (lastEmote == 0)
             {
-                queueAnim('man_work_greeting_with_hand_gesture_05', 3.13, 0.4, 0, 'emote', true, true);
+                queueAnim('man_work_greeting_with_hand_gesture_05', 3.13, 0, 0, 'emote', true, true);
             }
             else if (lastEmote == 1)
             {
@@ -1333,9 +1387,7 @@ statemachine class r_RemotePlayer
             }
             else if (lastEmote == 2)
             {
-                //queueAnim('meditation_start_long', 3.7, 0.4, 0, 'emote', true);
-                queueAnim('meditation_idle01', 6.1, 0.4, 0, 'emote', true, true);
-                //queueAnim('meditation_stop_long', 2.83, 0, 0, 'emote');
+                queueAnim('meditation_idle01', 6.1, 0, 0, 'emote', true, true);
             }
             else if (lastEmote == 3)
             {
@@ -1369,12 +1421,11 @@ statemachine class r_RemotePlayer
             }
             else if (lastEmote == 7)
             {
-                queueAnim('man_cheering_loop', 3.63, 0.4, 0, 'emote', true, true);
+                queueAnim('man_cheering_loop', 3.63, 0, 0, 'emote', true, true);
             }
             else if (lastEmote == 8)
             {
-                //queueAnim('man_begging_for_mercy_start', 5.00, 0.4, 0, 'emote', true);
-                queueAnim('man_begging_for_mercy_loop_01', 10.53, 0.4, 0, 'emote', true, true);
+                queueAnim('man_begging_for_mercy_loop_01', 10.53, 0, 0, 'emote', true, true);
             }
             else if (lastEmote == 9)
             {
@@ -1386,11 +1437,11 @@ statemachine class r_RemotePlayer
             }
             else if (lastEmote == 11)
             {
-                queueAnim('geralt_drunk_walk', 2.8, 0.4, 0, 'emote', true, true);
+                queueAnim('geralt_drunk_walk', 2.8, 0, 0, 'emote', true, true);
             }
             else if (lastEmote == 12)
             {
-                queueAnim('man_praying_crossed_legs_loop_02', 7.5, 0.4, 0, 'emote', true, true);
+                queueAnim('man_praying_crossed_legs_loop_02', 7.5, 0, 0, 'emote', true, true);
             }
             else if (lastEmote == 13)
             {
@@ -1398,7 +1449,7 @@ statemachine class r_RemotePlayer
             }
             else if (lastEmote == 14)
             {
-                queueAnim('q103_man_prophesying_1', 15.07, 0.4, 0, 'emote', true, true);
+                queueAnim('q103_man_prophesying_1', 15.07, 0, 0, 'emote', true, true);
             }
             else if (lastEmote == 15)
             {
@@ -1410,7 +1461,7 @@ statemachine class r_RemotePlayer
             }
             else if (lastEmote == 17)
             {
-                queueAnim('seaman_working_on_the_ship_loop_01', 3.6, 0.4, 0, 'emote', true, true);
+                queueAnim('seaman_working_on_the_ship_loop_01', 3.6, 0, 0, 'emote', true, true);
             }
             else if (lastEmote == 18)
             {
@@ -1418,22 +1469,22 @@ statemachine class r_RemotePlayer
             }
             else if (lastEmote == 19)
             {
-                queueAnim('vanilla_sitting_on_ground_loop', 15.63, 0.4, 0, 'emote', true, true);
+                queueAnim('vanilla_sitting_on_ground_loop', 15.63, 0, 0, 'emote', true, true);
             }
             else if (lastEmote == 20)
             {
                 if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
                 {
-                    queueAnim('woman_noble_lying_relaxed_on_grass_loop_03', 11.2, 0.4, 0, 'emote', true, true);
+                    queueAnim('woman_noble_lying_relaxed_on_grass_loop_03', 11.2, 0, 0, 'emote', true, true);
                 }
                 else
                 {
-                    queueAnim('mq7009_geralt_heroic_pose_lying', 19.7, 0.4, 0, 'emote', true, true);
+                    queueAnim('mq7009_geralt_heroic_pose_lying', 19.7, 0, 0, 'emote', true, true);
                 }
             }
             else if (lastEmote == 21)
             {
-                queueAnim('locomotion_salsa_cycle_02', 40, 0.4, 0, 'emote', true, true);
+                queueAnim('locomotion_salsa_cycle_02', 40, 0, 0, 'emote', true, true);
             }
             else if (lastEmote == 22)
             {
@@ -1450,11 +1501,11 @@ statemachine class r_RemotePlayer
             {
                 if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
                 {
-                    queueAnim('woman_work_standing_hands_crossed_loop_02', 5.43, 0.4, 0, 'emote', true, true);
+                    queueAnim('woman_work_standing_hands_crossed_loop_02', 5.43, 0, 0, 'emote', true, true);
                 }
                 else
                 {
-                    queueAnim('high_standing_determined2_idle', 23.07, 0.4, 0, 'emote', true, true);
+                    queueAnim('high_standing_determined2_idle', 23.07, 0, 0, 'emote', true, true);
                 }
             }
             else if (lastEmote == 24)
@@ -1496,18 +1547,22 @@ statemachine class r_RemotePlayer
             }
             else if (lastEmote == 28)
             {
-                queueAnim('man_peeing_loop', 3.07, 0.4, 0, 'emote', true, true);
+                queueAnim('man_peeing_loop', 3.07, 0, 0, 'emote', true, true);
             }
             else if (lastEmote == 29)
             {
                 if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
                 {
-                    queueAnim('man_work_relaxed_sitting_and_resting_1', 11.43, 0.4, 0, 'emote', true, true);
+                    queueAnim('man_work_relaxed_sitting_and_resting_1', 11.43, 0, 0, 'emote', true, true);
                 }
                 else
                 {
-                    queueAnim('geralt_relaxed_sitting_and_resting_2', 8.7, 0.4, 0, 'emote', true, true);
+                    queueAnim('geralt_relaxed_sitting_and_resting_2', 8.7, 0, 0, 'emote', true, true);
                 }
+            }
+            else if (lastEmote == 30)
+            {
+                queueAnim('boat_passenger_sit_idle', 2.33, 0, 0, 'emote', true, true);
             }
 
             lastEmote = -1;
@@ -5272,6 +5327,7 @@ state WO_UpdateCPC in r_RemotePlayer
     latent function destroyBoat()
     {
         parent.boat.Destroy();
+        parent.boat = NULL;
     }
 
     function moveHorse()
@@ -5351,8 +5407,16 @@ state WO_UpdateCPC in r_RemotePlayer
 
 
         //rightOffset = 0.35f;
-        rightOffset = 0.33f;
-        forwardOffset = 2.75f;
+        if(parent.cpcPlayerType != ENR_PlayerGeralt && parent.cpcPlayerType != ENR_PlayerWitcher && parent.cpcPlayerType != ENR_PlayerUnknown)
+        {
+            rightOffset = 0.5f;
+            forwardOffset = 3.25f;
+        }
+        else
+        {
+            rightOffset = 0.33f;
+            forwardOffset = 2.75f;
+        }
         
         forward = VecFromHeading( parent.heading );
         forward.Z = 0.0f;
@@ -5363,7 +5427,7 @@ state WO_UpdateCPC in r_RemotePlayer
         right.Z = 0.0f;
         right = VecNormalize( right );
         
-        targpos = parent.pos + forward * forwardOffset + right * rightOffset - Vector(0, 0, 0.25);
+        targpos = parent.pos + forward * forwardOffset + right * rightOffset - Vector(0, 0, 0.22);
 
         adjustor = ((CActor)parent.boat).GetMovingAgentComponent().GetMovementAdjustor();
         
@@ -5447,7 +5511,7 @@ state WO_UpdateCPC in r_RemotePlayer
 
             if(parent.isSailing)
             {
-                if(!lastSailing)
+                if(!lastSailing || !parent.boat)
                 {
                     spawnBoat();
                 }

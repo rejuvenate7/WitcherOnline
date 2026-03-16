@@ -281,6 +281,8 @@ statemachine class r_MultiplayerClient
         return ridingPlayer;
     }
 
+    var lastRidingType : string;
+
     public function ridePlayer(actor : CActor)
     {
         var player : r_RemotePlayer;
@@ -294,18 +296,50 @@ statemachine class r_MultiplayerClient
 
         thePlayer.EnableCollisions(false);
         thePlayer.SetExplCamera(false);
-        mpghosts_emote(29);
-
+        
         if(player.isSailing)
         {
+            mpghosts_emote(30);
             attachRiderBoat(thePlayer, actor);
+            lastRidingType = "boat";
         }
         else
         {
+            mpghosts_emote(29);
             attachRider(thePlayer, actor);
+            lastRidingType = "player";
         }
 
         deleteMenu();
+    }
+
+    public function checkRidingAttachment()
+    {
+        if(!ridingEnabled || !ridingPlayer)
+        {
+            return;
+        }
+
+        if(thePlayer.HasAttachment())
+        {
+            if(ridingPlayer.isSailing && lastRidingType != "boat")
+            {
+                thePlayer.BreakAttachment();
+                GetWitcherPlayer().DisplayHudMessage("Swap client attach 1");
+                attachRiderBoat(thePlayer, ridingPlayer.ghost);
+                lastRidingType = "boat";
+                mpghosts_emote(30);
+            }
+            else if(!ridingPlayer.isSailing && lastRidingType != "player")
+            {
+                thePlayer.BreakAttachment();
+                GetWitcherPlayer().DisplayHudMessage("Swap client attach 2");
+                attachRider(thePlayer, ridingPlayer.ghost);
+                lastRidingType = "player";
+                mpghosts_emote(29);
+            }
+        }
+        
     }
 
     public function attachRider(rider : CActor, toAttach : CActor)
@@ -329,13 +363,35 @@ statemachine class r_MultiplayerClient
     {
         var boneRotation, attach_rot : EulerAngles;
         var bonePosition, attach_vec : Vector;
+        var player : r_RemotePlayer;
+
+        player = mpghosts_getPlayerFromActor(toAttach);
 
         attach_rot.Roll = 0.0f;
 		attach_rot.Pitch = 0.0f;
 		attach_rot.Yaw = 180.0f;
-		attach_vec.X = 0.3f;
-		attach_vec.Y = 5.5f;
-		attach_vec.Z = 0.0f;
+
+        if(rider != thePlayer)
+        {
+            attach_vec.X = 0.5f;
+            attach_vec.Y = 6.0f;
+            attach_vec.Z += 0.1f;
+        }
+        else
+        {
+            if(player && (player.cpcPlayerType != ENR_PlayerGeralt && player.cpcPlayerType != ENR_PlayerWitcher && player.cpcPlayerType != ENR_PlayerUnknown))
+            {
+                attach_vec.X = 0.5f;
+                attach_vec.Y = 6.0f;
+                attach_vec.Z += 0.1f;
+            }
+            else
+            {
+                attach_vec.X = 0.35f;
+                attach_vec.Y = 5.5f;
+                attach_vec.Z += 0.1f;
+            }
+        }
     
         //actor.GetBoneWorldPositionAndRotationByIndex(actor.GetBoneIndex('torso'), bonePosition, boneRotation);
         //thePlayer.CreateAttachmentAtBoneWS(actor, 'torso', bonePosition, attach_rot);
@@ -413,6 +469,7 @@ statemachine class r_MultiplayerClient
         ridingEnabled = false;
         thePlayer.EnableCollisions(true);
         thePlayer.BreakAttachment();
+        lastRidingType = "none";
     }
 
     public function isRiding() : bool
@@ -1083,6 +1140,7 @@ statemachine class r_MultiplayerClient
         addChill('playing_cards_01_loop_03', 7.3);
 
         addChill('geralt_relaxed_sitting_and_resting_2', 8.7);
+        addChill('boat_passenger_sit_idle', 2.33);
         addChill('man_work_relaxed_sitting_and_resting_1', 11.43);
     }
 
@@ -2757,11 +2815,16 @@ exec function piss()
     mpghosts_emote(28);
 }
 
-exec function stopemote()
+function mpghosts_stopeemote()
 {
     theGame.r_getMultiplayerClient().setEmote(-1);
     theGame.r_getMultiplayerClient().ClearLocalEmoteState();
     mpghosts_playerEmote('');
+}
+
+exec function stopemote()
+{
+    mpghosts_stopeemote();
 }
 
 exec function emote(num : int)
@@ -2980,6 +3043,11 @@ function mpghosts_emote(num : int)
             anim = 'geralt_relaxed_sitting_and_resting_2';
         }
         
+        loop = true;
+    }
+    else if (num == 30)
+    {
+        anim = 'boat_passenger_sit_idle';
         loop = true;
     }
 
@@ -3208,6 +3276,7 @@ state WO_Tick in r_MultiplayerClient
             parent.pruneGlobalPlayers(3);
             parent.updateMenuPositions();
             parent.checkOutgoingTrades();
+            parent.checkRidingAttachment();
             MP_SU_moveMinimapPins();
 
             SleepOneFrame();
