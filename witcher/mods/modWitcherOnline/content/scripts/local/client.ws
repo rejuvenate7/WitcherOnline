@@ -296,6 +296,9 @@ statemachine class r_MultiplayerClient
 
         thePlayer.EnableCollisions(false);
         thePlayer.SetExplCamera(false);
+
+        theInput.IgnoreGameInput( 'GI_AxisLeftX', true );
+        theInput.IgnoreGameInput( 'GI_AxisLeftY', true );
         
         if(player.isSailing)
         {
@@ -469,6 +472,8 @@ statemachine class r_MultiplayerClient
         ridingEnabled = false;
         thePlayer.EnableCollisions(true);
         thePlayer.BreakAttachment();
+        theInput.IgnoreGameInput( 'GI_AxisLeftX', false );
+        theInput.IgnoreGameInput( 'GI_AxisLeftY', false );
         lastRidingType = "none";
     }
 
@@ -483,11 +488,25 @@ statemachine class r_MultiplayerClient
         var giftOption: MP_SU_OnelinerEntity;
         var closeOption: MP_SU_OnelinerEntity;
         var player : r_RemotePlayer;
+        var ridePrompt : string;
 
         player = mpghosts_getPlayerFromActor(actor);
 
         if(!player)
             return;
+
+        if(player.isSailing)
+        {
+            ridePrompt = "Ride Boat";
+        }
+        else if(player.isMounted)
+        {
+            ridePrompt = "Ride Horse";
+        }
+        else
+        {
+            ridePrompt = "Ride";
+        }
         
         menuSelectedPlayer = player;
         menuSelected = 0;
@@ -497,7 +516,7 @@ statemachine class r_MultiplayerClient
         .tag("font")
         .attr("size", "20")
         .attr("color", "#FFFFFF")
-        .text("Ride");
+        .text(ridePrompt);
         rideOption.tag = "wo_RideOption";
         rideOption.entity = player.ghost;
         rideOption.visible = true;
@@ -635,8 +654,24 @@ statemachine class r_MultiplayerClient
 
         var selectedColor : string = "#0b9dff";
 
+        var ridePrompt : string;
+
         if(!menuOpen || !menuSelectedPlayer || !menuSelectedPlayer.ghost)
             return;
+        
+        if(menuSelectedPlayer.isSailing)
+        {
+            ridePrompt = "Ride Boat";
+        }
+        else if(menuSelectedPlayer.isMounted)
+        {
+            ridePrompt = "Ride Horse";
+            height += 0.9;
+        }
+        else
+        {
+            ridePrompt = "Ride";
+        }
 
         heading = menuSelectedPlayer.ghost.GetHeading();
         right = VecFromHeading(heading + 90.0);
@@ -679,7 +714,7 @@ statemachine class r_MultiplayerClient
                         .tag("font")
                         .attr("size", "" + sizeI)
                         .attr("color", selectedColor)
-                        .text("Ride");
+                        .text(ridePrompt);
                 }
                 else
                 {
@@ -687,7 +722,7 @@ statemachine class r_MultiplayerClient
                         .tag("font")
                         .attr("size", "" + sizeI)
                         .attr("color", "#FFFFFF")
-                        .text("Ride");
+                        .text(ridePrompt);
                 }
             }
 
@@ -956,9 +991,24 @@ statemachine class r_MultiplayerClient
 
     public function startTick()
     {
+        clearOnlineVehicles();
+
         if(this.GetCurrentStateName() != 'WO_Tick')
         {
             this.GotoState('WO_Tick');
+        }
+    }
+
+    public function clearOnlineVehicles()
+    {
+        var entities : array<CEntity>;
+        var i : int;
+
+        theGame.GetEntitiesByTag('online_horse', entities);
+
+        for(i = 0; i < entities.Size(); i+=1)
+        {
+            entities[i].Destroy();
         }
     }
 

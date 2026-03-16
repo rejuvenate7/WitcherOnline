@@ -729,6 +729,41 @@ statemachine class r_RemotePlayer
         MP_SUOL_getManager().updateOneliner(chatOneliner);
     }
 
+    public function updateOnelinerHeights()
+    {
+        var oneliner     : MP_SU_OnelinerEntity;
+        var tag : string;
+        var statusTag : string;
+        var chatOneliner     : MP_SU_OnelinerEntity;
+
+        tag = "MPGhost" + id;
+        statusTag = "MPGhostStatus" + id;
+
+        oneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag(tag);
+        chatOneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag(statusTag);
+
+        if(!oneliner || !chatOneliner)
+        {
+            return;
+        }
+
+        if(isMounted)
+        {
+            oneliner.offset = Vector(0,0,1);
+            chatOneliner.offset = Vector(0,0,2.95);
+
+            MP_SUOL_getManager().updateOneliner(oneliner);
+            MP_SUOL_getManager().updateOneliner(chatOneliner);
+        }
+        else
+        {
+            oneliner.offset = Vector(0,0,0);
+            chatOneliner.offset = Vector(0,0,1.95);
+            MP_SUOL_getManager().updateOneliner(oneliner);
+            MP_SUOL_getManager().updateOneliner(chatOneliner);
+        }
+    }
+
     private function createPin()
     {
         var pin: MP_SU_MapPin;
@@ -1017,6 +1052,12 @@ statemachine class r_RemotePlayer
             }
         }
 
+        if(theGame.r_getMultiplayerClient().getSelectedPlayer() == this)
+        {
+            theGame.r_getMultiplayerClient().deleteMenu();
+            GetWitcherPlayer().DisplayHudMessage("Delete menu from dc player");
+        }
+
         if(ghost)
         {
             destroyPin();
@@ -1162,6 +1203,7 @@ statemachine class r_RemotePlayer
         fixGeraltAppearance();
         updateUsername();
         updateOneliners();
+        updateOnelinerHeights();
         prune();
     }
 
@@ -5472,11 +5514,16 @@ state WO_UpdateCPC in r_RemotePlayer
 
             if(parent.isMounted)
             {
-                if(!parent.lastMounted)
+                if(!parent.lastMounted || !parent.horse)
                 {                
                     // mount horse
                     spawnHorse();
                     parent.horse.SetVisibility(true);
+                }
+
+                if(parent.horse && !parent.ghost.IsUsingHorse())
+                {
+                    spawnHorse();
                 }
 
                 if(!parent.horse.GetVisibility())

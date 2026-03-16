@@ -455,3 +455,6 @@ exec function index()
 {
     theGame.r_getMultiplayerClient().updateMenuIndex(true);
 }
+
+@addMethod(CInputManager)
+function IgnoreGameInput( actionName : name, ignore : bool );
