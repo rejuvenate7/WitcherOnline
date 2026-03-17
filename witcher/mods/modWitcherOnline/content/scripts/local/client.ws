@@ -402,6 +402,24 @@ statemachine class r_MultiplayerClient
         rider.CreateAttachment(anchor, , attach_vec, attach_rot);
     }
 
+    public function fixAttachRotation(rider : CActor)
+    {
+        var boneRotation, attach_rot : EulerAngles;
+        var bonePosition, attach_vec, backDir : Vector;
+        var anchor : CEntity;
+
+        attach_rot.Roll = 0.0f;
+		attach_rot.Pitch = 0.0f;
+		attach_rot.Yaw = 0.0f;
+		attach_vec.X = 0.0f;
+		attach_vec.Y = 0.0f;
+		attach_vec.Z = 0.0f;
+
+        anchor = (CEntity)theGame.CreateEntity((CEntityTemplate)LoadResource("dlc\dlc_acs\data\entities\other\fx_ent.w2ent", true), rider.GetWorldPosition());
+        rider.CreateAttachment(anchor, , attach_vec, attach_rot);
+        rider.BreakAttachment();
+    }
+
     public function attachRiderBoat(rider : CActor, toAttach : CActor)
     {
         var boneRotation, attach_rot : EulerAngles;
@@ -1045,6 +1063,19 @@ statemachine class r_MultiplayerClient
         var i : int;
 
         theGame.GetEntitiesByTag('online_horse', entities);
+
+        for(i = 0; i < entities.Size(); i+=1)
+        {
+            entities[i].Destroy();
+        }
+    }
+
+    public function clearOnlineHorses()
+    {
+        var entities : array<CEntity>;
+        var i : int;
+
+        theGame.GetEntitiesByTag('wo_horse', entities);
 
         for(i = 0; i < entities.Size(); i+=1)
         {
@@ -2108,6 +2139,30 @@ statemachine class r_MultiplayerClient
 		
 		theGame.RequestMenu('PopupMenu', popup_data);
 	}
+
+    var lastPlayerType : ENR_PlayerType;
+    
+    function checkPlayerChange()
+    {
+        var cpcPlayerType : ENR_PlayerType;
+        var i : int;
+
+        cpcPlayerType = NR_GetPlayerManager().GetCurrentPlayerType();  
+
+        if(cpcPlayerType != lastPlayerType)
+        {
+            for(i = 0; i < players.Size(); i+=1)
+            {
+                if(players[i].isMounted)
+                {
+                    ((CActor)players[i].ghost).SignalGameplayEventParamInt( 'RidingManagerDismountHorse', DT_instant | DT_fromScript );
+                }
+            }
+            
+            lastPlayerType = cpcPlayerType;
+        }
+    }
+    
 }
 
 exec function mpghosts_setUserId(playerId : string, username : string)
@@ -3373,6 +3428,7 @@ state WO_Tick in r_MultiplayerClient
             parent.updateMenuPositions();
             parent.checkOutgoingTrades();
             parent.checkRidingAttachment();
+            parent.checkPlayerChange();
             MP_SU_moveMinimapPins();
 
             SleepOneFrame();

@@ -393,7 +393,6 @@ statemachine class r_RemotePlayer
         if(lastAnim != request.anim && request.type == 'emote' && request.loop)
         {
             request.fadeIn = 0.4f;
-            GetWitcherPlayer().DisplayHudMessage("init fade emote");
         }
 
         ghost.GetRootAnimatedComponent().PlaySlotAnimationAsync(
@@ -1148,26 +1147,24 @@ statemachine class r_RemotePlayer
                     theGame.r_getMultiplayerClient().attachRider(ghost, toRide);
                     lastMountType = "player";
                 }
-
-                GetWitcherPlayer().DisplayHudMessage("Attached!");
             }
             else
             {
-                if(ridingPlayer.isSailing && !ridingPlayer.isMounted && lastMountType != "boat")
+                if((ridingPlayer.isSailing || (toRide == thePlayer && thePlayer.IsSailing())) && !ridingPlayer.isMounted && lastMountType != "boat")
                 {
                     ghost.BreakAttachment();
                     //GetWitcherPlayer().DisplayHudMessage("Swap attachment 1");
                     theGame.r_getMultiplayerClient().attachRiderBoat(ghost, toRide);
                     lastMountType = "boat";
                 }
-                else if(ridingPlayer.isMounted && !ridingPlayer.isSailing && lastMountType != "horse")
+                else if((ridingPlayer.isMounted || (toRide == thePlayer && thePlayer.IsUsingHorse())) && !ridingPlayer.isSailing && lastMountType != "horse")
                 {
                     ghost.BreakAttachment();
                     //GetWitcherPlayer().DisplayHudMessage("Swap attachment 2");
                     theGame.r_getMultiplayerClient().attachRiderHorse(ghost, toRide);
                     lastMountType = "horse";
                 }
-                else if(!ridingPlayer.isSailing && !ridingPlayer.isMounted && lastMountType != "player")
+                else if(!ridingPlayer.isSailing && !ridingPlayer.isMounted && !(toRide == thePlayer && thePlayer.IsSailing()) && !(toRide == thePlayer && thePlayer.IsUsingHorse()) && lastMountType != "player")
                 {
                     ghost.BreakAttachment();
                     //GetWitcherPlayer().DisplayHudMessage("Swap attachment 3");
@@ -1184,6 +1181,7 @@ statemachine class r_RemotePlayer
 
                 // detach
                 ghost.BreakAttachment();
+                theGame.r_getMultiplayerClient().fixAttachRotation(ghost);
                 //ridingPlayer.ghost.BreakAttachment();
                 GetWitcherPlayer().DisplayHudMessage("Detached!");
                 lastMountType = "none";
@@ -5341,6 +5339,7 @@ state WO_UpdateCPC in r_RemotePlayer
 
             horseTag.Clear();
             horseTag.PushBack('online_horse');
+            horseTag.PushBack('wo_horse');
 
             parent.horse = (CActor)theGame.CreateEntity(temp_2, parent.ghost.GetWorldPosition(), parent.ghost.GetWorldRotation(), true,false,false,PM_DontPersist,horseTag);
 
@@ -5561,6 +5560,11 @@ state WO_UpdateCPC in r_RemotePlayer
                     parent.horse.SetVisibility(true);
                 }
 
+                if ((((CAnimatedComponent)parent.horse.GetComponentByClassName('CAnimatedComponent')).HasFrozenPose()))
+                {
+                    ((CAnimatedComponent)parent.horse.GetComponentByClassName('CAnimatedComponent')).UnfreezePose();
+                }
+
                 moveHorse();
 
                 parent.lastMounted = true;
@@ -5574,12 +5578,18 @@ state WO_UpdateCPC in r_RemotePlayer
                     parent.horse.SetVisibility(false);
                     parent.lastMounted = false;
                     parent.lastIdleAnim = theGame.GetEngineTimeAsSeconds();
+                    ((CAnimatedComponent)parent.horse.GetComponentByClassName('CAnimatedComponent')).FreezePose();
                 }
                 else
                 {
                     if(parent.horse.GetVisibility())
                     {
                         parent.horse.SetVisibility(false);
+                    }
+
+                    if (!(((CAnimatedComponent)parent.horse.GetComponentByClassName('CAnimatedComponent')).HasFrozenPose()))
+                    {
+                        ((CAnimatedComponent)parent.horse.GetComponentByClassName('CAnimatedComponent')).FreezePose();
                     }
 
                     moveHorse();
