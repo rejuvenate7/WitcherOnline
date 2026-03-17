@@ -306,10 +306,10 @@ statemachine class r_MultiplayerClient
             attachRiderBoat(thePlayer, actor);
             lastRidingType = "boat";
         }
-        else if(player.isMounted)
+        else if(player.isMounted && player.horse)
         {
             mpghosts_emote(31);
-            attachRiderHorse(thePlayer, actor);
+            attachRiderHorse(thePlayer, player.horse);
             lastRidingType = "horse";
         }
         else
@@ -339,11 +339,11 @@ statemachine class r_MultiplayerClient
                 lastRidingType = "boat";
                 mpghosts_emote(30);
             }
-            else if(ridingPlayer.isMounted && !ridingPlayer.isSailing && lastRidingType != "horse")
+            else if(ridingPlayer.isMounted && !ridingPlayer.isSailing && lastRidingType != "horse" && ridingPlayer.horse)
             {
                 thePlayer.BreakAttachment();
                 GetWitcherPlayer().DisplayHudMessage("Swap client attach 3");
-                attachRiderHorse(thePlayer, ridingPlayer.ghost);
+                attachRiderHorse(thePlayer, ridingPlayer.horse);
                 lastRidingType = "horse";
                 mpghosts_emote(31);
             }
@@ -361,9 +361,9 @@ statemachine class r_MultiplayerClient
 
     public function attachRider(rider : CActor, toAttach : CActor)
     {
-        var boneRotation, attach_rot : EulerAngles;
-        var bonePosition, attach_vec : Vector;
-
+        var attach_rot : EulerAngles;
+        var attach_vec : Vector;
+        
         attach_rot.Roll = 0.0f;
 		attach_rot.Pitch = 0.0f;
 		attach_rot.Yaw = 0.0f;
@@ -371,41 +371,34 @@ statemachine class r_MultiplayerClient
 		attach_vec.Y = -0.2f;
 		attach_vec.Z = 1.0f;
     
-        //actor.GetBoneWorldPositionAndRotationByIndex(actor.GetBoneIndex('torso'), bonePosition, boneRotation);
-        //thePlayer.CreateAttachmentAtBoneWS(actor, 'torso', bonePosition, attach_rot);
         rider.CreateAttachment(toAttach, , attach_vec, attach_rot);
     }
 
     public function attachRiderHorse(rider : CActor, toAttach : CActor)
     {
         var boneRotation, attach_rot : EulerAngles;
-        var bonePosition, attach_vec, backDir : Vector;
+        var bonePosition, attach_vec: Vector;
         var anchor : CEntity;
 
-        attach_rot.Roll = 0.0f;
-		attach_rot.Pitch = 0.0f;
-		attach_rot.Yaw = 0.0f;
-		attach_vec.X = 0.0f;
-		attach_vec.Y = 0.0f;
-		attach_vec.Z = 0.0f;
+        attach_rot.Roll = 90.0f;
+		attach_rot.Pitch = -10.0f;
+		attach_rot.Yaw = -100.0f;
+		attach_vec.X = 0.20f; // forward back
+		attach_vec.Y = 1.45f; // up down
+		attach_vec.Z = 0.05f; // left right
 
-        anchor = (CEntity)theGame.CreateEntity((CEntityTemplate)LoadResource("dlc\dlc_acs\data\entities\other\fx_ent.w2ent", true), toAttach.GetWorldPosition());
+        anchor = (CEntity)theGame.CreateEntity((CEntityTemplate)LoadResource("dlc\dlc_mpmod\data\entities\fx_ent.w2ent", true), toAttach.GetWorldPosition());
     
-        toAttach.GetBoneWorldPositionAndRotationByIndex(toAttach.GetBoneIndex('torso'), bonePosition, boneRotation);
+        toAttach.GetBoneWorldPositionAndRotationByIndex(toAttach.GetBoneIndex('spine1'), bonePosition, boneRotation);
 
-        backDir = VecNormalize2D(RotForward(toAttach.GetWorldRotation()));
-        bonePosition = bonePosition - backDir * 0.5;
-        bonePosition -= Vector(0.0, 0.0, 1.9);
-
-        anchor.CreateAttachmentAtBoneWS(toAttach, 'torso', bonePosition, toAttach.GetWorldRotation());
-        //rider.CreateAttachmentAtBoneWS(toAttach, 'torso', toAttach.GetWorldPosition() - Vector(0, 0.25, 0), toAttach.GetWorldRotation());
+        anchor.CreateAttachmentAtBoneWS(toAttach, 'spine1', bonePosition, boneRotation);
         rider.CreateAttachment(anchor, , attach_vec, attach_rot);
     }
 
     public function fixAttachRotation(rider : CActor)
     {
-        var boneRotation, attach_rot : EulerAngles;
-        var bonePosition, attach_vec, backDir : Vector;
+        var attach_rot : EulerAngles;
+        var attach_vec : Vector;
         var anchor : CEntity;
 
         attach_rot.Roll = 0.0f;
@@ -415,15 +408,15 @@ statemachine class r_MultiplayerClient
 		attach_vec.Y = 0.0f;
 		attach_vec.Z = 0.0f;
 
-        anchor = (CEntity)theGame.CreateEntity((CEntityTemplate)LoadResource("dlc\dlc_acs\data\entities\other\fx_ent.w2ent", true), rider.GetWorldPosition());
+        anchor = (CEntity)theGame.CreateEntity((CEntityTemplate)LoadResource("dlc\dlc_mpmod\data\entities\fx_ent.w2ent", true), rider.GetWorldPosition());
         rider.CreateAttachment(anchor, , attach_vec, attach_rot);
         rider.BreakAttachment();
     }
 
     public function attachRiderBoat(rider : CActor, toAttach : CActor)
     {
-        var boneRotation, attach_rot : EulerAngles;
-        var bonePosition, attach_vec : Vector;
+        var attach_rot : EulerAngles;
+        var attach_vec : Vector;
         var player : r_RemotePlayer;
 
         player = mpghosts_getPlayerFromActor(toAttach);
@@ -454,8 +447,6 @@ statemachine class r_MultiplayerClient
             }
         }
     
-        //actor.GetBoneWorldPositionAndRotationByIndex(actor.GetBoneIndex('torso'), bonePosition, boneRotation);
-        //thePlayer.CreateAttachmentAtBoneWS(actor, 'torso', bonePosition, attach_rot);
         rider.CreateAttachment(toAttach, , attach_vec, attach_rot);
     }
 
@@ -1063,19 +1054,6 @@ statemachine class r_MultiplayerClient
         var i : int;
 
         theGame.GetEntitiesByTag('online_horse', entities);
-
-        for(i = 0; i < entities.Size(); i+=1)
-        {
-            entities[i].Destroy();
-        }
-    }
-
-    public function clearOnlineHorses()
-    {
-        var entities : array<CEntity>;
-        var i : int;
-
-        theGame.GetEntitiesByTag('wo_horse', entities);
 
         for(i = 0; i < entities.Size(); i+=1)
         {
@@ -2371,10 +2349,10 @@ exec function mpghosts_getData(optional playerId : string, optional username : s
     list += thePlayer.IsSailing();
     list += " ";
 
-    list += thePlayer.IsUsingHorse();
+    list += thePlayer.IsUsingHorse(true);
     list += " ";
 
-    if ( thePlayer.IsUsingHorse() )
+    if ( thePlayer.IsUsingHorse(true) )
     {
 		theHorse = (CActor)thePlayer.GetUsedHorseComponent().GetEntity();
 

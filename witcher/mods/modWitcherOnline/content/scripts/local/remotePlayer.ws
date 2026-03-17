@@ -1137,9 +1137,16 @@ statemachine class r_RemotePlayer
                     theGame.r_getMultiplayerClient().attachRiderBoat(ghost, toRide);
                     lastMountType = "boat";
                 }
-                else if(ridingPlayer.isMounted || (toRide == thePlayer && thePlayer.IsUsingHorse()))
+                else if(ridingPlayer.isMounted || (toRide == thePlayer && thePlayer.IsUsingHorse(true)))
                 {
-                    theGame.r_getMultiplayerClient().attachRiderHorse(ghost, toRide);
+                    if(toRide == thePlayer)
+                    {
+                        theGame.r_getMultiplayerClient().attachRiderHorse(ghost, thePlayer.GetHorseCurrentlyMounted());
+                    }
+                    else
+                    {
+                        theGame.r_getMultiplayerClient().attachRiderHorse(ghost, toRide);
+                    }
                     lastMountType = "horse";
                 }
                 else
@@ -1153,21 +1160,28 @@ statemachine class r_RemotePlayer
                 if((ridingPlayer.isSailing || (toRide == thePlayer && thePlayer.IsSailing())) && !ridingPlayer.isMounted && lastMountType != "boat")
                 {
                     ghost.BreakAttachment();
-                    //GetWitcherPlayer().DisplayHudMessage("Swap attachment 1");
+                    GetWitcherPlayer().DisplayHudMessage("Swap attachment 1");
                     theGame.r_getMultiplayerClient().attachRiderBoat(ghost, toRide);
                     lastMountType = "boat";
                 }
-                else if((ridingPlayer.isMounted || (toRide == thePlayer && thePlayer.IsUsingHorse())) && !ridingPlayer.isSailing && lastMountType != "horse")
+                else if((ridingPlayer.isMounted || (toRide == thePlayer && thePlayer.IsUsingHorse(true))) && !ridingPlayer.isSailing && lastMountType != "horse")
                 {
                     ghost.BreakAttachment();
-                    //GetWitcherPlayer().DisplayHudMessage("Swap attachment 2");
-                    theGame.r_getMultiplayerClient().attachRiderHorse(ghost, toRide);
+                    GetWitcherPlayer().DisplayHudMessage("Swap attachment 2");
+                    if(toRide == thePlayer)
+                    {
+                        theGame.r_getMultiplayerClient().attachRiderHorse(ghost, thePlayer.GetHorseCurrentlyMounted());
+                    }
+                    else
+                    {
+                        theGame.r_getMultiplayerClient().attachRiderHorse(ghost, toRide);
+                    }
                     lastMountType = "horse";
                 }
-                else if(!ridingPlayer.isSailing && !ridingPlayer.isMounted && !(toRide == thePlayer && thePlayer.IsSailing()) && !(toRide == thePlayer && thePlayer.IsUsingHorse()) && lastMountType != "player")
+                else if(!ridingPlayer.isSailing && !ridingPlayer.isMounted && !(toRide == thePlayer && thePlayer.IsSailing()) && !(toRide == thePlayer && thePlayer.IsUsingHorse(true)) && lastMountType != "player")
                 {
                     ghost.BreakAttachment();
-                    //GetWitcherPlayer().DisplayHudMessage("Swap attachment 3");
+                    GetWitcherPlayer().DisplayHudMessage("Swap attachment 3");
                     theGame.r_getMultiplayerClient().attachRider(ghost, toRide);
                     lastMountType = "player";
                 }
@@ -5550,7 +5564,7 @@ state WO_UpdateCPC in r_RemotePlayer
                     parent.horse.SetVisibility(true);
                 }
 
-                if(parent.horse && !parent.ghost.IsUsingHorse())
+                if(parent.horse && !parent.ghost.IsUsingHorse(true))
                 {
                     spawnHorse();
                 }
