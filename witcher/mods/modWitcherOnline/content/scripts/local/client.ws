@@ -306,6 +306,12 @@ statemachine class r_MultiplayerClient
             attachRiderBoat(thePlayer, actor);
             lastRidingType = "boat";
         }
+        else if(player.isMounted)
+        {
+            mpghosts_emote(31);
+            attachRiderHorse(thePlayer, actor);
+            lastRidingType = "horse";
+        }
         else
         {
             mpghosts_emote(29);
@@ -325,7 +331,7 @@ statemachine class r_MultiplayerClient
 
         if(thePlayer.HasAttachment())
         {
-            if(ridingPlayer.isSailing && lastRidingType != "boat")
+            if(ridingPlayer.isSailing && !ridingPlayer.isMounted && lastRidingType != "boat")
             {
                 thePlayer.BreakAttachment();
                 GetWitcherPlayer().DisplayHudMessage("Swap client attach 1");
@@ -333,7 +339,15 @@ statemachine class r_MultiplayerClient
                 lastRidingType = "boat";
                 mpghosts_emote(30);
             }
-            else if(!ridingPlayer.isSailing && lastRidingType != "player")
+            else if(ridingPlayer.isMounted && !ridingPlayer.isSailing && lastRidingType != "horse")
+            {
+                thePlayer.BreakAttachment();
+                GetWitcherPlayer().DisplayHudMessage("Swap client attach 3");
+                attachRiderHorse(thePlayer, ridingPlayer.ghost);
+                lastRidingType = "horse";
+                mpghosts_emote(31);
+            }
+            else if(!ridingPlayer.isSailing && !ridingPlayer.isMounted && lastRidingType != "player")
             {
                 thePlayer.BreakAttachment();
                 GetWitcherPlayer().DisplayHudMessage("Swap client attach 2");
@@ -360,6 +374,32 @@ statemachine class r_MultiplayerClient
         //actor.GetBoneWorldPositionAndRotationByIndex(actor.GetBoneIndex('torso'), bonePosition, boneRotation);
         //thePlayer.CreateAttachmentAtBoneWS(actor, 'torso', bonePosition, attach_rot);
         rider.CreateAttachment(toAttach, , attach_vec, attach_rot);
+    }
+
+    public function attachRiderHorse(rider : CActor, toAttach : CActor)
+    {
+        var boneRotation, attach_rot : EulerAngles;
+        var bonePosition, attach_vec, backDir : Vector;
+        var anchor : CEntity;
+
+        attach_rot.Roll = 0.0f;
+		attach_rot.Pitch = 0.0f;
+		attach_rot.Yaw = 0.0f;
+		attach_vec.X = 0.0f;
+		attach_vec.Y = 0.0f;
+		attach_vec.Z = 0.0f;
+
+        anchor = (CEntity)theGame.CreateEntity((CEntityTemplate)LoadResource("dlc\dlc_acs\data\entities\other\fx_ent.w2ent", true), toAttach.GetWorldPosition());
+    
+        toAttach.GetBoneWorldPositionAndRotationByIndex(toAttach.GetBoneIndex('torso'), bonePosition, boneRotation);
+
+        backDir = VecNormalize2D(RotForward(toAttach.GetWorldRotation()));
+        bonePosition = bonePosition - backDir * 0.5;
+        bonePosition -= Vector(0.0, 0.0, 1.9);
+
+        anchor.CreateAttachmentAtBoneWS(toAttach, 'torso', bonePosition, toAttach.GetWorldRotation());
+        //rider.CreateAttachmentAtBoneWS(toAttach, 'torso', toAttach.GetWorldPosition() - Vector(0, 0.25, 0), toAttach.GetWorldRotation());
+        rider.CreateAttachment(anchor, , attach_vec, attach_rot);
     }
 
     public function attachRiderBoat(rider : CActor, toAttach : CActor)
@@ -1191,6 +1231,7 @@ statemachine class r_MultiplayerClient
 
         addChill('geralt_relaxed_sitting_and_resting_2', 8.7);
         addChill('boat_passenger_sit_idle', 2.33);
+        addChill('horse_standing_idle01', 7.33);
         addChill('man_work_relaxed_sitting_and_resting_1', 11.43);
     }
 
@@ -3098,6 +3139,11 @@ function mpghosts_emote(num : int)
     else if (num == 30)
     {
         anim = 'boat_passenger_sit_idle';
+        loop = true;
+    }
+    else if (num == 31)
+    {
+        anim = 'horse_standing_idle01';
         loop = true;
     }
 

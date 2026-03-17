@@ -293,6 +293,21 @@ statemachine class r_RemotePlayer
     {
         var req : r_AnimRequest;
 
+        req.anim = anim;
+        req.duration = duration;
+        req.fadeIn = fadeIn;
+        req.fadeOut = fadeOut;
+        req.type = type;
+        req.overrideNow = overrideNow;
+        req.loop = loop;
+
+        if(currentType == 'emote' && type == 'emote' && overrideNow && (lastAnim != anim))
+        {
+            animQueue.Clear();
+            playAnimNow(req);
+            return;
+        }
+
         if (isAnimPlaying && currentType == 'emote' && type != 'emote')
             return;
 
@@ -307,14 +322,6 @@ statemachine class r_RemotePlayer
             if (animQueue[0].anim == anim && animQueue[0].type == type && !overrideNow)
                 return;
         }
-
-        req.anim = anim;
-        req.duration = duration;
-        req.fadeIn = fadeIn;
-        req.fadeOut = fadeOut;
-        req.type = type;
-        req.overrideNow = overrideNow;
-        req.loop = loop;
 
         if (isAnimPlaying && IsLocomotion(currentType) && IsLocomotion(type) && currentType != type)
         {
@@ -490,7 +497,7 @@ statemachine class r_RemotePlayer
             {
                 if(lastAnim != 'fall_up_idle' && lastAnim != 'ep1_mirror_sitting_on_shrine_gesture_explain_04' && lastAnim != 'locomotion_salsa_cycle_02' && 
                     lastAnim != 'seaman_working_on_the_ship_loop_01' && lastAnim != 'geralt_drunk_walk' && lastAnim != 'geralt_relaxed_sitting_and_resting_2' 
-                    && lastAnim != 'man_work_relaxed_sitting_and_resting_1' && lastAnim != 'boat_passenger_sit_idle')
+                    && lastAnim != 'man_work_relaxed_sitting_and_resting_1' && lastAnim != 'boat_passenger_sit_idle' && lastAnim != 'horse_standing_idle01')
                 {
                     stopAllAnims();
                 }
@@ -501,7 +508,8 @@ statemachine class r_RemotePlayer
         {
             if (emoteCancelableAt > 0.0f && now >= emoteCancelableAt)
             {
-                if(lastAnim != 'fall_up_idle' && lastAnim != 'geralt_relaxed_sitting_and_resting_2' && lastAnim != 'man_work_relaxed_sitting_and_resting_1' && lastAnim != 'boat_passenger_sit_idle')
+                if(lastAnim != 'fall_up_idle' && lastAnim != 'geralt_relaxed_sitting_and_resting_2' && lastAnim != 'man_work_relaxed_sitting_and_resting_1' 
+                && lastAnim != 'boat_passenger_sit_idle' && lastAnim != 'horse_standing_idle01')
                 {
                     stopAllAnims();
                 }
@@ -735,6 +743,7 @@ statemachine class r_RemotePlayer
         var tag : string;
         var statusTag : string;
         var chatOneliner     : MP_SU_OnelinerEntity;
+        var ridingPlayer : r_RemotePlayer;
 
         tag = "MPGhost" + id;
         statusTag = "MPGhostStatus" + id;
@@ -747,7 +756,9 @@ statemachine class r_RemotePlayer
             return;
         }
 
-        if(isMounted)
+        ridingPlayer = mpghosts_getPlayerById(ridingPlayerId);
+
+        if(isMounted || (ridingPlayer && isRiding && ridingPlayer.isMounted))
         {
             oneliner.offset = Vector(0,0,1);
             chatOneliner.offset = Vector(0,0,2.95);
@@ -926,7 +937,7 @@ statemachine class r_RemotePlayer
         return 'down';
     }
 
-    protected function spawnGhost()
+    public function spawnGhost()
     {
         var rot : EulerAngles;
         var ids : array<SItemUniqueId>;
@@ -1127,6 +1138,11 @@ statemachine class r_RemotePlayer
                     theGame.r_getMultiplayerClient().attachRiderBoat(ghost, toRide);
                     lastMountType = "boat";
                 }
+                else if(ridingPlayer.isMounted || (toRide == thePlayer && thePlayer.IsUsingHorse()))
+                {
+                    theGame.r_getMultiplayerClient().attachRiderHorse(ghost, toRide);
+                    lastMountType = "horse";
+                }
                 else
                 {
                     theGame.r_getMultiplayerClient().attachRider(ghost, toRide);
@@ -1137,17 +1153,24 @@ statemachine class r_RemotePlayer
             }
             else
             {
-                if((ridingPlayer.isSailing || (toRide == thePlayer && thePlayer.IsSailing())) && lastMountType != "boat")
+                if(ridingPlayer.isSailing && !ridingPlayer.isMounted && lastMountType != "boat")
                 {
                     ghost.BreakAttachment();
-                    GetWitcherPlayer().DisplayHudMessage("Swap attachment 1");
+                    //GetWitcherPlayer().DisplayHudMessage("Swap attachment 1");
                     theGame.r_getMultiplayerClient().attachRiderBoat(ghost, toRide);
                     lastMountType = "boat";
                 }
-                else if(!(ridingPlayer.isSailing || (toRide == thePlayer && thePlayer.IsSailing())) && lastMountType == "boat")
+                else if(ridingPlayer.isMounted && !ridingPlayer.isSailing && lastMountType != "horse")
                 {
                     ghost.BreakAttachment();
-                    GetWitcherPlayer().DisplayHudMessage("Swap attachment 2");
+                    //GetWitcherPlayer().DisplayHudMessage("Swap attachment 2");
+                    theGame.r_getMultiplayerClient().attachRiderHorse(ghost, toRide);
+                    lastMountType = "horse";
+                }
+                else if(!ridingPlayer.isSailing && !ridingPlayer.isMounted && lastMountType != "player")
+                {
+                    ghost.BreakAttachment();
+                    //GetWitcherPlayer().DisplayHudMessage("Swap attachment 3");
                     theGame.r_getMultiplayerClient().attachRider(ghost, toRide);
                     lastMountType = "player";
                 }
@@ -1157,8 +1180,11 @@ statemachine class r_RemotePlayer
         {
             if(ghost.HasAttachment())
             {
+                //ridingPlayer = mpghosts_getPlayerById(ridingPlayerId);
+
                 // detach
                 ghost.BreakAttachment();
+                //ridingPlayer.ghost.BreakAttachment();
                 GetWitcherPlayer().DisplayHudMessage("Detached!");
                 lastMountType = "none";
             }
@@ -1605,6 +1631,10 @@ statemachine class r_RemotePlayer
             else if (lastEmote == 30)
             {
                 queueAnim('boat_passenger_sit_idle', 2.33, 0, 0, 'emote', true, true);
+            }
+            else if (lastEmote == 31)
+            {
+                queueAnim('horse_standing_idle01', 7.33, 0, 0, 'emote', true, true);
             }
 
             lastEmote = -1;
