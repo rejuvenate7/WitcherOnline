@@ -12,6 +12,12 @@ struct r_NameColor
     var color : string;
 }
 
+struct r_RemoteMenuItem
+{
+    var label  : string;
+    var action : string;
+}
+
 statemachine class r_MultiplayerClient
 {
     private var chillDefs : array<r_ChillDef>;
@@ -74,11 +80,6 @@ statemachine class r_MultiplayerClient
     private var maleTemp : CEntityTemplate;
     private var femaleTemp : CEntityTemplate;
 
-    private var menuOpen : bool;
-    private var menuSelectedPlayer : r_RemotePlayer;
-    private var menuOptions : array<MP_SU_OnelinerEntity>;
-    private var menuSelected : int;
-
     private var ridingEnabled : bool;
     private var ridingPlayer : r_RemotePlayer;
 
@@ -95,6 +96,23 @@ statemachine class r_MultiplayerClient
     private var resetFlagAt : float;
     default resetFlagPending = false;
     default resetFlagAt = -999;
+
+    private var menuOpen : bool;
+    private var menuSelectedPlayer : r_RemotePlayer;
+    private var menuOptions : array<MP_SU_OnelinerEntity>;
+    private var menuSelected : int;
+
+    private var menuScroll : int;
+    private var currentMenuId : int;
+    private var maxVisibleOptions : int;
+
+    private var mainMenuItems : array<r_RemoteMenuItem>;
+    private var emoteMenuItems : array<r_RemoteMenuItem>;
+    private var chatMenuItems : array<r_RemoteMenuItem>;
+
+    private var menuSlots : array<MP_SU_OnelinerEntity>;
+
+    private var lastMenuScroll : int;
 
     public function getOutgoingTradeTo() : string
     {
@@ -537,19 +555,14 @@ statemachine class r_MultiplayerClient
     {
         return ridingEnabled;
     }
-    
-    public function createMenu(actor : CActor)
+
+    private function buildMenus(player : r_RemotePlayer)
     {
-        var rideOption: MP_SU_OnelinerEntity;
-        var giftOption: MP_SU_OnelinerEntity;
-        var closeOption: MP_SU_OnelinerEntity;
-        var player : r_RemotePlayer;
         var ridePrompt : string;
 
-        player = mpghosts_getPlayerFromActor(actor);
-
-        if(!player)
-            return;
+        mainMenuItems.Clear();
+        emoteMenuItems.Clear();
+        chatMenuItems.Clear();
 
         if(player.isSailing)
         {
@@ -563,79 +576,382 @@ statemachine class r_MultiplayerClient
         {
             ridePrompt = "Ride";
         }
-        
+
+        // main menu
+        addMainMenuItem(ridePrompt, "ride");
+        addMainMenuItem("Trade", "trade");
+        addMainMenuItem("Emotes", "open_emotes");
+        addMainMenuItem("Chat", "open_chat");
+        addMainMenuItem("Close", "close");
+
+        // emotes
+        addEmoteMenuItem("Wave", "emote_wave");
+        addEmoteMenuItem("Cheer", "emote_cheer");
+        addEmoteMenuItem("Laugh", "emote_laugh");
+        addEmoteMenuItem("Clap", "emote_clap");
+        addEmoteMenuItem("Dance", "emote_dance");
+        addEmoteMenuItem("Facepalm", "emote_facepalm");
+        addEmoteMenuItem("Sit", "emote_sit");
+        addEmoteMenuItem("Lay Down", "emote_lay");
+        addEmoteMenuItem("Bow", "emote_bow");
+        addEmoteMenuItem("Point", "emote_point");
+        addEmoteMenuItem("Stop", "emote_stop");
+        addEmoteMenuItem("Cry", "emote_cry");
+        addEmoteMenuItem("Beg", "emote_beg");
+        addEmoteMenuItem("Vomit", "emote_vomit");
+        addEmoteMenuItem("Pray", "emote_pray");
+        addEmoteMenuItem("Question", "emote_question");
+        addEmoteMenuItem("Cross Arms", "emote_cross");
+        addEmoteMenuItem("Flip Off", "emote_flipoff");
+        addEmoteMenuItem("Drunk Walk", "emote_drunk");
+        addEmoteMenuItem("Flop", "emote_flop");
+        addEmoteMenuItem("Piss", "emote_piss");
+        addEmoteMenuItem("Horn", "emote_horn");
+        addEmoteMenuItem("Yoga", "emote_yoga");
+        addEmoteMenuItem("Fly", "emote_fly");
+        addEmoteMenuItem("Back", "back_to_main");
+
+        // chat
+        addChatMenuItem("Hello", "chat_hello");
+        addChatMenuItem("Bye", "chat_bye");
+        addChatMenuItem("Follow me", "chat_follow");
+        addChatMenuItem("Wait here", "chat_wait");
+        addChatMenuItem("Need a ride?", "chat_ride");
+        addChatMenuItem("Trade?", "chat_trade");
+        addChatMenuItem("Thanks", "chat_thanks");
+        addChatMenuItem("Sorry", "chat_sorry");
+        addChatMenuItem("Look here", "chat_look");
+        addChatMenuItem("Help!", "chat_help");
+        addChatMenuItem("Nice armor", "chat_armor");
+        addChatMenuItem("Nice sword", "chat_sword");
+        addChatMenuItem("Nice outfit", "chat_outfit");
+        addChatMenuItem("Back", "back_to_main");
+    }
+
+    private function addMainMenuItem(label : string, action : string)
+    {
+        var item : r_RemoteMenuItem;
+        item.label = label;
+        item.action = action;
+        mainMenuItems.PushBack(item);
+    }
+
+    private function addEmoteMenuItem(label : string, action : string)
+    {
+        var item : r_RemoteMenuItem;
+        item.label = label;
+        item.action = action;
+        emoteMenuItems.PushBack(item);
+    }
+
+    private function addChatMenuItem(label : string, action : string)
+    {
+        var item : r_RemoteMenuItem;
+        item.label = label;
+        item.action = action;
+        chatMenuItems.PushBack(item);
+    }
+
+    private function getCurrentMenuSize() : int
+    {
+        if(currentMenuId == 1)
+            return emoteMenuItems.Size();
+
+        if(currentMenuId == 2)
+            return chatMenuItems.Size();
+
+        return mainMenuItems.Size();
+    }
+
+    private function getCurrentMenuLabel(index : int) : string
+    {
+        if(currentMenuId == 1)
+            return emoteMenuItems[index].label;
+
+        if(currentMenuId == 2)
+            return chatMenuItems[index].label;
+
+        return mainMenuItems[index].label;
+    }
+
+    private function getCurrentMenuAction(index : int) : string
+    {
+        if(currentMenuId == 1)
+            return emoteMenuItems[index].action;
+
+        if(currentMenuId == 2)
+            return chatMenuItems[index].action;
+
+        return mainMenuItems[index].action;
+    }
+    
+    public function createMenu(actor : CActor)
+    {
+        var i        : int;
+        var slot     : MP_SU_OnelinerEntity;
+        var player   : r_RemotePlayer;
+
+        player = mpghosts_getPlayerFromActor(actor);
+        if(!player)
+            return;
+
+        deleteMenu();
+
         menuSelectedPlayer = player;
+        maxVisibleOptions = 5;
+
+        buildMenus(player);
+
+        currentMenuId = 0;
         menuSelected = 0;
+        menuScroll = 0;
 
-        rideOption = new MP_SU_OnelinerEntity in theInput;
-        rideOption.text = (new MP_SUOL_TagBuilder in theInput)
-        .tag("font")
-        .attr("size", "20")
-        .attr("color", "#FFFFFF")
-        .text(ridePrompt);
-        rideOption.tag = "wo_RideOption";
-        rideOption.entity = player.ghost;
-        rideOption.visible = true;
-        MP_SUOL_getManager().createOneliner(rideOption);
+        for(i = 0; i < maxVisibleOptions; i += 1)
+        {
+            slot = new MP_SU_OnelinerEntity in theInput;
+            slot.text = (new MP_SUOL_TagBuilder in theInput)
+                .tag("font")
+                .attr("size", "20")
+                .attr("color", "#FFFFFF")
+                .text("");
 
-        giftOption = new MP_SU_OnelinerEntity in theInput;
-        giftOption.text = (new MP_SUOL_TagBuilder in theInput)
-        .tag("font")
-        .attr("size", "20")
-        .attr("color", "#FFFFFF")
-        .text("Trade");
-        giftOption.tag = "wo_GiftOption";
-        giftOption.entity = player.ghost;
-        giftOption.visible = true;
-        MP_SUOL_getManager().createOneliner(giftOption);
+            slot.tag = "wo_MenuSlot" + i;
+            slot.entity = player.ghost;
+            slot.visible = true;
 
-        closeOption = new MP_SU_OnelinerEntity in theInput;
-        closeOption.text = (new MP_SUOL_TagBuilder in theInput)
-        .tag("font")
-        .attr("size", "20")
-        .attr("color", "#FFFFFF")
-        .text("Close");
-        closeOption.tag = "wo_CloseOption";
-        closeOption.entity = player.ghost;
-        closeOption.visible = true;
-        MP_SUOL_getManager().createOneliner(closeOption);
+            MP_SUOL_getManager().createOneliner(slot);
+            menuSlots.PushBack(slot);
+        }
 
-        menuOptions.PushBack(rideOption);
-        menuOptions.PushBack(giftOption);
-        menuOptions.PushBack(closeOption);
+        lastMenuSize = -1;
+        lastMenuIndex = -1;
+        lastMenuScroll = -1;
 
-        updateMenuPositions();
         menuOpen = true;
+        updateMenuPositions();
         theSound.SoundEvent('gui_global_panel_open');
+    }
+
+    private function openMenuById(menuId : int)
+    {
+        currentMenuId = menuId;
+        menuSelected = 0;
+        menuScroll = 0;
+
+        lastMenuSize = -1;
+        lastMenuIndex = -1;
+        lastMenuScroll = -1;
     }
 
     public function useMenu(actor : CActor)
     {
-        if(menuOptions[menuSelected].tag == "wo_CloseOption")
+        var action : string;
+
+        if(!menuOpen)
+            return;
+
+        action = getCurrentMenuAction(menuSelected);
+
+        if(action == "close")
         {
             deleteMenu();
+            theSound.SoundEvent('gui_global_panel_close');
         }
-        else if(menuOptions[menuSelected].tag == "wo_RideOption")
+        else if(action == "ride")
         {
             ridePlayer(actor);
         }
-        else if(menuOptions[menuSelected].tag == "wo_GiftOption")
+        else if(action == "trade")
         {
             tradeWithPlayer(actor);
+        }
+        else if(action == "open_emotes")
+        {
+            openMenuById(1);
+            theSound.SoundEvent('gui_global_panel_open');
+        }
+        else if(action == "open_chat")
+        {
+            openMenuById(2);
+            theSound.SoundEvent('gui_global_panel_open');
+        }
+        else if(action == "back_to_main")
+        {
+            openMenuById(0);
+            theSound.SoundEvent('gui_global_panel_close');
+        }
+        else if(action == "emote_wave")
+        {
+            mpghosts_emote(0);
+        }
+        else if(action == "emote_cheer")
+        {
+            mpghosts_emote(7);
+        }
+        else if(action == "emote_laugh")
+        {
+            mpghosts_emote(18);
+        }
+        else if(action == "emote_clap")
+        {
+            mpghosts_emote(9);
+        }
+        else if(action == "emote_dance")
+        {
+            mpghosts_emote(21);
+        }
+        else if(action == "emote_facepalm")
+        {
+            mpghosts_emote(22);
+        }
+        else if(action == "emote_sit")
+        {
+            mpghosts_emote(19);
+        }
+        else if(action == "emote_lay")
+        {
+            mpghosts_emote(20);
+        }
+        else if(action == "emote_bow")
+        {
+            mpghosts_emote(1);
+        }
+        else if(action == "emote_point")
+        {
+            mpghosts_emote(4);
+        }
+        else if(action == "emote_stop")
+        {
+            mpghosts_emote(5);
+        }
+        else if(action == "emote_cry")
+        {
+            mpghosts_emote(6);
+        }
+        else if(action == "emote_beg")
+        {
+            mpghosts_emote(8);
+        }
+        else if(action == "emote_vomit")
+        {
+            mpghosts_emote(10);
+        }
+        else if(action == "emote_pray")
+        {
+            mpghosts_emote(12);
+        }
+        else if(action == "emote_question")
+        {
+            mpghosts_emote(3);
+        }
+        else if(action == "emote_cross")
+        {
+            mpghosts_emote(23);
+        }
+        else if(action == "emote_flipoff")
+        {
+            mpghosts_emote(24);
+        }
+        else if(action == "emote_drunk")
+        {
+            mpghosts_emote(11);
+        }
+        else if(action == "emote_flop")
+        {
+            mpghosts_emote(27);
+        }
+        else if(action == "emote_piss")
+        {
+            mpghosts_emote(28);
+        }
+        else if(action == "emote_horn")
+        {
+            mpghosts_emote(25);
+        }
+        else if(action == "emote_yoga")
+        {
+            mpghosts_emote(14);
+        }
+        else if(action == "emote_fly")
+        {
+            mpghosts_emote(26);
+        }
+        else if(action == "chat_hello")
+        {
+            mpghosts_chat("Hello");
+        }
+        else if(action == "chat_bye")
+        {
+            mpghosts_chat("Bye");
+        }
+        else if(action == "chat_follow")
+        {
+            mpghosts_chat("Follow me");
+        }
+        else if(action == "chat_wait")
+        {
+            mpghosts_chat("Wait here");
+        }
+        else if(action == "chat_ride")
+        {
+            mpghosts_chat("Need a ride?");
+        }
+        else if(action == "chat_trade")
+        {
+            mpghosts_chat("Trade?");
+        }
+        else if(action == "chat_thanks")
+        {
+            mpghosts_chat("Thanks");
+        }
+        else if(action == "chat_sorry")
+        {
+            mpghosts_chat("Sorry");
+        }
+        else if(action == "chat_look")
+        {
+            mpghosts_chat("Look here");
+        }
+        else if(action == "chat_help")
+        {
+            mpghosts_chat("Help!");
+        }
+        else if(action == "chat_armor")
+        {
+            mpghosts_chat("Nice armor");
+        }
+        else if(action == "chat_sword")
+        {
+            mpghosts_chat("Nice sword");
+        }
+        else if(action == "chat_outfit")
+        {
+            mpghosts_chat("Nice outfit");
         }
     }
 
     public function deleteMenu()
     {
-        MP_SUOL_getManager().deleteByTag("wo_RideOption");
-        MP_SUOL_getManager().deleteByTag("wo_GiftOption");
-        MP_SUOL_getManager().deleteByTag("wo_CloseOption");
-        menuOptions.Clear();
+        var i : int;
+
+        for(i = 0; i < menuSlots.Size(); i += 1)
+        {
+            MP_SUOL_getManager().deleteByTag("wo_MenuSlot" + i);
+        }
+
+        menuSlots.Clear();
+        mainMenuItems.Clear();
+        emoteMenuItems.Clear();
+        chatMenuItems.Clear();
+
         menuOpen = false;
+        menuSelected = 0;
+        menuScroll = 0;
+        currentMenuId = 0;
+
         lastMenuSize = -1;
         lastMenuIndex = -1;
-
-        theSound.SoundEvent('gui_global_panel_close');
+        lastMenuScroll = -1;
     }
 
     public function isMenuOpen() : bool
@@ -650,6 +966,13 @@ statemachine class r_MultiplayerClient
 
     public function updateMenuIndex(val : bool)
     {
+        var menuSize  : int;
+        var maxScroll : int;
+
+        menuSize = getCurrentMenuSize();
+        if(menuSize <= 0)
+            return;
+
         if(val)
         {
             menuSelected += 1;
@@ -659,13 +982,37 @@ statemachine class r_MultiplayerClient
             menuSelected -= 1;
         }
 
-        if(menuSelected >= menuOptions.Size())
+        if(menuSelected >= menuSize)
         {
             menuSelected = 0;
         }
         if(menuSelected < 0)
         {
-            menuSelected = menuOptions.Size()-1;
+            menuSelected = menuSize - 1;
+        }
+
+        if(menuSelected >= menuScroll + maxVisibleOptions)
+        {
+            menuScroll = menuSelected - maxVisibleOptions + 1;
+        }
+        if(menuSelected < menuScroll)
+        {
+            menuScroll = menuSelected;
+        }
+
+        maxScroll = menuSize - maxVisibleOptions;
+        if(maxScroll < 0)
+        {
+            maxScroll = 0;
+        }
+
+        if(menuScroll < 0)
+        {
+            menuScroll = 0;
+        }
+        if(menuScroll > maxScroll)
+        {
+            menuScroll = maxScroll;
         }
 
         theSound.SoundEvent('gui_global_highlight');
@@ -673,6 +1020,31 @@ statemachine class r_MultiplayerClient
     
     private var lastMenuSize : int;
     private var lastMenuIndex : int;
+
+    private function buildMenuText(label : string, sizeI : int, isSelected : bool) : string
+    {
+        var color : string;
+
+        if(label == "Back" || label == "Close")
+        {
+            color = "#EDCBA3";
+        }
+        else
+        {
+            color = "#FFFFFF";
+        }
+
+        if(isSelected)
+        {
+            color = "#0b9dff";
+        }
+
+        return (new MP_SUOL_TagBuilder in theInput)
+            .tag("font")
+            .attr("size", "" + sizeI)
+            .attr("color", color)
+            .text(label);
+    }
 
     public function updateMenuPositions()
     {
@@ -684,49 +1056,39 @@ statemachine class r_MultiplayerClient
         var height     : float = 1.40;
         var spacing    : float;
 
-        var ride : MP_SU_OnelinerEntity;
-        var gift : MP_SU_OnelinerEntity;
-        var close : MP_SU_OnelinerEntity;
+        var myPos      : Vector;
+        var targetPos  : Vector;
+        var dist       : float;
 
-        var myPos     : Vector;
-        var targetPos : Vector;
-        var dist      : float;
+        var sizeMin    : float = 20.0;
+        var sizeMax    : float = 30.0;
+        var k          : float;
+        var nearDist   : float = 2.0;
+        var minDist    : float = 0.5;
 
-        var sizeMin   : float = 20.0;
-        var sizeMax   : float = 30.0;
-        var k         : float;
-        var nearDist : float = 2.0;
-        var minDist  : float = 0.5;
+        var sizeF      : float;
+        var sizeI      : int;
 
-        var sizeF     : float;
-        var sizeI     : int;
-
-        var spacingNear : float = 0.1;
-        var spacingFar  : float = 0.13;
+        var spacingNear     : float = 0.1;
+        var spacingFar      : float = 0.13;
         var spacingNearDist : float = 2.0;
         var spacingFarDist  : float = 4.0;
 
-        var sT : float;
+        var sT         : float;
 
-        var selectedColor : string = "#0b9dff";
-
-        var ridePrompt : string;
+        var i          : int;
+        var itemIndex  : int;
+        var rowFromTop : int;
+        var slot       : MP_SU_OnelinerEntity;
+        var label      : string;
+        var menuSize   : int;
 
         if(!menuOpen || !menuSelectedPlayer || !menuSelectedPlayer.ghost)
             return;
-        
-        if(menuSelectedPlayer.isSailing)
+
+        if(menuSelectedPlayer.isMounted)
         {
-            ridePrompt = "Ride Boat";
-        }
-        else if(menuSelectedPlayer.isMounted)
-        {
-            ridePrompt = "Ride Horse";
             height += 0.9;
-        }
-        else
-        {
-            ridePrompt = "Ride";
         }
 
         heading = menuSelectedPlayer.ghost.GetHeading();
@@ -753,104 +1115,49 @@ statemachine class r_MultiplayerClient
         sT = ClampF((dist - spacingNearDist) / (spacingFarDist - spacingNearDist), 0.0, 1.0);
         spacing = LerpF(sT, spacingNear, spacingFar, true);
 
-        ride = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag("wo_RideOption");
-        if(ride)
+        menuSize = getCurrentMenuSize();
+
+        for(i = 0; i < maxVisibleOptions; i += 1)
         {
-            off = Vector(right.X * sideOffset, right.Y * sideOffset, height + spacing * 2, 0.0);
+            itemIndex = menuScroll + i;
+            rowFromTop = (maxVisibleOptions - 1) - i;
 
-            ride.entity  = menuSelectedPlayer.ghost;
-            ride.offset  = off;
-            ride.visible = true;
+            slot = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag("wo_MenuSlot" + i);
+            if(!slot)
+                continue;
 
-            if(sizeI != lastMenuSize || menuSelected != lastMenuIndex)
+            slot.entity = menuSelectedPlayer.ghost;
+
+            off = Vector(
+                right.X * sideOffset,
+                right.Y * sideOffset,
+                height + spacing * rowFromTop,
+                0.0
+            );
+
+            slot.offset = off;
+
+            if(itemIndex < menuSize)
             {
-                if(menuSelected == 0)
+                label = getCurrentMenuLabel(itemIndex);
+                slot.visible = true;
+
+                if(sizeI != lastMenuSize || menuSelected != lastMenuIndex || menuScroll != lastMenuScroll)
                 {
-                    ride.text = (new MP_SUOL_TagBuilder in theInput)
-                        .tag("font")
-                        .attr("size", "" + sizeI)
-                        .attr("color", selectedColor)
-                        .text(ridePrompt);
-                }
-                else
-                {
-                    ride.text = (new MP_SUOL_TagBuilder in theInput)
-                        .tag("font")
-                        .attr("size", "" + sizeI)
-                        .attr("color", "#FFFFFF")
-                        .text(ridePrompt);
+                    slot.text = buildMenuText(label, sizeI, itemIndex == menuSelected);
                 }
             }
-
-            MP_SUOL_getManager().updateOneliner(ride);
-        }
-
-        gift = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag("wo_GiftOption");
-        if(gift)
-        {
-            off = Vector(right.X * sideOffset, right.Y * sideOffset, height + spacing * 1, 0.0);
-
-            gift.entity  = menuSelectedPlayer.ghost;
-            gift.offset  = off;
-            gift.visible = true;
-
-            if(sizeI != lastMenuSize || menuSelected != lastMenuIndex)
+            else
             {
-                if(menuSelected == 1)
-                {
-                    gift.text = (new MP_SUOL_TagBuilder in theInput)
-                        .tag("font")
-                        .attr("size", "" + sizeI)
-                        .attr("color", selectedColor)
-                        .text("Trade");
-                }
-                else
-                {
-                    gift.text = (new MP_SUOL_TagBuilder in theInput)
-                        .tag("font")
-                        .attr("size", "" + sizeI)
-                        .attr("color", "#FFFFFF")
-                        .text("Trade");
-                }
+                slot.visible = false;
             }
 
-            MP_SUOL_getManager().updateOneliner(gift);
-        }
-
-        close = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag("wo_CloseOption");
-        if(close)
-        {
-            off = Vector(right.X * sideOffset, right.Y * sideOffset, height + spacing * 0, 0.0);
-
-            close.entity  = menuSelectedPlayer.ghost;
-            close.offset  = off;
-            close.visible = true;
-
-            if(sizeI != lastMenuSize || menuSelected != lastMenuIndex)
-            {
-                if(menuSelected == 2)
-                {
-                    close.text = (new MP_SUOL_TagBuilder in theInput)
-                        .tag("font")
-                        .attr("size", "" + sizeI)
-                        .attr("color", selectedColor)
-                        .text("Close");
-                }
-                else
-                {
-                    close.text = (new MP_SUOL_TagBuilder in theInput)
-                        .tag("font")
-                        .attr("size", "" + sizeI)
-                        .attr("color", "#FFFFFF")
-                        .text("Close");
-                }
-            }
-
-            MP_SUOL_getManager().updateOneliner(close);
+            MP_SUOL_getManager().updateOneliner(slot);
         }
 
         lastMenuSize = sizeI;
         lastMenuIndex = menuSelected;
+        lastMenuScroll = menuScroll;
     }
 
     public function Init()
