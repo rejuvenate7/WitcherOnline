@@ -291,6 +291,13 @@ statemachine class r_MultiplayerClient
         if(!player)
             return;
 
+        if(player.id == id)
+        {
+            GetWitcherPlayer().DisplayHudMessage("You cannot ride yourself!");
+            deleteMenu();
+            return;
+        }
+
         ridingPlayer = player;
         ridingEnabled = true;
 
@@ -1082,6 +1089,30 @@ statemachine class r_MultiplayerClient
         stopRiding();
     }
 
+    public function isEmoting() : bool
+    {
+        var now : float;
+        var dur : float;
+        now = theGame.GetEngineTimeAsSeconds();
+        dur = GetLocalEmoteDuration();
+
+        if(localEmoteAnim == '')
+        {
+            return false;
+        }
+
+        if(localEmoteLoop)
+        {
+            return true;
+        }
+        else if((now - lastEmoteTime) <= dur )
+        {
+            return true;
+        }
+
+        return false;
+    }
+
     private function GetLocalEmoteDuration() : float
     {
         var d : float;
@@ -1089,9 +1120,16 @@ statemachine class r_MultiplayerClient
         d = findChillDuration(localEmoteAnim);
 
         if(d <= 0)
-            d = 3.0;
+            d = 2.0;
 
         return d;
+    }
+
+    var emoteCancelledTime : float;
+
+    function emoteCancelledRecently() : bool 
+    {
+        return theGame.GetEngineTimeAsSeconds() - emoteCancelledTime < 0.5;
     }
 
     public function UpdateLocalEmoteLoop()
@@ -1110,6 +1148,7 @@ statemachine class r_MultiplayerClient
             ClearLocalEmoteState();
             setEmote(-2);
             mpghosts_playerEmote('');
+            emoteCancelledTime = theGame.GetEngineTimeAsSeconds();
             return;
         }
 
@@ -1137,20 +1176,36 @@ statemachine class r_MultiplayerClient
         chillDefs.Clear();
         // emotes
         addChill('man_work_greeting_with_hand_gesture_05', 3.13);
+        addChill('man_work_greeting_with_hand_gesture_02', 3.3);
         addChill('meditation_idle01', 6.1);
-        addChill('man_crying_loop_01', 5.17);
+        addChill('add_gesture_question_01', 3.27);
+        addChill('high_standing_determined_gesture_question', 2.03);
+        addChill('add_gesture_point_forward', 5);
+        addChill('high_standing_aggressive_gesture_decline_01', 3.7);
+        addChill('high_standing_determined_gesture_holdit', 5.23);
+        addChill('man_crying_loop_01', 6.17);
         addChill('man_cheering_loop', 3.63);
         addChill('man_begging_for_mercy_loop_01', 10.53);
+        addChill('man_work_drunk_puke', 6.33);
         addChill('geralt_drunk_walk', 2.8);
         addChill('man_praying_crossed_legs_loop_02', 7.5);
+        addChill('q101_man_hitting_alarm_bell_with_hammer_loop_01', 3.5);
         addChill('q103_man_prophesying_1', 15.07);
+        addChill('q203_druid_using_wand_1', 14);
+        addChill('geralt_chocking_loop_01', 7.67);
         addChill('seaman_working_on_the_ship_loop_01', 3.6);
         addChill('vanilla_sitting_on_ground_loop', 15.63);
         addChill('woman_noble_lying_relaxed_on_grass_loop_03', 11.2);
         addChill('mq7009_geralt_heroic_pose_lying', 19.7);
         addChill('locomotion_salsa_cycle_02', 40);
+        addChill('high_standing_determined_gesture_cough', 4.37);
+        addChill('high_standing_determined_gesture_facepalm', 9.47);
         addChill('woman_work_standing_hands_crossed_loop_02', 5.43);
         addChill('high_standing_determined2_idle', 23.07);
+        addChill('q705_anarietta_standing_tense_gesture_angry', 11.43);
+        addChill('ep1_mirror_sitting_on_shrine_gesture_explain_04', 9.37);
+        addChill('fall_up_idle', 18.67);
+        addChill('man_fistfight_finisher_1_looser', 2.10);
         addChill('man_finisher_head_01_reaction', 2.07);
         addChill('man_peeing_loop', 3.07);
 
@@ -3412,4 +3467,9 @@ state WO_Tick in r_MultiplayerClient
             SleepOneFrame();
         }
     }
+}
+
+exec function index()
+{
+    theGame.r_getMultiplayerClient().updateMenuIndex(true);
 }

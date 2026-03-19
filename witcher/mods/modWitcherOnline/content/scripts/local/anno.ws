@@ -177,7 +177,7 @@ function PrepareToAttack( optional target : CActor, optional action : EBufferAct
 
 @wrapMethod(CExplorationStateManager)
 function ChangeStateTo( _NewStateN : name )
-{
+{   
     if(_NewStateN == 'Jump')
     {
         theGame.r_getMultiplayerClient().setLastJumpTime(theGame.GetEngineTimeAsSeconds());
@@ -451,10 +451,64 @@ function UpdateCameraIfNeeded( out moveData : SCameraMovementData, dt : float ) 
 	}
 }
 
-exec function index()
-{
-    theGame.r_getMultiplayerClient().updateMenuIndex(true);
-}
-
 @addMethod(CInputManager)
 function IgnoreGameInput( actionName : name, ignore : bool );
+
+@wrapMethod(CPlayerInput)
+function OnCommDrinkPotion1( action : SInputAction )
+{
+    if(theGame.r_getMultiplayerClient().isMenuOpen() && theInput.LastUsedGamepad())
+    {
+        if(action.value > 0)
+        {
+            theGame.r_getMultiplayerClient().updateMenuIndex(false);
+        }
+
+        return true;
+    }
+    else
+    {
+        return wrappedMethod(action);
+    }
+}
+
+@wrapMethod(CPlayerInput)
+function OnCommDrinkPotion2( action : SInputAction )
+{
+    if(theGame.r_getMultiplayerClient().isMenuOpen() && theInput.LastUsedGamepad())
+    {
+        if(action.value > 0)
+        {
+            theGame.r_getMultiplayerClient().updateMenuIndex(true);
+        }
+
+        return true;
+    }
+    else
+    {
+        return wrappedMethod(action);
+    }
+}
+
+@wrapMethod(CExplorationStatePushed)
+function StateWantsToEnter() : bool 
+{
+    if (theGame.r_getMultiplayerClient().emoteCancelledRecently()) 
+    {
+		return false;
+	}
+
+    return wrappedMethod();
+}
+
+
+@wrapMethod(CExplorationStateJump)
+function StateWantsToEnter() : bool 
+{
+    if (theGame.r_getMultiplayerClient().emoteCancelledRecently()) 
+    {
+		return false;
+	}
+
+    return wrappedMethod();
+}

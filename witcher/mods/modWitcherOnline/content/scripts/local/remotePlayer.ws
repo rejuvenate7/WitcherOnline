@@ -1497,7 +1497,7 @@ statemachine class r_RemotePlayer
             }
             else if (lastEmote == 6)
             {
-                queueAnim('man_crying_loop_01', 5.17, 0.4, 0, 'emote', true, true);
+                queueAnim('man_crying_loop_01', 6.17, 0.4, 0, 'emote', true, true);
             }
             else if (lastEmote == 7)
             {
@@ -3866,6 +3866,7 @@ statemachine class r_RemotePlayer
                 }
             }
 
+            smoothNext = true;
             prevDodgeTime = lastDodgeTime;
         } 
 
@@ -3874,7 +3875,7 @@ statemachine class r_RemotePlayer
         {
             prevRollTime = lastRollTime;
         }
-        else if (lastRollTime != prevRollTime)
+        else if ((lastRollTime != prevRollTime) && !isClimbing)
         {
             if(heldItem == "silver" || heldItem == "steel")
             {
@@ -3924,6 +3925,8 @@ statemachine class r_RemotePlayer
                     queueAnim('man_geralt_sword_dodge_roll_rp_b_01_fist', 1.33, 0.4, 0, 'roll', true);
                 }
             }
+
+            smoothNext = true;
             prevRollTime = lastRollTime;
         }
 
