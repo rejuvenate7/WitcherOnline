@@ -9,5 +9,12 @@
 2111114006||option_MPGhosts_GhostEffect|Ghosts Have Invisible Effect
 2111114007||option_MPGhosts_RenderDistance|Nametag Render Distance
 2111114008||option_MPGhosts_HideJoinNotis|Hide Join/Leave Notifications
-2111114009||preset_Mods_gameplay_MPGhosts_name|Witcher Online
-2111114010||preset_value_MPGhosts_Disabled|Default
+2111114009||option_MPGhosts_HorseAppearance|Horse Appearance
+2111114010||preset_Mods_gameplay_MPGhosts_name|Witcher Online
+2111114011||preset_value_MPGhosts_Disabled|Default
+2111114012||preset_value_color_brown|Roach
+2111114013||preset_value_color_white|White
+2111114014||preset_value_color_black|Black
+2111114015||preset_value_color_wildhunt|Wild Hunt
+2111114016||preset_value_color_devil|Devil
+2111114017||preset_value_color_unicorn|Unicorn

@@ -2100,7 +2100,8 @@ statemachine class r_MultiplayerClient
                                         steel : name, silver : name, armor : name, gloves : name, pants : name, boots : name, head : name, hair : name, steelScab : name, silverScab : name, crossbow : name, mask : name,
                                         cpcPlayerType : ENR_PlayerType, cpcHead : name, cpcHair : string, cpcBody : string, cpcTorso : string, cpcArms : string, cpcGloves : string, cpcDress : string, cpcLegs : string, cpcShoes : string, cpcMisc : string,
                                         cpcItem1 : string, cpcItem2 : string, cpcItem3 : string, cpcItem4 : string, cpcItem5 : string, cpcItem6 : string, cpcItem7 : string, cpcItem8 : string, cpcItem9 : string, cpcItem10 : string,
-                                        optional isRiding : bool, optional ridingPlayerId : string, optional outgoingTradeTo : string, optional outgoingTradeItem : name, optional outgoingTradePrice : int, optional outgoingTradeFlag : int) 
+                                        optional isRiding : bool, optional ridingPlayerId : string, optional outgoingTradeTo : string, optional outgoingTradeItem : name, optional outgoingTradePrice : int, optional outgoingTradeFlag : int,
+                                        optional horseAppearance : string) 
     {
         var i : int;
         var p : r_RemotePlayer;
@@ -2241,6 +2242,7 @@ statemachine class r_MultiplayerClient
                 players[i].outgoingTradeItem = outgoingTradeItem;
                 players[i].outgoingTradePrice = outgoingTradePrice;
                 players[i].outgoingTradeFlag = outgoingTradeFlag;
+                players[i].horseAppearance = horseAppearance;
 
                 // armor
                 players[i].eq_steel = steel;
@@ -2347,6 +2349,7 @@ statemachine class r_MultiplayerClient
             p.outgoingTradeItem = outgoingTradeItem;
             p.outgoingTradePrice = outgoingTradePrice;
             p.outgoingTradeFlag = outgoingTradeFlag;
+            p.horseAppearance = horseAppearance;
 
             // armor
             p.eq_steel = steel;
@@ -2553,6 +2556,8 @@ exec function mpghosts_getData(optional playerId : string, optional username : s
     var ridingPlayer : r_RemotePlayer;
     var outgoingPlayer : string;
     var outgoingTradeItem : name;
+
+    var horseAppearance : string;
 
     theGame.r_getMultiplayerClient().setUserId(playerId, username);
     theGame.r_getMultiplayerClient().setReceived();
@@ -3129,6 +3134,18 @@ exec function mpghosts_getData(optional playerId : string, optional username : s
 
     list += theGame.r_getMultiplayerClient().getOutgoingTradeFlag();
     list += " ";
+    
+    horseAppearance = theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_HorseAppearance');
+
+    if(horseAppearance == "0" || horseAppearance == "1" || horseAppearance == "2" || horseAppearance == "3" || horseAppearance == "4" || horseAppearance == "5")
+    {
+        list += horseAppearance;
+    }
+    else
+    {
+        list += "none";
+    }
+    list += " ";
 
     Log("mpghosts_cli "+list);
 }
@@ -3144,7 +3161,8 @@ exec function mpghosts_updatePlayerData(id : name, username : string, x : float,
                                         steel : name, silver : name, armor : name, gloves : name, pants : name, boots : name, head : name, hair : name, steelScab : name, silverScab : name, crossbow : name, mask : name,
                                         cpcPlayerType : ENR_PlayerType, cpcHead : name, cpcHair : string, cpcBody : string, cpcTorso : string, cpcArms : string, cpcGloves : string, cpcDress : string, cpcLegs : string, cpcShoes : string, cpcMisc : string,
                                         cpcItem1 : string, cpcItem2 : string, cpcItem3 : string, cpcItem4 : string, cpcItem5 : string, cpcItem6 : string, cpcItem7 : string, cpcItem8 : string, cpcItem9 : string, cpcItem10 : string,
-                                        optional isRiding : bool, optional ridingPlayerId : string, optional outgoingTradeTo : string, optional outgoingTradeItem : name, optional outgoingTradePrice : int, optional outgoingTradeFlag : int) 
+                                        optional isRiding : bool, optional ridingPlayerId : string, optional outgoingTradeTo : string, optional outgoingTradeItem : name, optional outgoingTradePrice : int, optional outgoingTradeFlag : int,
+                                        optional horseAppearance : string) 
 {
     theGame.r_getMultiplayerClient().updatePlayerData(id, username, x, y, z, w, heading, speed, area, inGame, heldItem, offhandItem, inCombat, isSwimming, 
                                                             curState, lastJumpTime, lastJumpType, lastClimbType, isDiving, isFalling, lastLightAttackTime,
@@ -3155,7 +3173,8 @@ exec function mpghosts_updatePlayerData(id : name, username : string, x : float,
                                                             steel, silver, armor, gloves, pants, boots, head, hair, steelScab, silverScab, crossbow, mask,
                                                             cpcPlayerType, cpcHead, cpcHair, cpcBody, cpcTorso, cpcArms, cpcGloves, cpcDress, cpcLegs, cpcShoes, cpcMisc,
                                                             cpcItem1, cpcItem2, cpcItem3, cpcItem4, cpcItem5, cpcItem6, cpcItem7, cpcItem8, cpcItem9, cpcItem10,
-                                                            isRiding, ridingPlayerId, outgoingTradeTo, outgoingTradeItem, outgoingTradePrice, outgoingTradeFlag);
+                                                            isRiding, ridingPlayerId, outgoingTradeTo, outgoingTradeItem, outgoingTradePrice, outgoingTradeFlag,
+                                                            horseAppearance);
 }
 
 exec function mpghosts_disconnect(id :string)

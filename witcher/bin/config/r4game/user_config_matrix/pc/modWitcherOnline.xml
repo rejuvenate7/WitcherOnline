@@ -9,6 +9,7 @@
 				<Entry varId="MPGhosts_ShowInCutscene" value="false"/>
 				<Entry varId="MPGhosts_HideJoinNotis" value="false"/>
 				<Entry varId="MPGhosts_RenderDistance" value="0"/>
+				<Entry varId="MPGhosts_HorseAppearance" value="0"/>
 			</Preset>
 		</PresetsArray>
 		<VisibleVars>
@@ -18,6 +19,29 @@
 			<Var id="MPGhosts_GhostEffect" displayName="MPGhosts_GhostEffect" displayType="TOGGLE"/>
 			<Var id="MPGhosts_HideJoinNotis" displayName="MPGhosts_HideJoinNotis" displayType="TOGGLE"/>
 			<Var id="MPGhosts_RenderDistance" displayName="MPGhosts_RenderDistance" displayType="SLIDER;0;5000;100"/>
+			
+			<Var id="MPGhosts_HorseAppearance" displayName="MPGhosts_HorseAppearance" displayType="OPTIONS">
+				<OptionsArray>
+					<Option id="0" displayName="color_brown">
+						<Entry varId="MPGhosts_HorseAppearance" value="0"/>
+					</Option>
+					<Option id="1" displayName="color_white">
+						<Entry varId="MPGhosts_HorseAppearance" value="1"/>
+					</Option>
+					<Option id="2" displayName="color_black">
+						<Entry varId="MPGhosts_HorseAppearance" value="2"/>
+					</Option>
+					<Option id="3" displayName="color_wildhunt">
+						<Entry varId="MPGhosts_HorseAppearance" value="3"/>
+					</Option>
+					<Option id="4" displayName="color_devil">
+						<Entry varId="MPGhosts_HorseAppearance" value="4"/>
+					</Option>
+					<Option id="5" displayName="color_unicorn">
+						<Entry varId="MPGhosts_HorseAppearance" value="5"/>
+					</Option>
+				</OptionsArray>
+			</Var>
 		</VisibleVars>
 		
 	</Group>

@@ -263,6 +263,8 @@ statemachine class r_RemotePlayer
     public var horse : CActor;
     public var boat : CActor;
 
+    public var horseAppearance : string;
+
     private function loadHead(newHeadName : name) {
 		var headManager : CHeadManagerComponent;
 
@@ -5340,6 +5342,59 @@ state WO_UpdateCPC in r_RemotePlayer
         parent.lastcpcItem10 = "";
     }
 
+    function updateHorseAppearance()
+    {
+        if(parent.horseAppearance == "0")
+        {
+            if(((CActor)parent.horse).GetAppearance() != 'horse_draft_vehicle_02')
+            {
+                ((CActor)parent.horse).ApplyAppearance("horse_draft_vehicle_02");
+            }
+        }
+        else if(parent.horseAppearance == "1")
+        {
+            if(((CActor)parent.horse).GetAppearance() != '_sq101__white_stallion_02')
+            {
+                ((CActor)parent.horse).ApplyAppearance("_sq101__white_stallion_02");
+            }
+        }
+        else if(parent.horseAppearance == "2")
+        {
+            if(((CActor)parent.horse).GetAppearance() != 'horse_draft_vehicle_04')
+            {
+                ((CActor)parent.horse).ApplyAppearance("horse_draft_vehicle_04");
+            }
+        }
+        else if(parent.horseAppearance == "3")
+        {
+            if(((CActor)parent.horse).GetAppearance() != 'horse_wild_hunt_01')
+            {
+                ((CActor)parent.horse).ApplyAppearance("horse_wild_hunt_01");
+            }
+        }
+        else if(parent.horseAppearance == "4")
+        {
+            if(((CActor)parent.horse).GetAppearance() != 'player_horse_with_devil_saddle')
+            {
+                ((CActor)parent.horse).ApplyAppearance("player_horse_with_devil_saddle");
+            }
+        }
+        else if(parent.horseAppearance == "5")
+        {
+            if(((CActor)parent.horse).GetAppearance() != 'unicorn_wild_01')
+            {
+                ((CActor)parent.horse).ApplyAppearance("unicorn_wild_01");
+            }
+        }
+        else
+        {
+            if(((CActor)parent.horse).GetAppearance() != 'horse_draft_vehicle_02')
+            {
+                ((CActor)parent.horse).ApplyAppearance("horse_draft_vehicle_02");
+            }
+        }
+    }
+
     latent function spawnHorse()
     {
         var l_aiTree : CAIHorseDoNothingAction;
@@ -5350,9 +5405,8 @@ state WO_UpdateCPC in r_RemotePlayer
 
         if(!parent.horse)
         {
-            //temp_2 = (CEntityTemplate)LoadResourceAsync( "characters\npc_entities\animals\horse\horse_vehicle_wild_hunt.w2ent", true );
-            temp_2 = (CEntityTemplate)LoadResourceAsync( "characters\npc_entities\animals\horse\horse_vehicle.w2ent", true );
-            //temp_2 = (CEntityTemplate)LoadResourceAsync( "dlc\dlc_acs\data\entities\enemy_riders\horse_vehicle_wild_hunt.w2ent", true );
+            //temp_2 = (CEntityTemplate)LoadResourceAsync( "characters\npc_entities\animals\horse\horse_vehicle.w2ent", true );
+            temp_2 = (CEntityTemplate)LoadResourceAsync( "dlc\dlc_mpmod\data\entities\horse_vehicle.w2ent", true );
 
             horseTag.Clear();
             horseTag.PushBack('online_horse');
@@ -5364,7 +5418,14 @@ state WO_UpdateCPC in r_RemotePlayer
             ((CActor)parent.horse).EnableCharacterCollisions(false); 
             ((CActor)parent.horse).SetGameplayVisibility( false );
 
-            ((CActor)parent.horse).ApplyAppearance("horse_draft_vehicle_02");
+            updateHorseAppearance();
+
+            //((CActor)parent.horse).ApplyAppearance("_sq101__white_stallion_02");
+            //((CActor)parent.horse).ApplyAppearance("horse_draft_vehicle_02");
+            //((CActor)parent.horse).ApplyAppearance("horse_draft_vehicle_04");
+            //((CActor)parent.horse).ApplyAppearance("horse_wild_hunt_01");
+            //((CActor)parent.horse).ApplyAppearance("player_horse_with_devil_saddle");
+            //((CActor)parent.horse).ApplyAppearance("unicorn_wild_01");
 
             adjustor = parent.ghost.GetMovingAgentComponent().GetMovementAdjustor();
             adjustor.Cancel(adjustor.GetRequest('w3mp_ghost'));
@@ -5583,6 +5644,7 @@ state WO_UpdateCPC in r_RemotePlayer
                 }
 
                 moveHorse();
+                updateHorseAppearance();
 
                 parent.lastMounted = true;
             }
