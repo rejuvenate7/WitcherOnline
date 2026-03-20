@@ -167,6 +167,12 @@ statemachine class r_MultiplayerClient
                         outgoingTradeFlag = -1; // -1 means do nothing, -2 accept, -3 decline
                         players[i].tradeHandshake = true;
                     }
+                    else
+                    {
+                        outgoingTradeTo = players[i];
+                        outgoingTradeFlag = -3; // -1 means do nothing, -2 accept, -3 decline
+                        players[i].tradeHandshake = true;
+                    }
                     return;
                 }
                 else if(players[i].outgoingTradeFlag == -2)
@@ -240,12 +246,15 @@ statemachine class r_MultiplayerClient
         tradeInProgress = false;
     }
 
-    public function declineTrade()
+    public function declineTrade(playSound : bool)
     {
         if(!tradeInProgress)
             return;
 
-        theSound.SoundEvent('gui_global_panel_close');
+        if(playSound)
+        {
+            theSound.SoundEvent('gui_global_panel_close');
+        }
 
         outgoingTradeFlag = -3;
         tradeInProgress = false;
@@ -264,10 +273,16 @@ statemachine class r_MultiplayerClient
         inventory = new CInventoryComponent in thePlayer;
         ids = inventory.AddAnItem(itemName, 1);
 
+        if(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_AutoDeclineTrade'))
+        {
+            declineTrade(false);
+            return false;
+        }
+        
         if(!inventory.IsIdValid(ids[0]))
         {
             GetWitcherPlayer().DisplayHudMessage(user + " tried to send a trade request for an item that doesn't exist in your game.");
-            declineTrade();
+            declineTrade(true);
             return false;
         }
 

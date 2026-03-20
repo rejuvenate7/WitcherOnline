@@ -10,6 +10,7 @@
 				<Entry varId="MPGhosts_HideJoinNotis" value="false"/>
 				<Entry varId="MPGhosts_RenderDistance" value="0"/>
 				<Entry varId="MPGhosts_HorseAppearance" value="0"/>
+				<Entry varId="MPGhosts_AutoDeclineTrade" value="false"/>
 			</Preset>
 		</PresetsArray>
 		<VisibleVars>
@@ -19,6 +20,7 @@
 			<Var id="MPGhosts_GhostEffect" displayName="MPGhosts_GhostEffect" displayType="TOGGLE"/>
 			<Var id="MPGhosts_HideJoinNotis" displayName="MPGhosts_HideJoinNotis" displayType="TOGGLE"/>
 			<Var id="MPGhosts_RenderDistance" displayName="MPGhosts_RenderDistance" displayType="SLIDER;0;5000;100"/>
+			<Var id="MPGhosts_AutoDeclineTrade" displayName="MPGhosts_AutoDeclineTrade" displayType="TOGGLE"/>
 			
 			<Var id="MPGhosts_HorseAppearance" displayName="MPGhosts_HorseAppearance" displayType="OPTIONS">
 				<OptionsArray>

@@ -292,7 +292,7 @@ function OnCloseSelectionPopup()
     if(m_DataObject.wo_isReceivingTrade)
     {
         GetWitcherPlayer().DisplayHudMessage("The trade was declined.");
-        theGame.r_getMultiplayerClient().declineTrade();
+        theGame.r_getMultiplayerClient().declineTrade(true);
         theSound.SoundEvent('gui_enchanting_runeword_remove');
         ClosePopup();
     }
