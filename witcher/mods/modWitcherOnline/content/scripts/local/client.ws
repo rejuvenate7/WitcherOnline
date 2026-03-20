@@ -114,6 +114,48 @@ statemachine class r_MultiplayerClient
 
     private var lastMenuScroll : int;
 
+    function Mount(actor : CActor, itemName: name, optional notHand: bool): SItemUniqueId {
+        var items: array<SItemUniqueId>;
+        items = actor.GetInventory().GetItemsByName(itemName);
+        if (items.Size() == 0) {
+            items = actor.GetInventory().AddAnItem(itemName, 1, true, true);
+        }
+        actor.GetInventory().MountItem(items[0], !notHand);
+
+        return items[0];
+    }
+
+    private function Unmount(actor : CActor, itemName: name) {
+        var i: int;
+        var items: array<SItemUniqueId>;
+
+        if (itemName == '') return;
+
+        items = actor.GetInventory().GetItemsByName(itemName);
+        for (i = 0; i < items.Size(); i += 1) {
+            actor.GetInventory().DespawnItem(items[i]);
+            actor.GetInventory().UnmountItem(items[i], true);
+        }
+    }
+
+    public function unmountItems(actor : CActor)
+    {
+        Unmount(actor, 'Horn');
+        Unmount(actor, 'card_deck');
+        Unmount(actor, 'card_single');
+        Unmount(actor, 'bread_piece');
+        Unmount(actor, 'Apple_01');
+        Unmount(actor, 'Pipe_01'); 
+        Unmount(actor, 'Meat_04'); 
+        Unmount(actor, 'meat_food'); 
+        Unmount(actor, 'Fishing_rod'); 
+        Unmount(actor, 'Cup_01'); 
+        Unmount(actor, 'Ladle_01'); 
+        Unmount(actor, 'cutlery_fork'); 
+        Unmount(actor, 'cutlery_rich_knife'); 
+        Unmount(actor, 'Lute 01'); 
+    }
+
     public function getOutgoingTradeTo() : string
     {
         return outgoingTradeTo.id;
@@ -374,7 +416,6 @@ statemachine class r_MultiplayerClient
             if(ridingPlayer.isSailing && !ridingPlayer.isMounted && lastRidingType != "boat")
             {
                 thePlayer.BreakAttachment();
-                GetWitcherPlayer().DisplayHudMessage("Swap client attach 1");
                 attachRiderBoat(thePlayer, ridingPlayer.ghost);
                 lastRidingType = "boat";
                 mpghosts_emote(30);
@@ -382,7 +423,6 @@ statemachine class r_MultiplayerClient
             else if(ridingPlayer.isMounted && !ridingPlayer.isSailing && lastRidingType != "horse" && ridingPlayer.horse)
             {
                 thePlayer.BreakAttachment();
-                GetWitcherPlayer().DisplayHudMessage("Swap client attach 3");
                 attachRiderHorse(thePlayer, ridingPlayer.horse);
                 lastRidingType = "horse";
                 mpghosts_emote(31);
@@ -390,7 +430,6 @@ statemachine class r_MultiplayerClient
             else if(!ridingPlayer.isSailing && !ridingPlayer.isMounted && lastRidingType != "player")
             {
                 thePlayer.BreakAttachment();
-                GetWitcherPlayer().DisplayHudMessage("Swap client attach 2");
                 attachRider(thePlayer, ridingPlayer.ghost);
                 lastRidingType = "player";
                 mpghosts_emote(29);
@@ -604,6 +643,7 @@ statemachine class r_MultiplayerClient
         addEmoteMenuItem("Cheer", "emote_cheer");
         addEmoteMenuItem("Laugh", "emote_laugh");
         addEmoteMenuItem("Clap", "emote_clap");
+        addEmoteMenuItem("Lute", "emote_lute");
         addEmoteMenuItem("Dance", "emote_dance");
         addEmoteMenuItem("Facepalm", "emote_facepalm");
         addEmoteMenuItem("Sit", "emote_sit");
@@ -614,6 +654,7 @@ statemachine class r_MultiplayerClient
         addEmoteMenuItem("Cry", "emote_cry");
         addEmoteMenuItem("Beg", "emote_beg");
         addEmoteMenuItem("Vomit", "emote_vomit");
+        addEmoteMenuItem("Cartwheels", "emote_cartwheel");
         addEmoteMenuItem("Pray", "emote_pray");
         addEmoteMenuItem("Question", "emote_question");
         addEmoteMenuItem("Cross Arms", "emote_cross");
@@ -851,6 +892,10 @@ statemachine class r_MultiplayerClient
         {
             mpghosts_emote(10);
         }
+        else if(action == "emote_cartwheel")
+        {
+            mpghosts_emote(33);
+        }
         else if(action == "emote_pray")
         {
             mpghosts_emote(12);
@@ -890,6 +935,10 @@ statemachine class r_MultiplayerClient
         else if(action == "emote_fly")
         {
             mpghosts_emote(26);
+        }
+        else if(action == "emote_lute")
+        {
+            mpghosts_emote(32);
         }
         else if(action == "chat_hello")
         {
@@ -1411,6 +1460,11 @@ statemachine class r_MultiplayerClient
         stopRiding();
     }
 
+    public function setEmoteEnd()
+    {
+        emoteCancelledTime = theGame.GetEngineTimeAsSeconds() + GetLocalEmoteDuration();
+    }
+
     public function isEmoting() : bool
     {
         var now : float;
@@ -1462,6 +1516,16 @@ statemachine class r_MultiplayerClient
         if(lastEmote < 0)
             return;
 
+        if(!localEmoteLoop && localEmoteAnim != '')
+        {
+            if(theGame.GetEngineTimeAsSeconds() >= emoteCancelledTime )
+            {
+                ClearLocalEmoteState();
+                setEmote(-2);
+                unmountItems(thePlayer);
+            }
+        }
+
         if(!localEmoteLoop || localEmoteAnim == '')
             return;
 
@@ -1470,6 +1534,7 @@ statemachine class r_MultiplayerClient
             ClearLocalEmoteState();
             setEmote(-2);
             mpghosts_playerEmote('');
+            unmountItems(thePlayer);
             emoteCancelledTime = theGame.GetEngineTimeAsSeconds();
             return;
         }
@@ -1530,6 +1595,8 @@ statemachine class r_MultiplayerClient
         addChill('man_fistfight_finisher_1_looser', 2.10);
         addChill('man_finisher_head_01_reaction', 2.07);
         addChill('man_peeing_loop', 3.07);
+        addChill('man_work_playing_lute_02', 6.00);
+        addChill('man_bard_cartwheels_loop', 9.57);
 
         addChill('man_work_sit_table_01', 1.93);
         addChill('man_work_bed_sleep_02_loop_01', 4.6);
@@ -3335,6 +3402,11 @@ exec function piss()
     mpghosts_emote(28);
 }
 
+exec function lute()
+{
+    mpghosts_emote(32);
+}
+
 function mpghosts_stopeemote()
 {
     theGame.r_getMultiplayerClient().setEmote(-1);
@@ -3362,6 +3434,8 @@ function mpghosts_emote(num : int)
 
     anim  = '';
     force = false;
+
+    theGame.r_getMultiplayerClient().unmountItems(thePlayer);
 
     if (num == 0)
     {
@@ -3575,13 +3649,31 @@ function mpghosts_emote(num : int)
         anim = 'horse_standing_idle01';
         loop = true;
     }
+    else if (num == 32)
+    {
+        anim = 'man_work_playing_lute_02';
+        loop = true;
+        theGame.r_getMultiplayerClient().Mount(thePlayer, 'Lute 01');
+    }
+    else if (num == 33)
+    {
+        anim = 'man_bard_cartwheels_loop';
+        loop = true;
+    }
 
     theGame.r_getMultiplayerClient().setEmote(num);
     theGame.r_getMultiplayerClient().setLastEmoteTime(theGame.GetEngineTimeAsSeconds());
     theGame.r_getMultiplayerClient().SetLocalEmoteState(anim, force, loop);
 
+    if(!loop)
+    {
+        theGame.r_getMultiplayerClient().setEmoteEnd();
+    }
+
     if(anim != '')
+    {
         mpghosts_playerEmote(anim, force);
+    }
 }
 
 function mpghosts_chat(msg : string)
@@ -3813,4 +3905,35 @@ state WO_Tick in r_MultiplayerClient
 exec function index()
 {
     theGame.r_getMultiplayerClient().updateMenuIndex(true);
+}
+
+exec function printitems()
+{
+    var inv : CInventoryComponent;
+    var ids : array<SItemUniqueId>;
+    var size : int;
+    var i		: int;
+    
+    inv = thePlayer.GetInventory();
+
+    inv.GetAllItems( ids );
+    size = ids.Size();
+
+    LogChannel('item_print_start', "bruh");
+    
+    if( size > 0 )
+    {
+        for( i = 0; i < size; i+=1 )
+        {
+            LogChannel('item_print', inv.GetItemName(ids[i]));
+        }
+        
+    }
+
+    LogChannel('item_print_start', "end");
+}
+
+exec function testemote(anim : name)
+{
+    mpghosts_playerEmote(anim);
 }

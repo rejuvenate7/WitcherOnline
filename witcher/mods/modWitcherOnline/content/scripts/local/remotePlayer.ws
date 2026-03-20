@@ -472,7 +472,7 @@ statemachine class r_RemotePlayer
             {
                 if (currentType == 'emote')
                 {
-                    unmountItems();
+                    theGame.r_getMultiplayerClient().unmountItems(ghost);
                     smoothNext = true;
                 }
 
@@ -488,6 +488,7 @@ statemachine class r_RemotePlayer
             if(lastEmote == -2)
             {
                 stopAllAnims();
+                theGame.r_getMultiplayerClient().unmountItems(ghost);
                 lastEmote = -1;
             }
         }
@@ -498,7 +499,8 @@ statemachine class r_RemotePlayer
             {
                 if(lastAnim != 'fall_up_idle' && lastAnim != 'ep1_mirror_sitting_on_shrine_gesture_explain_04' && lastAnim != 'locomotion_salsa_cycle_02' && 
                     lastAnim != 'seaman_working_on_the_ship_loop_01' && lastAnim != 'geralt_drunk_walk' && lastAnim != 'geralt_relaxed_sitting_and_resting_2' 
-                    && lastAnim != 'man_work_relaxed_sitting_and_resting_1' && lastAnim != 'boat_passenger_sit_idle' && lastAnim != 'horse_standing_idle01')
+                    && lastAnim != 'man_work_relaxed_sitting_and_resting_1' && lastAnim != 'boat_passenger_sit_idle' && lastAnim != 'horse_standing_idle01'
+                    && lastAnim != 'man_bard_cartwheels_loop')
                 {
                     stopAllAnims();
                 }
@@ -510,7 +512,7 @@ statemachine class r_RemotePlayer
             if (emoteCancelableAt > 0.0f && now >= emoteCancelableAt)
             {
                 if(lastAnim != 'fall_up_idle' && lastAnim != 'geralt_relaxed_sitting_and_resting_2' && lastAnim != 'man_work_relaxed_sitting_and_resting_1' 
-                && lastAnim != 'boat_passenger_sit_idle' && lastAnim != 'horse_standing_idle01')
+                && lastAnim != 'boat_passenger_sit_idle' && lastAnim != 'horse_standing_idle01' && lastAnim != 'man_bard_cartwheels_loop')
                 {
                     stopAllAnims();
                 }
@@ -1050,7 +1052,6 @@ statemachine class r_RemotePlayer
             if(players[i].ghost.HasAttachment() && players[i].isRiding && players[i].ridingPlayerId == id)
             {
                 players[i].ghost.BreakAttachment();
-                GetWitcherPlayer().DisplayHudMessage("Break ghost attachment, dc");
             }
         }
         
@@ -1059,7 +1060,6 @@ statemachine class r_RemotePlayer
             if(thePlayer.HasAttachment() && ridingPlayer == this)
             {
                 thePlayer.BreakAttachment();
-                GetWitcherPlayer().DisplayHudMessage("Break player attachment, dc");
                 mpghosts_stopeemote();
             }
         }
@@ -1067,7 +1067,6 @@ statemachine class r_RemotePlayer
         if(theGame.r_getMultiplayerClient().getSelectedPlayer() == this)
         {
             theGame.r_getMultiplayerClient().deleteMenu();
-            GetWitcherPlayer().DisplayHudMessage("Delete menu from dc player");
         }
 
         if(ghost)
@@ -1162,14 +1161,12 @@ statemachine class r_RemotePlayer
                 if((ridingPlayer.isSailing || (toRide == thePlayer && thePlayer.IsSailing())) && !ridingPlayer.isMounted && lastMountType != "boat")
                 {
                     ghost.BreakAttachment();
-                    GetWitcherPlayer().DisplayHudMessage("Swap attachment 1");
                     theGame.r_getMultiplayerClient().attachRiderBoat(ghost, toRide);
                     lastMountType = "boat";
                 }
                 else if((ridingPlayer.isMounted || (toRide == thePlayer && thePlayer.IsUsingHorse(true))) && !ridingPlayer.isSailing && lastMountType != "horse")
                 {
                     ghost.BreakAttachment();
-                    GetWitcherPlayer().DisplayHudMessage("Swap attachment 2");
                     if(toRide == thePlayer)
                     {
                         theGame.r_getMultiplayerClient().attachRiderHorse(ghost, thePlayer.GetHorseCurrentlyMounted());
@@ -1183,7 +1180,6 @@ statemachine class r_RemotePlayer
                 else if(!ridingPlayer.isSailing && !ridingPlayer.isMounted && !(toRide == thePlayer && thePlayer.IsSailing()) && !(toRide == thePlayer && thePlayer.IsUsingHorse(true)) && lastMountType != "player")
                 {
                     ghost.BreakAttachment();
-                    GetWitcherPlayer().DisplayHudMessage("Swap attachment 3");
                     theGame.r_getMultiplayerClient().attachRider(ghost, toRide);
                     lastMountType = "player";
                 }
@@ -1193,13 +1189,9 @@ statemachine class r_RemotePlayer
         {
             if(ghost.HasAttachment())
             {
-                //ridingPlayer = mpghosts_getPlayerById(ridingPlayerId);
-
                 // detach
                 ghost.BreakAttachment();
                 theGame.r_getMultiplayerClient().fixAttachRotation(ghost);
-                //ridingPlayer.ghost.BreakAttachment();
-                GetWitcherPlayer().DisplayHudMessage("Detached!");
                 lastMountType = "none";
             }
         }
@@ -1256,36 +1248,6 @@ statemachine class r_RemotePlayer
         }
     }
 
-    private function Unmount(itemName: name) {
-        var i: int;
-        var items: array<SItemUniqueId>;
-
-        if (itemName == '') return;
-
-        items = ghost.GetInventory().GetItemsByName(itemName);
-        for (i = 0; i < items.Size(); i += 1) {
-            ghost.GetInventory().DespawnItem(items[i]);
-            ghost.GetInventory().UnmountItem(items[i], true);
-        }
-    }
-
-    private function unmountItems()
-    {
-        Unmount('Horn');
-        Unmount('card_deck');
-        Unmount('card_single');
-        Unmount('bread_piece');
-        Unmount('Apple_01');
-        Unmount('Pipe_01'); 
-        Unmount('Meat_04'); 
-        Unmount('meat_food'); 
-        Unmount('Fishing_rod'); 
-        Unmount('Cup_01'); 
-        Unmount('Ladle_01'); 
-        Unmount('cutlery_fork'); 
-        Unmount('cutlery_rich_knife'); 
-    }
-
     private function updateChillOut()
     {
         var chillDur : float;
@@ -1322,7 +1284,7 @@ statemachine class r_RemotePlayer
             if (lastChillOut)
             {
                 stopAllAnims();
-                unmountItems();
+                theGame.r_getMultiplayerClient().unmountItems(ghost);
                 lastJumpTime = 99;
                 lastChillOut = false;
                 smoothNext = true;
@@ -1459,6 +1421,7 @@ statemachine class r_RemotePlayer
         }
         else if (lastEmoteTime != prevEmoteTime)
         {
+            
             if (lastEmote == 0)
             {
                 queueAnim('man_work_greeting_with_hand_gesture_05', 3.13, 0, 0, 'emote', true, true);
@@ -1649,6 +1612,20 @@ statemachine class r_RemotePlayer
             else if (lastEmote == 31)
             {
                 queueAnim('horse_standing_idle01', 7.33, 0, 0, 'emote', true, true);
+            }
+            else if (lastEmote == 32)
+            {
+                queueAnim('man_work_playing_lute_02', 6.00, 0.4, 0, 'emote', true, true);
+                theGame.r_getMultiplayerClient().Mount(ghost, 'Lute 01');
+            }
+            else if (lastEmote == 33)
+            {
+                queueAnim('man_bard_cartwheels_loop', 9.57, 0.0, 0, 'emote', true, true);
+            }
+
+            if(lastEmote != 32)
+            {
+                theGame.r_getMultiplayerClient().unmountItems(ghost);
             }
 
             lastEmote = -1;
@@ -5461,7 +5438,7 @@ state WO_UpdateCPC in r_RemotePlayer
         var anchor : CEntity;
         var anchor_temp : CEntityTemplate;
 
-        temp_2 = (CEntityTemplate)LoadResourceAsync("dlc\dlc_mpmod\data\entities\boat_copy_copy.w2ent", true);
+        temp_2 = (CEntityTemplate)LoadResourceAsync("dlc\dlc_mpmod\data\entities\online_boat.w2ent", true);
 
         horseTag.Clear();
         horseTag.PushBack('online_horse');
