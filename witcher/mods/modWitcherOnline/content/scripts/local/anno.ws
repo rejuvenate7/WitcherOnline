@@ -45,6 +45,126 @@ timer function r_showConnectionAlert(dt : float, id : int)
     theGame.r_getMultiplayerClient().DisplayUserMessage(WitcherOnline_PlayerNotification(wo_messagetitle, wo_messagebody));
 }
 
+@addMethod(CR4Player) 
+timer function r_showJoinMessage(dt : float, id : int)
+{
+    var players : array<r_RemotePlayer>;
+    var total : int;
+    var regions : int;
+    var i : int;
+    var kaerMorhen : int;
+    var whiteOrchard : int;
+    var toussaint : int;
+    var velen : int;
+    var skellige : int;
+    var vizima : int;
+    var regionString : string;
+
+    players = theGame.r_getMultiplayerClient().getGlobalPlayers();
+
+    total = players.Size();
+
+    for(i = 0; i < players.Size(); i+=1)
+    {
+        if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "no_mans_land")
+        {
+            velen += 1;
+        }
+        else if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "skellige")
+        {
+            skellige += 1;
+        }
+        else if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "bob")
+        {
+            toussaint += 1;
+        }
+        else if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "prolog_village")
+        {
+            whiteOrchard += 1;
+        }
+        else if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "kaer_morhen")
+        {
+            kaerMorhen += 1;
+        }
+        else if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "wyzima_castle")
+        {
+            vizima += 1;
+        }
+    }
+
+    if(SUH_normalizeRegion(AreaTypeToName(theGame.GetCommonMapManager().GetCurrentArea())) == "no_mans_land")
+    {
+        velen += 1;
+    }
+    else if(SUH_normalizeRegion(AreaTypeToName(theGame.GetCommonMapManager().GetCurrentArea())) == "skellige")
+    {
+        skellige += 1;
+    }
+    else if(SUH_normalizeRegion(AreaTypeToName(theGame.GetCommonMapManager().GetCurrentArea())) == "bob")
+    {
+        toussaint += 1;
+    }
+    else if(SUH_normalizeRegion(AreaTypeToName(theGame.GetCommonMapManager().GetCurrentArea())) == "prolog_village")
+    {
+        whiteOrchard += 1;
+    }
+    else if(SUH_normalizeRegion(AreaTypeToName(theGame.GetCommonMapManager().GetCurrentArea())) == "kaer_morhen")
+    {
+        kaerMorhen += 1;
+    }
+    else if(SUH_normalizeRegion(AreaTypeToName(theGame.GetCommonMapManager().GetCurrentArea())) == "wyzima_castle")
+    {
+        vizima += 1;
+    }
+
+    if(velen > 0)
+    {
+        regions += 1;
+    }
+    if(skellige > 0)
+    {
+        regions += 1;
+    }
+    if(toussaint > 0)
+    {
+        regions += 1;
+    }
+    if(whiteOrchard > 0)
+    {
+        regions += 1;
+    }
+    if(kaerMorhen > 0)
+    {
+        regions += 1;
+    }
+    if(vizima > 0)
+    {
+        regions += 1;
+    }
+
+    if(!theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_ShowSelf'))
+    {
+        total += 1;
+    }
+
+    if(total == 1)
+    {
+        regionString = "region";
+    }
+    else
+    {
+        regionString = "regions";
+    }
+    
+    GetWitcherPlayer().DisplayHudMessage("There are " + total + " players online in " + regions + " " + regionString + ".");
+}
+
+@addMethod(CR4Player) 
+timer function r_showWelcome(dt : float, id : int)
+{
+    GetWitcherPlayer().DisplayHudMessage("Welcome, " + theGame.r_getMultiplayerClient().getUsername() + "!");
+}
+
 @wrapMethod(CR4GuiManager)
 function OnEnteredMainMenu()
 {
@@ -66,6 +186,13 @@ function OnAfterLoadingScreenGameStart()
     if(!theGame.r_getMultiplayerClient().getReceived())
     {
         thePlayer.AddTimer('r_showConnectionAlert', 1, false);
+    }
+
+    if(theGame.r_getMultiplayerClient().getReceived() && !theGame.r_getMultiplayerClient().getJoinMessage())
+    {
+        thePlayer.AddTimer('r_showWelcome', 1, false);
+        thePlayer.AddTimer('r_showJoinMessage', 1.5, false);
+        theGame.r_getMultiplayerClient().setJoinMessage();
     }
 }
 

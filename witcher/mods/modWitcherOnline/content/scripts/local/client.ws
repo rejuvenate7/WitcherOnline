@@ -113,6 +113,7 @@ statemachine class r_MultiplayerClient
     private var menuSlots : array<MP_SU_OnelinerEntity>;
 
     private var lastMenuScroll : int;
+    private var joinMessage : bool;
 
     function Mount(actor : CActor, itemName: name, optional notHand: bool): SItemUniqueId {
         var items: array<SItemUniqueId>;
@@ -1444,14 +1445,14 @@ statemachine class r_MultiplayerClient
         return nameColors;
     }
 
-    public function SetLocalEmoteState(anim : name, forceAnim : bool, loop : bool)
+    public function setLocalEmoteState(anim : name, forceAnim : bool, loop : bool)
     {
         localEmoteAnim = anim;
         localEmoteForce = forceAnim;
         localEmoteLoop = loop;
     }
 
-    public function ClearLocalEmoteState()
+    public function clearLocalEmoteState()
     {
         localEmoteAnim = '';
         localEmoteForce = false;
@@ -1462,7 +1463,7 @@ statemachine class r_MultiplayerClient
 
     public function setEmoteEnd()
     {
-        emoteCancelledTime = theGame.GetEngineTimeAsSeconds() + GetLocalEmoteDuration();
+        emoteCancelledTime = theGame.GetEngineTimeAsSeconds() + getLocalEmoteDuration();
     }
 
     public function isEmoting() : bool
@@ -1470,7 +1471,7 @@ statemachine class r_MultiplayerClient
         var now : float;
         var dur : float;
         now = theGame.GetEngineTimeAsSeconds();
-        dur = GetLocalEmoteDuration();
+        dur = getLocalEmoteDuration();
 
         if(localEmoteAnim == '')
         {
@@ -1489,7 +1490,7 @@ statemachine class r_MultiplayerClient
         return false;
     }
 
-    private function GetLocalEmoteDuration() : float
+    private function getLocalEmoteDuration() : float
     {
         var d : float;
 
@@ -1508,7 +1509,7 @@ statemachine class r_MultiplayerClient
         return theGame.GetEngineTimeAsSeconds() - emoteCancelledTime < 0.5;
     }
 
-    public function UpdateLocalEmoteLoop()
+    public function updateLocalEmoteLoop()
     {
         var now : float;
         var dur : float;
@@ -1520,7 +1521,7 @@ statemachine class r_MultiplayerClient
         {
             if(theGame.GetEngineTimeAsSeconds() >= emoteCancelledTime )
             {
-                ClearLocalEmoteState();
+                clearLocalEmoteState();
                 setEmote(-2);
                 unmountItems(thePlayer);
             }
@@ -1531,7 +1532,7 @@ statemachine class r_MultiplayerClient
 
         if(theInput.IsActionJustPressed('Jump') || theInput.IsActionJustPressed('Roll') || theInput.IsActionJustPressed('Dodge') || theInput.IsActionJustPressed('CbtRoll'))
         {
-            ClearLocalEmoteState();
+            clearLocalEmoteState();
             setEmote(-2);
             mpghosts_playerEmote('');
             unmountItems(thePlayer);
@@ -1540,7 +1541,7 @@ statemachine class r_MultiplayerClient
         }
 
         now = theGame.GetEngineTimeAsSeconds();
-        dur = GetLocalEmoteDuration();
+        dur = getLocalEmoteDuration();
 
         if((now - lastEmoteTime) >= dur )
         {
@@ -1771,6 +1772,16 @@ statemachine class r_MultiplayerClient
     public function getReceived() : bool
     {
         return execReceived;
+    }
+
+    public function setJoinMessage()
+    {
+        joinMessage = true;
+    }
+
+    public function getJoinMessage() : bool
+    {
+        return joinMessage;
     }
 
     public function setUserId(id : string, username : string)
@@ -3410,7 +3421,7 @@ exec function lute()
 function mpghosts_stopeemote()
 {
     theGame.r_getMultiplayerClient().setEmote(-1);
-    theGame.r_getMultiplayerClient().ClearLocalEmoteState();
+    theGame.r_getMultiplayerClient().clearLocalEmoteState();
     mpghosts_playerEmote('');
 }
 
@@ -3663,7 +3674,7 @@ function mpghosts_emote(num : int)
 
     theGame.r_getMultiplayerClient().setEmote(num);
     theGame.r_getMultiplayerClient().setLastEmoteTime(theGame.GetEngineTimeAsSeconds());
-    theGame.r_getMultiplayerClient().SetLocalEmoteState(anim, force, loop);
+    theGame.r_getMultiplayerClient().setLocalEmoteState(anim, force, loop);
 
     if(!loop)
     {
@@ -3803,45 +3814,110 @@ exec function list()
     var other : int;
     var messagetitle : string;
     var messagebody : string;
+    var finalTotal : int;
+    var localFinalTotal : int;
+    var playerString : string;
+    var myId : string;
+    var regionName : string;
+    var currentRegion : string;
 
     players = theGame.r_getMultiplayerClient().getGlobalPlayers();
     localPlayers = theGame.r_getMultiplayerClient().getPlayers();
+    myId = theGame.r_getMultiplayerClient().getId();
 
-    for(i = 0; i < players.Size(); i+=1)
+    for(i = 0; i < players.Size(); i += 1)
     {
-        if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "no_mans_land")
+        if(players[i].id == myId)
+        {
+            continue;
+        }
+
+        finalTotal += 1;
+
+        regionName = SUH_normalizeRegion(AreaTypeToName(players[i].area));
+
+        if(regionName == "no_mans_land")
         {
             velen += 1;
         }
-        else if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "skellige")
+        else if(regionName == "skellige")
         {
             skellige += 1;
         }
-        else if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "bob")
+        else if(regionName == "bob")
         {
             toussaint += 1;
         }
-        else if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "prolog_village")
+        else if(regionName == "prolog_village")
         {
             whiteOrchard += 1;
         }
-        else if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "kaer_morhen")
+        else if(regionName == "kaer_morhen")
         {
             kaerMorhen += 1;
         }
-        else if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "wyzima_castle")
+        else if(regionName == "wyzima_castle")
         {
             vizima += 1;
         }
     }
 
-    total = velen + skellige + toussaint + whiteOrchard + kaerMorhen + vizima;
-    other = players.Size() - total;
+    for(i = 0; i < localPlayers.Size(); i += 1)
+    {
+        if(localPlayers[i].id == myId)
+        {
+            continue;
+        }
 
-    messagetitle   = "<p align=\"center\">Player List<br/></p>";
+        localFinalTotal += 1;
+    }
+
+    finalTotal += 1;
+    localFinalTotal += 1;
+
+    currentRegion = SUH_normalizeRegion(AreaTypeToName(theGame.GetCommonMapManager().GetCurrentArea()));
+
+    if(currentRegion == "no_mans_land")
+    {
+        velen += 1;
+    }
+    else if(currentRegion == "skellige")
+    {
+        skellige += 1;
+    }
+    else if(currentRegion == "bob")
+    {
+        toussaint += 1;
+    }
+    else if(currentRegion == "prolog_village")
+    {
+        whiteOrchard += 1;
+    }
+    else if(currentRegion == "kaer_morhen")
+    {
+        kaerMorhen += 1;
+    }
+    else if(currentRegion == "wyzima_castle")
+    {
+        vizima += 1;
+    }
+
+    total = velen + skellige + toussaint + whiteOrchard + kaerMorhen + vizima;
+    other = finalTotal - total;
+
+    if(finalTotal == 1)
+    {
+        playerString = "player";
+    }
+    else
+    {
+        playerString = "players";
+    }
+
+    messagetitle = "<p align=\"center\">Player List<br/></p>";
     messagebody =
     "<p align=\"center\">"
-    + players.Size() + " total players connected, " + localPlayers.Size() + " in your current region<br/><br/>"
+    + finalTotal + " " + playerString + " connected, " + localFinalTotal + " in your current region<br/><br/>"
     + whiteOrchard + " in White Orchard<br/>"
     + velen + " in Novigrad/Velen<br/>"
     + skellige + " in Skellige<br/>"
@@ -3850,7 +3926,6 @@ exec function list()
     + vizima + " in Vizima<br/>"
     + other + " in Other/Unknown"
     + "</p>";
-
 
     theGame.r_getMultiplayerClient().DisplayUserMessage(WitcherOnline_PlayerNotification(messagetitle, messagebody));
 }
@@ -3889,7 +3964,7 @@ state WO_Tick in r_MultiplayerClient
 
             parent.renderPlayers();
             parent.updatePlayerChat();
-            parent.UpdateLocalEmoteLoop();
+            parent.updateLocalEmoteLoop();
             parent.pruneGlobalPlayers(3);
             parent.updateMenuPositions();
             parent.checkOutgoingTrades();
@@ -3936,4 +4011,9 @@ exec function printitems()
 exec function testemote(anim : name)
 {
     mpghosts_playerEmote(anim);
+}
+
+exec function testanim()
+{
+    thePlayer.GetRootAnimatedComponent().PlaySlotAnimationAsync( 'locomotion_run_cycle_fast_forward', 'PLAYER_SLOT', SAnimatedComponentSlotAnimationSettings(0.0001, 0.0f) );
 }
