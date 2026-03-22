@@ -108,7 +108,9 @@ statemachine class r_MultiplayerClient
 
     private var mainMenuItems : array<r_RemoteMenuItem>;
     private var emoteMenuItems : array<r_RemoteMenuItem>;
+    private var emotesMenuItems : array<r_RemoteMenuItem>;
     private var chatMenuItems : array<r_RemoteMenuItem>;
+    private var propMenuItems : array<r_RemoteMenuItem>;
 
     private var menuSlots : array<MP_SU_OnelinerEntity>;
 
@@ -126,6 +128,25 @@ statemachine class r_MultiplayerClient
         return items[0];
     }
 
+    function MountRightTorch(actor : CActor)
+    {
+        var items: array<SItemUniqueId>;
+        var i : int;
+        items = actor.GetInventory().GetItemsByName('Torch_work_right');
+        if (items.Size() == 0) {
+            items = actor.GetInventory().AddAnItem('Torch_work_right', 1, true, true);
+        }
+
+        for(i = 0; i < items.Size(); i+=1)
+        {
+            if(actor.GetInventory().GetItemName(items[i]) == 'Torch_work_right')
+            {
+                actor.GetInventory().MountItem(items[i], true);
+                return;
+            }
+        }
+    }
+
     private function Unmount(actor : CActor, itemName: name) {
         var i: int;
         var items: array<SItemUniqueId>;
@@ -136,6 +157,20 @@ statemachine class r_MultiplayerClient
         for (i = 0; i < items.Size(); i += 1) {
             actor.GetInventory().DespawnItem(items[i]);
             actor.GetInventory().UnmountItem(items[i], true);
+        }
+    }
+
+    private function UnmountRightTorch(actor : CActor) {
+        var i: int;
+        var items: array<SItemUniqueId>;
+
+        items = actor.GetInventory().GetItemsByName('Torch_work_right');
+        for (i = 0; i < items.Size(); i += 1) {
+            if(actor.GetInventory().GetItemName(items[i]) == 'Torch_work_right')
+            {
+                actor.GetInventory().DespawnItem(items[i]);
+                actor.GetInventory().UnmountItem(items[i], true);
+            }
         }
     }
 
@@ -155,6 +190,18 @@ statemachine class r_MultiplayerClient
         Unmount(actor, 'cutlery_fork'); 
         Unmount(actor, 'cutlery_rich_knife'); 
         Unmount(actor, 'Lute 01'); 
+        Unmount(actor, 'fan_01'); 
+        Unmount(actor, 'Spyglass'); 
+        UnmountRightTorch(actor);
+        Unmount(actor, 'Note_01'); 
+        Unmount(actor, 'Quill'); 
+        Unmount(actor, 'Broom'); 
+        Unmount(actor, 'Sack'); 
+        Unmount(actor, 'shovel'); 
+        Unmount(actor, 'baguette'); 
+        Unmount(actor, 'rich_plate_full_canapes_righthand'); 
+        Unmount(actor, 'gen_veg_canapes_lefthand'); 
+        Unmount(actor, 'rich_umbrella'); 
     }
 
     public function getOutgoingTradeTo() : string
@@ -614,10 +661,15 @@ statemachine class r_MultiplayerClient
     private function buildMenus(player : r_RemotePlayer)
     {
         var ridePrompt : string;
+        var cpcPlayerType : ENR_PlayerType;
+
+        cpcPlayerType = NR_GetPlayerManager().GetCurrentPlayerType();
 
         mainMenuItems.Clear();
+        emotesMenuItems.Clear();
         emoteMenuItems.Clear();
         chatMenuItems.Clear();
+        propMenuItems.Clear();
 
         if(player.isSailing)
         {
@@ -633,18 +685,21 @@ statemachine class r_MultiplayerClient
         }
 
         // main menu
+        addMainMenuItem("Chat >", "open_chat");
+        addMainMenuItem("Emotes >", "open_emotes");
         addMainMenuItem(ridePrompt, "ride");
         addMainMenuItem("Trade", "trade");
-        addMainMenuItem("Emotes", "open_emotes");
-        addMainMenuItem("Chat", "open_chat");
         addMainMenuItem("Close", "close");
 
         // emotes
+        addEmotesMenuItem("Props >", "props_menu");
+        addEmotesMenuItem("Emotes >", "emotes_menu");
+        addEmotesMenuItem("Back", "back_to_main");
+        
         addEmoteMenuItem("Wave", "emote_wave");
         addEmoteMenuItem("Cheer", "emote_cheer");
         addEmoteMenuItem("Laugh", "emote_laugh");
         addEmoteMenuItem("Clap", "emote_clap");
-        addEmoteMenuItem("Lute", "emote_lute");
         addEmoteMenuItem("Dance", "emote_dance");
         addEmoteMenuItem("Facepalm", "emote_facepalm");
         addEmoteMenuItem("Sit", "emote_sit");
@@ -663,10 +718,45 @@ statemachine class r_MultiplayerClient
         addEmoteMenuItem("Drunk Walk", "emote_drunk");
         addEmoteMenuItem("Flop", "emote_flop");
         addEmoteMenuItem("Piss", "emote_piss");
-        addEmoteMenuItem("Horn", "emote_horn");
         addEmoteMenuItem("Yoga", "emote_yoga");
         addEmoteMenuItem("Fly", "emote_fly");
-        addEmoteMenuItem("Back", "back_to_main");
+        addEmoteMenuItem("Throat Cut", "emote_throat");
+        addEmoteMenuItem("Scout", "emote_scout");
+        addEmoteMenuItem("Trader", "emote_trader");
+        addEmoteMenuItem("Cower Low", "emote_cowerlow");
+        addEmoteMenuItem("Cower High", "emote_cowerhigh");
+        addEmoteMenuItem("Pain", "emote_pain");
+        addEmoteMenuItem("Mime", "emote_mime");
+        addEmoteMenuItem("Get Warm", "emote_warm");
+        addEmoteMenuItem("Crouch", "emote_crouch");
+        addEmoteMenuItem("Choke", "emote_choke");
+        addEmoteMenuItem("Back", "back_to_emotes");
+
+        // prop emotes
+        addPropMenuItem("Lute", "emote_lute");
+        addPropMenuItem("Spyglass", "emote_spyglass");
+        addPropMenuItem("Fire Eater", "emote_fire");
+        addPropMenuItem("Drink", "emote_drink");
+        addPropMenuItem("Write", "emote_write");
+        addPropMenuItem("Fan", "emote_fan");
+        addPropMenuItem("Broom", "emote_broom");
+        addPropMenuItem("Carry Bag", "emote_carrybag");
+        addPropMenuItem("Pull Bag", "emote_pullbag");
+        addPropMenuItem("Shovel", "emote_shovel");
+        addPropMenuItem("Horn", "emote_horn");
+
+        if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
+        {
+            addPropMenuItem("Eat Platter", "emote_platter");
+            addPropMenuItem("Umbrella", "emote_umbrella");
+        }
+        else
+        {
+            addPropMenuItem("Eat Baguette", "emote_baguette");
+            addPropMenuItem("Smoke Pipe", "emote_smoke");
+        }
+
+        addPropMenuItem("Back", "back_to_emotes");
 
         // chat
         addChatMenuItem("Hello", "chat_hello");
@@ -701,6 +791,22 @@ statemachine class r_MultiplayerClient
         emoteMenuItems.PushBack(item);
     }
 
+    private function addEmotesMenuItem(label : string, action : string)
+    {
+        var item : r_RemoteMenuItem;
+        item.label = label;
+        item.action = action;
+        emotesMenuItems.PushBack(item);
+    }
+
+    private function addPropMenuItem(label : string, action : string)
+    {
+        var item : r_RemoteMenuItem;
+        item.label = label;
+        item.action = action;
+        propMenuItems.PushBack(item);
+    }
+
     private function addChatMenuItem(label : string, action : string)
     {
         var item : r_RemoteMenuItem;
@@ -717,6 +823,12 @@ statemachine class r_MultiplayerClient
         if(currentMenuId == 2)
             return chatMenuItems.Size();
 
+        if(currentMenuId == 3)
+            return propMenuItems.Size();
+
+        if(currentMenuId == 4)
+            return emotesMenuItems.Size();
+
         return mainMenuItems.Size();
     }
 
@@ -728,6 +840,12 @@ statemachine class r_MultiplayerClient
         if(currentMenuId == 2)
             return chatMenuItems[index].label;
 
+        if(currentMenuId == 3)
+            return propMenuItems[index].label;
+
+        if(currentMenuId == 4)
+            return emotesMenuItems[index].label;
+
         return mainMenuItems[index].label;
     }
 
@@ -738,6 +856,12 @@ statemachine class r_MultiplayerClient
 
         if(currentMenuId == 2)
             return chatMenuItems[index].action;
+
+        if(currentMenuId == 3)
+            return propMenuItems[index].action;
+
+        if(currentMenuId == 4)
+            return emotesMenuItems[index].action;
 
         return mainMenuItems[index].action;
     }
@@ -822,9 +946,19 @@ statemachine class r_MultiplayerClient
         {
             tradeWithPlayer(actor);
         }
-        else if(action == "open_emotes")
+        else if(action == "emotes_menu")
         {
             openMenuById(1);
+            theSound.SoundEvent('gui_global_panel_open');
+        }
+        else if(action == "open_emotes")
+        {
+            openMenuById(4);
+            theSound.SoundEvent('gui_global_panel_open');
+        }
+        else if(action == "props_menu")
+        {
+            openMenuById(3);
             theSound.SoundEvent('gui_global_panel_open');
         }
         else if(action == "open_chat")
@@ -835,6 +969,11 @@ statemachine class r_MultiplayerClient
         else if(action == "back_to_main")
         {
             openMenuById(0);
+            theSound.SoundEvent('gui_global_panel_close');
+        }
+        else if(action == "back_to_emotes")
+        {
+            openMenuById(4);
             theSound.SoundEvent('gui_global_panel_close');
         }
         else if(action == "emote_wave")
@@ -993,6 +1132,99 @@ statemachine class r_MultiplayerClient
         {
             mpghosts_chat("Nice outfit");
         }
+        else if(action == "emote_throat")
+        {
+            mpghosts_emote(34);
+        }
+        else if(action == "emote_scout")
+        {
+            mpghosts_emote(35);
+        }
+        else if(action == "emote_trader")
+        {
+            mpghosts_emote(37);
+        }
+        else if(action == "emote_cowerlow")
+        {
+            mpghosts_emote(41);
+        }
+        else if(action == "emote_cowerhigh")
+        {
+            mpghosts_emote(42);
+        }
+        else if(action == "emote_pain")
+        {
+            mpghosts_emote(43);
+        }
+        else if(action == "emote_mime")
+        {
+            mpghosts_emote(44);
+        }
+        else if(action == "emote_warm")
+        {
+            mpghosts_emote(47);
+        }
+        else if(action == "emote_crouch")
+        {
+            mpghosts_emote(48);
+        }
+        else if(action == "emote_choke")
+        {
+            mpghosts_emote(16);
+        }
+        else if(action == "emote_spyglass")
+        {
+            mpghosts_emote(38);
+        }
+        else if(action == "emote_fire")
+        {
+            mpghosts_emote(39);
+        }
+        else if(action == "emote_drink")
+        {
+            mpghosts_emote(50);
+        }
+        else if(action == "emote_write")
+        {
+            mpghosts_emote(40);
+        }
+        else if(action == "emote_fan")
+        {
+            mpghosts_emote(36);
+        }
+        else if(action == "emote_broom")
+        {
+            mpghosts_emote(45);
+        }
+        else if(action == "emote_carrybag")
+        {
+            mpghosts_emote(46);
+        }
+        
+        if(action == "emote_pullbag")
+        {
+            mpghosts_emote(51);
+        }
+        else if(action == "emote_shovel")
+        {
+            mpghosts_emote(49);
+        }
+        else if(action == "emote_platter")
+        {
+            mpghosts_emote(54);
+        }
+        else if(action == "emote_umbrella")
+        {
+            mpghosts_emote(55);
+        }
+        else if(action == "emote_baguette")
+        {
+            mpghosts_emote(52);
+        }
+        else if(action == "emote_smoke")
+        {
+            mpghosts_emote(53);
+        }
     }
 
     public function deleteMenu()
@@ -1111,14 +1343,32 @@ statemachine class r_MultiplayerClient
             .text(label);
     }
 
+    /*
+    public var sideOffset : float;
+    public var forwardOffset : float;
+
+    public function setSideOffset(val : float)
+    {
+        sideOffset = val;
+    }
+    
+    public function setForwardOffset(val : float)
+    {
+        forwardOffset = val;
+    }*/
+
     public function updateMenuPositions()
     {
         var heading    : float;
         var right      : Vector;
         var off        : Vector;
 
+        var forward    : Vector;
+        var forwardOffset : float = 0.2;
+
         var sideOffset : float = 0.55;
-        var height     : float = 1.40;
+        //var height     : float = 1.40;
+        var height     : float = 1.30;
         var spacing    : float;
 
         var myPos      : Vector;
@@ -1158,8 +1408,13 @@ statemachine class r_MultiplayerClient
 
         heading = menuSelectedPlayer.ghost.GetHeading();
         right = VecFromHeading(heading + 90.0);
+        forward = VecFromHeading(heading);
+
         right.Z = 0.0;
         right.W = 0.0;
+
+        forward.Z = 0.0;
+        forward.W = 0.0;
 
         myPos     = thePlayer.GetWorldPosition();
         targetPos = menuSelectedPlayer.ghost.GetWorldPosition();
@@ -1194,8 +1449,8 @@ statemachine class r_MultiplayerClient
             slot.entity = menuSelectedPlayer.ghost;
 
             off = Vector(
-                right.X * sideOffset,
-                right.Y * sideOffset,
+                right.X * sideOffset + forward.X * forwardOffset,
+                right.Y * sideOffset + forward.Y * forwardOffset,
                 height + spacing * rowFromTop,
                 0.0
             );
@@ -1598,6 +1853,30 @@ statemachine class r_MultiplayerClient
         addChill('man_peeing_loop', 3.07);
         addChill('man_work_playing_lute_02', 6.00);
         addChill('man_bard_cartwheels_loop', 9.57);
+
+        // 2
+        addChill('man_throat_cut_loop', 1.8);
+        addChill('man_scout_01', 8.83);
+        addChill('man_nobel_with_fan_loop_2', 6.33);
+        addChill('man_trader_stand_loop_01', 15.5);
+        addChill('man_work_spyglass_01', 13.2);
+        addChill('man_work_standing_performance_fire_eater_loop_01', 15.4);
+        addChill('man_work_writing_stand_01', 2.0);
+        addChill('man_cowering_low_loop_04', 8.33);
+        addChill('man_cowering_high_loop_03', 9.0);
+        addChill('man_kneeling_on_floor_in_pain_loop_01', 10.6);
+        addChill('q703_first_mime_pulling_rope_loop', 20.0);
+        addChill('man_work_broom_sweeping_01', 0.83);
+        addChill('man_work_carry_bag_walk', 1.3);
+        addChill('man_work_chauffer_04', 5.33);
+        addChill('man_work_crouch_01', 5.0);
+        addChill('man_work_digging_shovel_loop_04', 8.77);
+        addChill('man_work_drinking_loop_01', 4.83);
+        addChill('man_work_pull_bag_walk', 1.23);
+        addChill('man_guard_eating_baguette_02', 25.8);
+        addChill('man_smoking_stand_01', 22.17);
+        addChill('woman_noble_stand_in_rain_with_umbrella_loop_01', 8.2);
+        addChill('woman_noble_stand_eating_fancy_loop_01', 27.8);
 
         addChill('man_work_sit_table_01', 1.93);
         addChill('man_work_bed_sleep_02_loop_01', 4.6);
@@ -3443,6 +3722,14 @@ function mpghosts_emote(num : int)
     var loop : bool;
     cpcPlayerType = NR_GetPlayerManager().GetCurrentPlayerType();
 
+    if(num == 54 || num == 55)
+    {
+        if(cpcPlayerType == ENR_PlayerGeralt || cpcPlayerType == ENR_PlayerWitcher || cpcPlayerType == ENR_PlayerUnknown)
+        {
+            return;
+        }
+    }
+
     anim  = '';
     force = false;
 
@@ -3670,6 +3957,130 @@ function mpghosts_emote(num : int)
     {
         anim = 'man_bard_cartwheels_loop';
         loop = true;
+    }
+    else if (num == 34)
+    {
+        anim = 'man_throat_cut_loop';
+        loop = true;
+    }
+    else if (num == 35)
+    {
+        anim = 'man_scout_01';
+        loop = true;
+    }
+    else if (num == 36)
+    {
+        anim = 'man_nobel_with_fan_loop_2';
+        loop = true;
+        theGame.r_getMultiplayerClient().Mount(thePlayer, 'fan_01');
+    }
+    else if (num == 37)
+    {
+        anim = 'man_trader_stand_loop_01';
+        loop = true;
+    }
+    else if (num == 38)
+    {
+        anim = 'man_work_spyglass_01';
+        loop = true;
+        theGame.r_getMultiplayerClient().Mount(thePlayer, 'Spyglass');
+    }
+    else if (num == 39)
+    {
+        anim = 'man_work_standing_performance_fire_eater_loop_01'; // torch isnt showing for remote npc
+        loop = true;
+        theGame.r_getMultiplayerClient().MountRightTorch(thePlayer);
+    }
+    else if (num == 40)
+    {
+        anim = 'man_work_writing_stand_01';
+        loop = true;
+        theGame.r_getMultiplayerClient().Mount(thePlayer, 'Note_01');
+        theGame.r_getMultiplayerClient().Mount(thePlayer, 'Quill');
+    }
+    else if (num == 41)
+    {
+        anim = 'man_cowering_low_loop_04';
+        loop = true;
+    }
+    else if (num == 42)
+    {
+        anim = 'man_cowering_high_loop_03';
+        loop = true;
+    }
+    else if (num == 43)
+    {
+        anim = 'man_kneeling_on_floor_in_pain_loop_01';
+        loop = true;
+    }
+    else if (num == 44)
+    {
+        anim = 'q703_first_mime_pulling_rope_loop';
+        loop = true;
+    }
+    else if (num == 45)
+    {
+        anim = 'man_work_broom_sweeping_01';
+        loop = true;
+        theGame.r_getMultiplayerClient().Mount(thePlayer, 'Broom');
+    }
+    else if (num == 46)
+    {
+        anim = 'man_work_carry_bag_walk';
+        loop = true;
+        theGame.r_getMultiplayerClient().Mount(thePlayer, 'Sack');
+    }
+    else if (num == 47)
+    {
+        anim = 'man_work_chauffer_04';
+        loop = true;
+    }
+    else if (num == 48)
+    {
+        anim = 'man_work_crouch_01';
+        loop = true;
+    }
+    else if (num == 49)
+    {
+        anim = 'man_work_digging_shovel_loop_04';
+        loop = true;
+        theGame.r_getMultiplayerClient().Mount(thePlayer, 'shovel');
+    }
+    else if (num == 50)
+    {
+        anim = 'man_work_drinking_loop_01';
+        loop = true;
+        theGame.r_getMultiplayerClient().Mount(thePlayer, 'Cup_01');
+    }
+    else if (num == 51)
+    {
+        anim = 'man_work_pull_bag_walk';
+        loop = true;
+        theGame.r_getMultiplayerClient().Mount(thePlayer, 'Sack');
+    }
+    else if (num == 52)
+    {
+        anim = 'man_guard_eating_baguette_02';
+        loop = true;
+        theGame.r_getMultiplayerClient().Mount(thePlayer, 'baguette');
+    }
+    else if (num == 53)
+    {
+        anim = 'man_smoking_stand_01';
+        loop = true;
+        theGame.r_getMultiplayerClient().Mount(thePlayer, 'Pipe_01');
+    }
+    else if (num == 54)
+    {
+        anim = 'woman_noble_stand_eating_fancy_loop_01';
+        loop = true;
+        theGame.r_getMultiplayerClient().Mount(thePlayer, 'rich_plate_full_canapes_righthand');
+    }
+    else if (num == 55)
+    {
+        anim = 'woman_noble_stand_in_rain_with_umbrella_loop_01';
+        loop = true;
+        theGame.r_getMultiplayerClient().Mount(thePlayer, 'rich_umbrella');
     }
 
     theGame.r_getMultiplayerClient().setEmote(num);
@@ -4017,3 +4428,9 @@ exec function testanim()
 {
     thePlayer.GetRootAnimatedComponent().PlaySlotAnimationAsync( 'locomotion_run_cycle_fast_forward', 'PLAYER_SLOT', SAnimatedComponentSlotAnimationSettings(0.0001, 0.0f) );
 }
+
+/*exec function offsets(val : float, val2 : float)
+{
+    theGame.r_getMultiplayerClient().setSideOffset(val);
+    theGame.r_getMultiplayerClient().setForwardOffset(val2);
+}*/

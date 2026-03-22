@@ -264,6 +264,8 @@ statemachine class r_RemotePlayer
     public var boat : CActor;
 
     public var horseAppearance : string;
+    public var prevEmote : int;
+    public var prevPropEmote : bool;
 
     private function loadHead(newHeadName : name) {
 		var headManager : CHeadManagerComponent;
@@ -493,7 +495,7 @@ statemachine class r_RemotePlayer
             }
         }
 
-        if (isAnimPlaying && currentType == 'emote' && lastMoveDirAlt != 'none')
+        /*if (isAnimPlaying && currentType == 'emote' && lastMoveDirAlt != 'none')
         {
             if (emoteCancelableAt > 0.0f && now >= emoteCancelableAt)
             {
@@ -517,7 +519,7 @@ statemachine class r_RemotePlayer
                     stopAllAnims();
                 }
             }
-        }
+        }*/
 
         if (!isAnimPlaying && animQueue.Size() > 0)
         {
@@ -879,6 +881,7 @@ statemachine class r_RemotePlayer
         lastSwimType = 'none';
         lastMovementType = 'none';
         lastEmote = -1;
+        prevEmote = -1;
 
         lastIdleAnim = theGame.GetEngineTimeAsSeconds();
     }
@@ -1410,6 +1413,8 @@ statemachine class r_RemotePlayer
 
     private function playEmotes()
     {
+        var propEmote : bool;
+
         if((theGame.GetEngineTimeAsSeconds() - theGame.r_getMultiplayerClient().getSpawnTime()) < 2)
         {
             return;
@@ -1421,6 +1426,10 @@ statemachine class r_RemotePlayer
         }
         else if (lastEmoteTime != prevEmoteTime)
         {
+            if (prevPropEmote && lastEmote != prevEmote)
+            {
+                theGame.r_getMultiplayerClient().unmountItems(ghost);
+            }
             
             if (lastEmote == 0)
             {
@@ -1617,16 +1626,140 @@ statemachine class r_RemotePlayer
             {
                 queueAnim('man_work_playing_lute_02', 6.00, 0.4, 0, 'emote', true, true);
                 theGame.r_getMultiplayerClient().Mount(ghost, 'Lute 01');
+                propEmote = true;
             }
             else if (lastEmote == 33)
             {
                 queueAnim('man_bard_cartwheels_loop', 9.57, 0.0, 0, 'emote', true, true);
             }
-
-            if(lastEmote != 32)
+            else if (lastEmote == 34)
             {
-                theGame.r_getMultiplayerClient().unmountItems(ghost);
+                queueAnim('man_throat_cut_loop', 1.8, 0.0, 0, 'emote', true, true);
             }
+            else if (lastEmote == 35)
+            {
+                queueAnim('man_scout_01', 8.83, 0.0, 0, 'emote', true, true);
+            }
+            else if (lastEmote == 36)
+            {
+                queueAnim('man_nobel_with_fan_loop_2', 6.33, 0.0, 0, 'emote', true, true);
+                theGame.r_getMultiplayerClient().Mount(ghost, 'fan_01');
+                propEmote = true;
+            }
+            else if (lastEmote == 37)
+            {
+                queueAnim('man_trader_stand_loop_01', 15.5, 0.0, 0, 'emote', true, true);
+            }
+            else if (lastEmote == 38)
+            {
+                queueAnim('man_work_spyglass_01', 13.2, 0.0, 0, 'emote', true, true);
+                theGame.r_getMultiplayerClient().Mount(ghost, 'Spyglass');
+                propEmote = true;
+            }
+            else if (lastEmote == 39)
+            {
+                if(lastAnim != 'man_work_standing_performance_fire_eater_loop_01')
+                {
+                    theGame.r_getMultiplayerClient().MountRightTorch(ghost);
+                    GetWitcherPlayer().DisplayHudMessage("torch emote");
+                }
+
+                queueAnim('man_work_standing_performance_fire_eater_loop_01', 15.4, 0.0, 0, 'emote', true, true);
+                propEmote = true;
+            }
+            else if (lastEmote == 40)
+            {
+                queueAnim('man_work_writing_stand_01', 2.0, 0.0, 0, 'emote', true, true);
+                theGame.r_getMultiplayerClient().Mount(ghost, 'Note_01');
+                theGame.r_getMultiplayerClient().Mount(ghost, 'Quill');
+                propEmote = true;
+            }
+            else if (lastEmote == 41)
+            {
+                queueAnim('man_cowering_low_loop_04', 8.33, 0.0, 0, 'emote', true, true);
+            }
+            else if (lastEmote == 42)
+            {
+                queueAnim('man_cowering_high_loop_03', 9.0, 0.0, 0, 'emote', true, true);
+            }
+            else if (lastEmote == 43)
+            {
+                queueAnim('man_kneeling_on_floor_in_pain_loop_01', 10.6, 0.0, 0, 'emote', true, true);
+            }
+            else if (lastEmote == 44)
+            {
+                queueAnim('q703_first_mime_pulling_rope_loop', 20.0, 0.0, 0, 'emote', true, true);
+            }
+            else if (lastEmote == 45)
+            {
+                queueAnim('man_work_broom_sweeping_01', 0.83, 0.0, 0, 'emote', true, true);
+                theGame.r_getMultiplayerClient().Mount(ghost, 'Broom');
+                propEmote = true;
+            }
+            else if (lastEmote == 46)
+            {
+                queueAnim('man_work_carry_bag_walk', 1.3, 0.0, 0, 'emote', true, true);
+                theGame.r_getMultiplayerClient().Mount(ghost, 'Sack');
+                propEmote = true;
+            }
+            else if (lastEmote == 47)
+            {
+                queueAnim('man_work_chauffer_04', 5.33, 0.0, 0, 'emote', true, true);
+            }
+            else if (lastEmote == 48)
+            {
+                queueAnim('man_work_crouch_01', 5.0, 0.0, 0, 'emote', true, true);
+            }
+            else if (lastEmote == 49)
+            {
+                queueAnim('man_work_digging_shovel_loop_04', 8.77, 0.0, 0, 'emote', true, true);
+                theGame.r_getMultiplayerClient().Mount(ghost, 'shovel');
+                propEmote = true;
+            }
+            else if (lastEmote == 50)
+            {
+                queueAnim('man_work_drinking_loop_01', 4.83, 0.0, 0, 'emote', true, true);
+                theGame.r_getMultiplayerClient().Mount(ghost, 'Cup_01');
+                propEmote = true;
+            }
+            else if (lastEmote == 51)
+            {
+                queueAnim('man_work_pull_bag_walk', 1.23, 0.0, 0, 'emote', true, true);
+                theGame.r_getMultiplayerClient().Mount(ghost, 'Sack');
+                propEmote = true;
+            }
+            else if (lastEmote == 52)
+            {
+                queueAnim('man_guard_eating_baguette_02', 25.8, 0.0, 0, 'emote', true, true);
+                theGame.r_getMultiplayerClient().Mount(ghost, 'baguette');
+                propEmote = true;
+            }
+            else if (lastEmote == 53)
+            {
+                queueAnim('man_smoking_stand_01', 22.17, 0.0, 0, 'emote', true, true);
+                theGame.r_getMultiplayerClient().Mount(ghost, 'Pipe_01');
+                propEmote = true;
+            }
+            else if (lastEmote == 54)
+            {
+                queueAnim('woman_noble_stand_eating_fancy_loop_01', 27.8, 0.0, 0, 'emote', true, true);
+                theGame.r_getMultiplayerClient().Mount(ghost, 'rich_plate_full_canapes_righthand');
+                propEmote = true;
+            }
+            else if (lastEmote == 55)
+            {
+                if(lastAnim != 'woman_noble_stand_in_rain_with_umbrella_loop_01')
+                {
+                    theGame.r_getMultiplayerClient().Mount(ghost, 'rich_umbrella');
+                    GetWitcherPlayer().DisplayHudMessage("umbrella emote");
+                }
+
+                queueAnim('woman_noble_stand_in_rain_with_umbrella_loop_01', 8.2, 0.0, 0, 'emote', true, true);
+                propEmote = true;
+            }
+
+            prevPropEmote = propEmote;
+            prevEmote = lastEmote;
 
             lastEmote = -1;
             prevEmoteTime = lastEmoteTime;
@@ -5064,9 +5197,15 @@ statemachine class r_RemotePlayer
         var steel, silver : SItemUniqueId;
         var ids : array<SItemUniqueId>;
         var ids2 : array<SItemUniqueId>;
+        var i : int;
 
         inv = ghost.GetInventory();
 
+        if(lastAnim == 'man_work_standing_performance_fire_eater_loop_01')
+        {
+            return;
+        }
+        
         if( heldItem == "steel")
         {
             ids = inv.GetItemsByCategory('steelsword');
@@ -5105,10 +5244,15 @@ statemachine class r_RemotePlayer
         else if(heldSecondaryItem == "none")
         {
             ids = inv.GetItemsByName('Torch_work');
-            ghost.EquipItem(ids[0]);
 
-            ids = inv.GetItemsByName('Torch_work');
-            inv.UnmountItem(ids[0], true);
+            for(i = 0; i < ids.Size(); i+=1)
+            {
+                if(inv.GetItemName(ids[i]) == 'Torch_work')
+                {
+                    ghost.EquipItem(ids[i]);
+                    inv.UnmountItem(ids[i], true);
+                }
+            }
 
             holdingTorch = false;
         }
