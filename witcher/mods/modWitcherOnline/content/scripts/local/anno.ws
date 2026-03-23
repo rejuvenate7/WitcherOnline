@@ -52,6 +52,7 @@ timer function r_showJoinMessage(dt : float, id : int)
     var total : int;
     var regions : int;
     var i : int;
+    var myId : string;
     var kaerMorhen : int;
     var whiteOrchard : int;
     var toussaint : int;
@@ -59,60 +60,74 @@ timer function r_showJoinMessage(dt : float, id : int)
     var skellige : int;
     var vizima : int;
     var regionString : string;
+    var regionName : string;
+    var currentRegion : string;
 
     players = theGame.r_getMultiplayerClient().getGlobalPlayers();
+    myId = theGame.r_getMultiplayerClient().getId();
 
-    total = players.Size();
-
-    for(i = 0; i < players.Size(); i+=1)
+    for(i = 0; i < players.Size(); i += 1)
     {
-        if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "no_mans_land")
+        if(players[i].id == myId)
+        {
+            continue;
+        }
+
+        total += 1;
+
+        regionName = SUH_normalizeRegion(AreaTypeToName(players[i].area));
+
+        if(regionName == "no_mans_land")
         {
             velen += 1;
         }
-        else if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "skellige")
+        else if(regionName == "skellige")
         {
             skellige += 1;
         }
-        else if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "bob")
+        else if(regionName == "bob")
         {
             toussaint += 1;
         }
-        else if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "prolog_village")
+        else if(regionName == "prolog_village")
         {
             whiteOrchard += 1;
         }
-        else if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "kaer_morhen")
+        else if(regionName == "kaer_morhen")
         {
             kaerMorhen += 1;
         }
-        else if(SUH_normalizeRegion(AreaTypeToName(players[i].area)) == "wyzima_castle")
+        else if(regionName == "wyzima_castle")
         {
             vizima += 1;
         }
     }
 
-    if(SUH_normalizeRegion(AreaTypeToName(theGame.GetCommonMapManager().GetCurrentArea())) == "no_mans_land")
+    total += 1;
+
+    currentRegion = SUH_normalizeRegion(AreaTypeToName(theGame.GetCommonMapManager().GetCurrentArea()));
+
+    if(currentRegion == "no_mans_land")
     {
         velen += 1;
     }
-    else if(SUH_normalizeRegion(AreaTypeToName(theGame.GetCommonMapManager().GetCurrentArea())) == "skellige")
+    else if(currentRegion == "skellige")
     {
         skellige += 1;
     }
-    else if(SUH_normalizeRegion(AreaTypeToName(theGame.GetCommonMapManager().GetCurrentArea())) == "bob")
+    else if(currentRegion == "bob")
     {
         toussaint += 1;
     }
-    else if(SUH_normalizeRegion(AreaTypeToName(theGame.GetCommonMapManager().GetCurrentArea())) == "prolog_village")
+    else if(currentRegion == "prolog_village")
     {
         whiteOrchard += 1;
     }
-    else if(SUH_normalizeRegion(AreaTypeToName(theGame.GetCommonMapManager().GetCurrentArea())) == "kaer_morhen")
+    else if(currentRegion == "kaer_morhen")
     {
         kaerMorhen += 1;
     }
-    else if(SUH_normalizeRegion(AreaTypeToName(theGame.GetCommonMapManager().GetCurrentArea())) == "wyzima_castle")
+    else if(currentRegion == "wyzima_castle")
     {
         vizima += 1;
     }
@@ -142,12 +157,7 @@ timer function r_showJoinMessage(dt : float, id : int)
         regions += 1;
     }
 
-    if(!theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_ShowSelf'))
-    {
-        total += 1;
-    }
-
-    if(total == 1)
+    if(regions == 1)
     {
         regionString = "region";
     }

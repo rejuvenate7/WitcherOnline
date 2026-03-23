@@ -3697,6 +3697,86 @@ exec function lute()
     mpghosts_emote(32);
 }
 
+exec function cartwheel()
+{
+    mpghosts_emote(33);
+}
+
+exec function scout()
+{
+    mpghosts_emote(35);
+}
+
+exec function fan()
+{
+    mpghosts_emote(36);
+}
+
+exec function spyglass()
+{
+    mpghosts_emote(38);
+}
+
+exec function eatfire()
+{
+    mpghosts_emote(39);
+}
+
+exec function write()
+{
+    mpghosts_emote(40);
+}
+
+exec function mime()
+{
+    mpghosts_emote(44);
+}
+
+exec function broom()
+{
+    mpghosts_emote(45);
+}
+
+exec function bag()
+{
+    mpghosts_emote(46);
+}
+
+exec function bag2()
+{
+    mpghosts_emote(51);
+}
+
+exec function shovel()
+{
+    mpghosts_emote(49);
+}
+
+exec function drink()
+{
+    mpghosts_emote(50);
+}
+
+exec function baguette()
+{
+    mpghosts_emote(52);
+}
+
+exec function pipe()
+{
+    mpghosts_emote(53);
+}
+
+exec function platter()
+{
+    mpghosts_emote(54);
+}
+
+exec function umbrella()
+{
+    mpghosts_emote(55);
+}
+
 function mpghosts_stopeemote()
 {
     theGame.r_getMultiplayerClient().setEmote(-1);
@@ -3987,7 +4067,7 @@ function mpghosts_emote(num : int)
     }
     else if (num == 39)
     {
-        anim = 'man_work_standing_performance_fire_eater_loop_01'; // torch isnt showing for remote npc
+        anim = 'man_work_standing_performance_fire_eater_loop_01';
         loop = true;
         theGame.r_getMultiplayerClient().MountRightTorch(thePlayer);
     }

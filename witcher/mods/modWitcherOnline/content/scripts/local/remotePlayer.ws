@@ -1661,7 +1661,6 @@ statemachine class r_RemotePlayer
                 if(lastAnim != 'man_work_standing_performance_fire_eater_loop_01')
                 {
                     theGame.r_getMultiplayerClient().MountRightTorch(ghost);
-                    GetWitcherPlayer().DisplayHudMessage("torch emote");
                 }
 
                 queueAnim('man_work_standing_performance_fire_eater_loop_01', 15.4, 0.0, 0, 'emote', true, true);
@@ -1751,7 +1750,6 @@ statemachine class r_RemotePlayer
                 if(lastAnim != 'woman_noble_stand_in_rain_with_umbrella_loop_01')
                 {
                     theGame.r_getMultiplayerClient().Mount(ghost, 'rich_umbrella');
-                    GetWitcherPlayer().DisplayHudMessage("umbrella emote");
                 }
 
                 queueAnim('woman_noble_stand_in_rain_with_umbrella_loop_01', 8.2, 0.0, 0, 'emote', true, true);
