@@ -6,15 +6,12 @@ class r_TradeWindow extends CR4HudModuleDialog {
     super.DialogueSliderDataPopupResult(0, false);
     trade_amount = (int)(value);
 
-    LogChannel('amountt', value);
     theGame.r_getMultiplayerClient().setTradeAmount(trade_amount);
   }
   
   function openTradeWindow() {
     var data: r_TradeSliderData;
     data = new r_TradeSliderData in this;
-    //data.ScreenPosX = 0.62;
-    //data.ScreenPosY = 0.65;
     data.SetMessageTitle( "Asking Price" );
     data.dialogueRef = this;
     data.BlurBackground = false;
@@ -41,7 +38,6 @@ class r_TradeSliderData extends BettingSliderData
   {
     if (KeyCode=="enter-gamepad_A") 
     {
-      LogChannel('amounttt', currentValue);
       dialogueRef.DialogueSliderDataPopupResult(currentValue);
       ClosePopup();
     }

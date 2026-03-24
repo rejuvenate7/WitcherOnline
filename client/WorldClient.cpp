@@ -64,59 +64,82 @@ bool WorldClient::send_all(const char* data, size_t n)
 	return true;
 }
 
-SOCKET WorldClient::connect_once_nonblocking(const char* ip, uint16_t port, int timeout_ms)
+SOCKET WorldClient::connect_once_nonblocking(const char* host, uint16_t port, int timeout_ms)
 {
-	SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	addrinfo hints{};
+	hints.ai_family = AF_UNSPEC;      // AF_INET = IPv4 only, AF_UNSPEC = IPv4 + IPv6
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = IPPROTO_TCP;
 
-	if (s == INVALID_SOCKET)
+	std::string portStr = std::to_string(port);
+
+	addrinfo* result = nullptr;
+	int gai = getaddrinfo(host, portStr.c_str(), &hints, &result);
+	if (gai != 0 || result == nullptr) {
+		std::cout << "getaddrinfo failed for host: " << host << std::endl;
 		return INVALID_SOCKET;
-
-	u_long nb = 1;
-	ioctlsocket(s, FIONBIO, &nb);
-
-	sockaddr_in a{};
-	a.sin_family = AF_INET;
-	a.sin_port = htons(port);
-
-	if (inet_pton(AF_INET, ip, &a.sin_addr) != 1) {
-		closesocket(s); return INVALID_SOCKET;
 	}
 
-	int rc = connect(s, (sockaddr*)&a, sizeof(a));
-	if (rc == SOCKET_ERROR) {
-		int e = WSAGetLastError();
-		if (e != WSAEWOULDBLOCK && e != WSAEINPROGRESS) {
-			closesocket(s); return INVALID_SOCKET;
-		}
-		fd_set wfds;
-		FD_ZERO(&wfds);
-		FD_SET(s, &wfds);
-		timeval tv{};
-		tv.tv_sec = timeout_ms / 1000;
-		tv.tv_usec = (timeout_ms % 1000) * 1000;
-		rc = select(0, nullptr, &wfds, nullptr, &tv);
-		if (rc <= 0)
+	SOCKET connectedSocket = INVALID_SOCKET;
+
+	for (addrinfo* ptr = result; ptr != nullptr; ptr = ptr->ai_next)
+	{
+		SOCKET s = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
+		if (s == INVALID_SOCKET)
+			continue;
+
+		u_long nb = 1;
+		ioctlsocket(s, FIONBIO, &nb);
+
+		int rc = connect(s, ptr->ai_addr, (int)ptr->ai_addrlen);
+		if (rc == SOCKET_ERROR)
 		{
-			closesocket(s); return INVALID_SOCKET;
+			int e = WSAGetLastError();
+			if (e != WSAEWOULDBLOCK && e != WSAEINPROGRESS && e != WSAEALREADY)
+			{
+				closesocket(s);
+				continue;
+			}
+
+			fd_set wfds;
+			FD_ZERO(&wfds);
+			FD_SET(s, &wfds);
+
+			timeval tv{};
+			tv.tv_sec = timeout_ms / 1000;
+			tv.tv_usec = (timeout_ms % 1000) * 1000;
+
+			rc = select(0, nullptr, &wfds, nullptr, &tv);
+			if (rc <= 0)
+			{
+				closesocket(s);
+				continue;
+			}
+
+			int soerr = 0;
+			int slen = sizeof(soerr);
+			getsockopt(s, SOL_SOCKET, SO_ERROR, (char*)&soerr, &slen);
+			if (soerr != 0)
+			{
+				closesocket(s);
+				continue;
+			}
 		}
 
-		int soerr = 0;
-		int slen = sizeof(soerr);
-		getsockopt(s, SOL_SOCKET, SO_ERROR, (char*)&soerr, &slen);
-		if (soerr != 0)
-		{
-			closesocket(s);
-			return INVALID_SOCKET;
-		}
+		nb = 0;
+		ioctlsocket(s, FIONBIO, &nb);
+
+		set_nodelay(s);
+		int to = 1000;
+		setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (char*)&to, sizeof(to));
+		setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, (char*)&to, sizeof(to));
+
+		connectedSocket = s;
+		break;
 	}
 
-	nb = 0; ioctlsocket(s, FIONBIO, &nb);
-
-	set_nodelay(s);
-	int to = 1000;
-	setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (char*)&to, sizeof(to));
-	setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, (char*)&to, sizeof(to));
-	return s;
+	freeaddrinfo(result);
+	return connectedSocket;
 }
 
 bool WorldClient::start(const char* ip, uint16_t port) {

@@ -179,7 +179,6 @@ timer function r_showWelcome(dt : float, id : int)
 function OnEnteredMainMenu()
 {
     wrappedMethod();
-    //LogChannel('WOLVEN TRAINER', "NEW LOAD|main menu");
     theGame.r_getMultiplayerClient().setInGame(false);
 }
 
@@ -211,7 +210,6 @@ function OnGameLoadInitFinishedSuccess()
 {
     wrappedMethod();
     theGame.r_getMultiplayerClient().destroyAll();
-    //LogChannel('WOLVEN TRAINER', "NEW LOAD|clear options");
     theGame.r_getMultiplayerClient().setInGame(false);
 }
 
@@ -495,8 +493,6 @@ function OnConfigUI()
         {
             m_tradeInventory = new W3GuiSelectItemComponent in theGame.GetGuiManager();
             m_tradeInventory.Initialize( m_DataObject.targetInventory );
-            //m_tradeInventory.filterTagList = tagsP;
-            //m_tradeInventory.filterForbiddenTagList = forbiddenTagsPotion;
             m_tradeInventory.ignorePosition = true;
             m_tradeInventory.SetFilterType( IFT_None );
 
@@ -525,34 +521,6 @@ var wo_isReceivingTrade : bool;
 
 @addField(W3ItemSelectionPopupData)
 var wo_crownsAmount : int;
-
-exec function test3() {
-  var tut: W3TutorialPopupData;
-
-  tut = new W3TutorialPopupData in thePlayer;
-
-  tut.managerRef = theGame.GetTutorialSystem();
-  tut.messageTitle = "Test";
-  tut.messageText = "TestBody";
-
-  // You can even add images if you want, i didn't test it however
-  // tut.imagePath = tutorialEntry.GetImagePath();
-
-  tut.enableGlossoryLink = false;
-  tut.autosize = true;
-  tut.blockInput = true;
-  tut.pauseGame = true;
-  tut.fullscreen = true;
-  tut.canBeShownInMenus = true;
-
-  tut.duration = -1; // input
-  tut.posX = 0;
-  tut.posY = 0;
-  tut.enableAcceptButton = true;
-  tut.fullscreen = true;
-
-  theGame.GetTutorialSystem().ShowTutorialHint(tut);
-}
 
 @wrapMethod(CPlayerInput)
 function OnToggleSigns( action : SInputAction )

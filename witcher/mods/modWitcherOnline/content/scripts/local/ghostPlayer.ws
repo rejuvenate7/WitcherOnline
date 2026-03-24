@@ -63,28 +63,4 @@ statemachine class MPDRPlayer extends CNewNPC
 
 		return false;
 	}
-
-  /*event OnInteractionActivated(interactionComponentName: string, activator: CEntity) 
-  {
-		if (activator != thePlayer) {
-			return false;
-		}
-
-		if( interactionComponentName == "wo_interact" )
-		{
-			theGame.r_getMultiplayerClient().createMenu(((CActor)this));
-		}
-		else if( interactionComponentName == "wo_use" )
-		{
-			GetWitcherPlayer().DisplayHudMessage("Select");
-		}
-	}
-
-  event OnInteractionDeactivated(interactionComponentName: string, activator: CEntity) {
-		if (activator != thePlayer) {
-			return false;
-		}
-
-		GetWitcherPlayer().DisplayHudMessage(interactionComponentName);
-	}*/
 }

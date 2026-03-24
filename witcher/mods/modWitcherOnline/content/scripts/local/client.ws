@@ -80,8 +80,8 @@ statemachine class r_MultiplayerClient
     private var maleTemp : CEntityTemplate;
     private var femaleTemp : CEntityTemplate;
 
-    private var ridingEnabled : bool;
-    private var ridingPlayer : r_RemotePlayer;
+    protected var ridingEnabled : bool;
+    protected var ridingPlayer : r_RemotePlayer;
 
     private var tradeInProgress : bool;
     private var tradeLastCompleted : float;
@@ -321,7 +321,6 @@ statemachine class r_MultiplayerClient
                     return;
                 }
                 
-                LogChannel('bruh', players[i].outgoingTradePrice + " " + thePlayer.GetMoney());
                 thePlayer.RemoveMoney(players[i].outgoingTradePrice);
                 thePlayer.GetInventory().AddAnItem(players[i].outgoingTradeItem, 1);
                 break;
@@ -359,7 +358,6 @@ statemachine class r_MultiplayerClient
         
         tradeInProgress = true;
         
-        //inventory = player.ghost.GetInventory();
         inventory = new CInventoryComponent in thePlayer;
         ids = inventory.AddAnItem(itemName, 1);
 
@@ -380,21 +378,12 @@ statemachine class r_MultiplayerClient
         m_popupData.targetInventory = inventory;
         m_popupData.overrideQuestItemRestrictions = true;
 
-        // pages
-        //m_popupData.selectionMode = EISPM_RadialMenuSlot1;
         m_popupData.selectionMode = EISPM_RadialMenuSilverOil;
         m_popupData.wo_isReceivingTrade = true;
         m_popupData.wo_toTrade = user;
         m_popupData.wo_crownsAmount = price;
         
-        //cat.PushBack('potion');
-        //cat.PushBack('edibles');
-        //m_popupData.categoryFilterList = cat;
-        
         theGame.RequestPopup('ItemSelectionPopup', m_popupData);
-        
-        //ToggleRadialMenuInput(false);
-        //radialPopupShown = true;
 
         return true;
     }
@@ -405,6 +394,11 @@ statemachine class r_MultiplayerClient
     }
 
     var lastRidingType : string;
+
+    public function getLastRidingType() : string
+    {
+        return lastRidingType;
+    }
 
     public function ridePlayer(actor : CActor)
     {
@@ -445,8 +439,16 @@ statemachine class r_MultiplayerClient
         else
         {
             mpghosts_emote(29);
-            attachRider(thePlayer, actor);
-            lastRidingType = "player";
+            if(ridingPlayer.lastMountType == "horse")
+            {
+                attachRider(thePlayer, actor, true);
+                lastRidingType = "playerhorse";
+            }
+            else
+            {
+                attachRider(thePlayer, actor);
+                lastRidingType = "player";
+            }
         }
 
         deleteMenu();
@@ -475,7 +477,14 @@ statemachine class r_MultiplayerClient
                 lastRidingType = "horse";
                 mpghosts_emote(31);
             }
-            else if(!ridingPlayer.isSailing && !ridingPlayer.isMounted && lastRidingType != "player")
+            else if(!ridingPlayer.isSailing && !ridingPlayer.isMounted && ridingPlayer.lastMountType == "horse" && lastRidingType != "playerhorse")
+            {
+                thePlayer.BreakAttachment();
+                attachRider(thePlayer, ridingPlayer.ghost, true);
+                lastRidingType = "playerhorse";
+                mpghosts_emote(29);
+            }
+            else if(!ridingPlayer.isSailing && !ridingPlayer.isMounted && ridingPlayer.lastMountType != "horse" && lastRidingType != "player")
             {
                 thePlayer.BreakAttachment();
                 attachRider(thePlayer, ridingPlayer.ghost);
@@ -486,7 +495,7 @@ statemachine class r_MultiplayerClient
         
     }
 
-    public function attachRider(rider : CActor, toAttach : CActor)
+    public function attachRider(rider : CActor, toAttach : CActor, optional horseOffset : bool)
     {
         var attach_rot : EulerAngles;
         var attach_vec : Vector;
@@ -497,6 +506,11 @@ statemachine class r_MultiplayerClient
 		attach_vec.X = 0.0f;
 		attach_vec.Y = -0.2f;
 		attach_vec.Z = 1.0f;
+
+        if(horseOffset)
+        {
+            attach_vec.Z = 2.0f;
+        }
     
         rider.CreateAttachment(toAttach, , attach_vec, attach_rot);
     }
@@ -635,8 +649,6 @@ statemachine class r_MultiplayerClient
 
         moveData.pivotDistanceController.SetDesiredDistance(cameraPreset.distance + 1.0f);
         moveData.pivotPositionController.SetDesiredPosition(thePlayer.GetWorldPosition());
-
-        //moveData.pivotPositionController.offsetZ = 2.25f;
         return true;
     }
 
@@ -1343,20 +1355,6 @@ statemachine class r_MultiplayerClient
             .text(label);
     }
 
-    /*
-    public var sideOffset : float;
-    public var forwardOffset : float;
-
-    public function setSideOffset(val : float)
-    {
-        sideOffset = val;
-    }
-    
-    public function setForwardOffset(val : float)
-    {
-        forwardOffset = val;
-    }*/
-
     public function updateMenuPositions()
     {
         var heading    : float;
@@ -1364,10 +1362,9 @@ statemachine class r_MultiplayerClient
         var off        : Vector;
 
         var forward    : Vector;
-        var forwardOffset : float = 0.2;
+        var forwardOffset : float = 0.15;
 
         var sideOffset : float = 0.55;
-        //var height     : float = 1.40;
         var height     : float = 1.30;
         var spacing    : float;
 
@@ -1401,7 +1398,7 @@ statemachine class r_MultiplayerClient
         if(!menuOpen || !menuSelectedPlayer || !menuSelectedPlayer.ghost)
             return;
 
-        if(menuSelectedPlayer.isMounted)
+        if(menuSelectedPlayer.isMounted || (menuSelectedPlayer.isRiding && menuSelectedPlayer.lastMountType == "horse"))
         {
             height += 0.9;
         }
@@ -1675,6 +1672,9 @@ statemachine class r_MultiplayerClient
     public function startTick()
     {
         clearOnlineVehicles();
+        deleteMenu();
+        ridingPlayer = NULL;
+        ridingEnabled = false;
 
         if(this.GetCurrentStateName() != 'WO_Tick')
         {
@@ -1690,7 +1690,7 @@ statemachine class r_MultiplayerClient
         theGame.GetEntitiesByTag('online_horse', entities);
 
         for(i = 0; i < entities.Size(); i+=1)
-        {
+        {  
             entities[i].Destroy();
         }
     }
@@ -3012,13 +3012,6 @@ exec function mpghosts_getData(optional playerId : string, optional username : s
         offhandItem = true;
     }
 
-    /*ids = inv.GetItemsByCategory('crossbow');
-    if(!offhandItem && inv.IsItemHeld(ids[0]))
-    {
-        list += "crossbow";
-        offhandItem = true;
-    }*/
-
     if(!offhandItem)
     {
         list += "none";
@@ -3465,7 +3458,7 @@ exec function mpghosts_getData(optional playerId : string, optional username : s
 
     ridingPlayer = theGame.r_getMultiplayerClient().getRidingPlayer();
 
-    if(ridingPlayer.id != "")
+    if(ridingPlayer && ridingPlayer.id != "")
     {
         list += ridingPlayer.id;
     }
@@ -3779,8 +3772,8 @@ exec function umbrella()
 
 function mpghosts_stopeemote()
 {
-    theGame.r_getMultiplayerClient().setEmote(-1);
     theGame.r_getMultiplayerClient().clearLocalEmoteState();
+    theGame.r_getMultiplayerClient().setEmote(-2);
     mpghosts_playerEmote('');
 }
 
@@ -3792,6 +3785,37 @@ exec function stopemote()
 exec function emote(num : int)
 {
     mpghosts_emote(num);
+}
+
+exec function ride(player : string)
+{
+    var remotePlayer : r_RemotePlayer;
+    remotePlayer = mpghosts_getPlayer(player);
+
+    if(remotePlayer && remotePlayer.ghost)
+    {
+        theGame.r_getMultiplayerClient().ridePlayer(remotePlayer.ghost);
+        GetWitcherPlayer().DisplayHudMessage("Riding " +remotePlayer.username + "!");
+    }
+    else
+    {
+        GetWitcherPlayer().DisplayHudMessage("No player found by that name.");
+    }
+}
+
+exec function trade(player : string)
+{
+    var remotePlayer : r_RemotePlayer;
+    remotePlayer = mpghosts_getPlayer(player);
+
+    if(remotePlayer && remotePlayer.ghost)
+    {
+        theGame.r_getMultiplayerClient().tradeWithPlayer(remotePlayer.ghost);
+    }
+    else
+    {
+        GetWitcherPlayer().DisplayHudMessage("No player found by that name.");
+    }
 }
 
 function mpghosts_emote(num : int)
@@ -4468,49 +4492,7 @@ state WO_Tick in r_MultiplayerClient
     }
 }
 
-exec function index()
+exec function scrollmenu()
 {
     theGame.r_getMultiplayerClient().updateMenuIndex(true);
 }
-
-exec function printitems()
-{
-    var inv : CInventoryComponent;
-    var ids : array<SItemUniqueId>;
-    var size : int;
-    var i		: int;
-    
-    inv = thePlayer.GetInventory();
-
-    inv.GetAllItems( ids );
-    size = ids.Size();
-
-    LogChannel('item_print_start', "bruh");
-    
-    if( size > 0 )
-    {
-        for( i = 0; i < size; i+=1 )
-        {
-            LogChannel('item_print', inv.GetItemName(ids[i]));
-        }
-        
-    }
-
-    LogChannel('item_print_start', "end");
-}
-
-exec function testemote(anim : name)
-{
-    mpghosts_playerEmote(anim);
-}
-
-exec function testanim()
-{
-    thePlayer.GetRootAnimatedComponent().PlaySlotAnimationAsync( 'locomotion_run_cycle_fast_forward', 'PLAYER_SLOT', SAnimatedComponentSlotAnimationSettings(0.0001, 0.0f) );
-}
-
-/*exec function offsets(val : float, val2 : float)
-{
-    theGame.r_getMultiplayerClient().setSideOffset(val);
-    theGame.r_getMultiplayerClient().setForwardOffset(val2);
-}*/
