@@ -59,8 +59,6 @@ statemachine class r_RemotePlayer
     public var aimingCrossbow : bool;
     public var lastAimingCrossbow : bool;
     public var lastMovement : bool;
-    public var lastLightAttack : bool;
-    public var lastHeavyAttack : bool;
     public var smoothNext : bool;
     public var smoothDelayedNext : bool;
     public var bombActive : bool;
@@ -3679,31 +3677,20 @@ statemachine class r_RemotePlayer
         {
             prevLightTime = lastLightAttackTime;
         }
-        else if (lastLightAttackTime != prevLightTime)// && (theGame.GetEngineTimeAsSeconds() - prevLightTime) > 1)
+        else if (lastLightAttackTime != prevLightTime)
         {   
-            if(!lastLightAttack)
+            if(heldItem == "silver" || heldItem == "steel")
             {
-                if(heldItem == "silver" || heldItem == "steel")
-                {
-                    anim = theGame.r_getMultiplayerClient().getRandLightAnim();
-                    queueAnim(anim.anim, anim.duration, 0.2, 0, 'attack', true);
-                }
-                else if(heldItem == "none")
-                {
-                    anim = theGame.r_getMultiplayerClient().getRandLightFistAnim();
-                    queueAnim(anim.anim, anim.duration, 0.2, 0, 'attack', true);
-                }
+                anim = theGame.r_getMultiplayerClient().getRandLightAnim();
+                queueAnim(anim.anim, anim.duration, 0.2, 0, 'attack', true);
+            }
+            else if(heldItem == "none")
+            {
+                anim = theGame.r_getMultiplayerClient().getRandLightFistAnim();
+                queueAnim(anim.anim, anim.duration, 0.2, 0, 'attack', true);
+            }
 
-                lastLightAttack = true;
-                prevLightTime = lastLightAttackTime;
-            }
-        }
-        else
-        {
-            if(lastLightAttack)
-            {
-                lastLightAttack = false;
-            }
+            prevLightTime = lastLightAttackTime;
         }
 
         if (prevHeavyTime < 0.0f)
@@ -3712,29 +3699,18 @@ statemachine class r_RemotePlayer
         }
         else if (lastHeavyAttackTime != prevHeavyTime)
         {
-            if(!lastHeavyAttack)
+            if(heldItem == "silver" || heldItem == "steel")
             {
-                if(heldItem == "silver" || heldItem == "steel")
-                {
-                    anim = theGame.r_getMultiplayerClient().getRandHeavyAnim();
-                    queueAnim(anim.anim, anim.duration, 0.2, 0, 'attack', true);
-                }
-                else if(heldItem == "none")
-                {
-                    anim = theGame.r_getMultiplayerClient().getRandHeavyFistAnim();
-                    queueAnim(anim.anim, anim.duration, 0.2, 0, 'attack', true);
-                }
+                anim = theGame.r_getMultiplayerClient().getRandHeavyAnim();
+                queueAnim(anim.anim, anim.duration, 0.2, 0, 'attack', true);
+            }
+            else if(heldItem == "none")
+            {
+                anim = theGame.r_getMultiplayerClient().getRandHeavyFistAnim();
+                queueAnim(anim.anim, anim.duration, 0.2, 0, 'attack', true);
+            }
 
-                lastHeavyAttack = true;
-                prevHeavyTime = lastHeavyAttackTime;
-            }
-        }
-        else
-        {
-            if(lastHeavyAttack)
-            {
-                lastHeavyAttack = false;
-            }
+            prevHeavyTime = lastHeavyAttackTime;
         }
         
         // woman complete

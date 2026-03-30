@@ -46,6 +46,12 @@ timer function r_showConnectionAlert(dt : float, id : int)
 }
 
 @addMethod(CR4Player) 
+timer function r_showUsernameAlert(dt : float, id : int)
+{
+    theGame.r_getMultiplayerClient().usernameTaken();
+}
+
+@addMethod(CR4Player) 
 timer function r_showJoinMessage(dt : float, id : int)
 {
     var players : array<r_RemotePlayer>;
@@ -197,7 +203,12 @@ function OnAfterLoadingScreenGameStart()
         thePlayer.AddTimer('r_showConnectionAlert', 1, false);
     }
 
-    if(theGame.r_getMultiplayerClient().getReceived() && !theGame.r_getMultiplayerClient().getJoinMessage())
+    if(theGame.r_getMultiplayerClient().getUsernameTaken())
+    {
+        thePlayer.AddTimer('r_showUsernameAlert', 1, false);
+    }
+
+    if(theGame.r_getMultiplayerClient().getReceived() && !theGame.r_getMultiplayerClient().getJoinMessage() && !theGame.r_getMultiplayerClient().getUsernameTaken())
     {
         thePlayer.AddTimer('r_showWelcome', 1, false);
         thePlayer.AddTimer('r_showJoinMessage', 1.5, false);

@@ -2877,6 +2877,34 @@ statemachine class r_MultiplayerClient
             lastPlayerType = cpcPlayerType;
         }
     }
+
+    function usernameTaken()
+    {
+        var messagetitle : string;
+        var messagebody : string;
+        
+        messagetitle = "<p align=\"center\">Failed to connect to server<br/></p>";
+        messagebody =
+        "<p align=\"center\">Another player is connected with the username '" +usernameTakenUser + "'.<br/><br/>"
+        + "Change your username in the Witcher Online config."
+        + "</p>";
+
+        theGame.r_getMultiplayerClient().DisplayUserMessage(WitcherOnline_PlayerNotification(messagetitle, messagebody));
+    }
+
+    private var usernameTakenUser : string; 
+    private var usernameTaken : bool;
+
+    function setUsernameTaken(user : string)
+    {
+        usernameTakenUser = user;
+        usernameTaken = true;
+    }
+
+    function getUsernameTaken() : bool
+    {
+        return usernameTaken;
+    }
     
 }
 
@@ -4480,7 +4508,7 @@ state WO_Tick in r_MultiplayerClient
             parent.renderPlayers();
             parent.updatePlayerChat();
             parent.updateLocalEmoteLoop();
-            parent.pruneGlobalPlayers(3);
+            parent.pruneGlobalPlayers(5);
             parent.updateMenuPositions();
             parent.checkOutgoingTrades();
             parent.checkRidingAttachment();
@@ -4495,4 +4523,19 @@ state WO_Tick in r_MultiplayerClient
 exec function scrollmenu()
 {
     theGame.r_getMultiplayerClient().updateMenuIndex(true);
+}
+
+exec function usernameTaken(username : string)
+{
+    theGame.r_getMultiplayerClient().setUsernameTaken(username);
+}
+
+exec function kickedMsg()
+{
+    GetWitcherPlayer().DisplayHudMessage("You were kicked from the server.");
+}
+
+exec function bannedMsg()
+{
+    GetWitcherPlayer().DisplayHudMessage("You were banned from the server.");
 }
