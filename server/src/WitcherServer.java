@@ -143,14 +143,17 @@ public class WitcherServer
             return;
         }
 
+        String usernameKey = normalizeUsernameKey(username);
+
         long now = System.currentTimeMillis();
-        PlayerSession current = players.get(username);
+        PlayerSession current = players.get(usernameKey);
 
         if (current == null)
         {
             PlayerSession created = new PlayerSession(username, sender, now);
-            PlayerSession race = players.putIfAbsent(username, created);
+            PlayerSession race = players.putIfAbsent(usernameKey, created);
             current = (race == null) ? created : race;
+
             if (race == null)
             {
                 dbg("Accepted username %s for %s\n", username, sender);
@@ -171,7 +174,7 @@ public class WitcherServer
         if (!sameEndpoint && expired)
         {
             PlayerSession replacement = new PlayerSession(username, sender, now);
-            players.put(username, replacement);
+            players.put(usernameKey, replacement);
             current = replacement;
             dbg("Reclaimed expired username %s for %s\n", username, sender);
         }
@@ -205,13 +208,13 @@ public class WitcherServer
                     }
                 }
 
-                for (String username : expiredUsers)
+                for (String usernameKey : expiredUsers)
                 {
-                    PlayerSession removed = players.remove(username);
+                    PlayerSession removed = players.remove(usernameKey);
                     if (removed != null)
                     {
-                        dbg("Timed out player %s\n", username);
-                        broadcastRemove(socket, username);
+                        dbg("Timed out player %s\n", removed.username);
+                        broadcastRemove(socket, removed.username);
                     }
                 }
 
@@ -251,9 +254,9 @@ public class WitcherServer
         {
             try
             {
-                for (Map.Entry<String, PlayerSession> entry : players.entrySet())
+                for (PlayerSession session : players.values())
                 {
-                    String packetText = buildPlayerPacket(entry.getKey(), entry.getValue().fields);
+                    String packetText = buildPlayerPacket(session.username, session.fields);
                     byte[] data = packetText.getBytes(StandardCharsets.UTF_8);
 
                     for (ClientEndpoint client : clients)
@@ -538,7 +541,7 @@ public class WitcherServer
 
     private static void kickPlayer(DatagramSocket socket, PlayerSession victim, String kickText)
     {
-        PlayerSession removed = players.remove(victim.username);
+        PlayerSession removed = players.remove(normalizeUsernameKey(victim.username));
         if (removed != null)
         {
             safeSend(socket, removed.endpoint, kickText);
@@ -585,22 +588,16 @@ public class WitcherServer
 
     private static PlayerSession findPlayer(String arg)
     {
-        PlayerSession exact = players.get(arg);
+        PlayerSession exact = players.get(normalizeUsernameKey(arg));
         if (exact != null)
         {
             return exact;
         }
 
-        String normalizedArg = arg.toLowerCase(Locale.ROOT);
         String ipArg = normalizeIp(stripPort(arg));
 
         for (PlayerSession session : players.values())
         {
-            if (session.username.toLowerCase(Locale.ROOT).equals(normalizedArg))
-            {
-                return session;
-            }
-
             String sessionIp = normalizeIp(session.endpoint.address.getHostAddress());
             if (!ipArg.isEmpty() && sessionIp.equals(ipArg))
             {
@@ -1147,5 +1144,10 @@ public class WitcherServer
         out.add(trim(fields.get(2)));
         out.add(trim(fields.get(3)));
         return out;
+    }
+
+    private static String normalizeUsernameKey(String username)
+    {
+        return username == null ? "" : username.trim().toLowerCase(Locale.ROOT);
     }
 }

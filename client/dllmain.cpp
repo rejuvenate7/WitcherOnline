@@ -276,8 +276,6 @@ void pushPlayer(std::vector<std::string> p)
 
 	std::string out;
 	g_client.ExecNoWaitLatest("pos:" + p[0], code);
-
-	std::cout << "Sent: " << code << std::endl;
 }
 
 static void CloseOnlineSession()
@@ -302,8 +300,6 @@ static void HandleServerPacket(const std::string& msg)
 	{
 		if (parts.size() >= 2 && parts[1] == "USERNAME_TAKEN")
 		{
-			std::cout << "Server rejected connection: username already in use.\n";
-
 			g_usernameTaken.store(true);
 			CloseOnlineSession();
 			return;
@@ -344,22 +340,6 @@ static void HandleServerPacket(const std::string& msg)
 		}
 
 		disconnectClient(id);
-	}
-}
-
-void printWorld()
-{
-	auto world = snapshot();
-
-	for (const auto& kv : world) {
-		const std::string& id = kv.first;
-		std::vector<std::string> p = kv.second;
-		std::cout << id << " ";
-		for (int i = 0; i < p.size(); i++)
-		{
-			std::cout << p[i] << " ";
-		}
-		std::cout << std::endl;
 	}
 }
 
@@ -409,13 +389,13 @@ static void PollPoseThread() {
 						theSocket.send_to(asio::buffer(packet), serverEndpoint);
 					}
 					catch (const std::exception& e) {
-						std::cout << "Send error: " << e.what() << "\n";
+						//std::cout << "Send error: " << e.what() << "\n";
 					}
 				}
 			}
 			else
 			{
-				std::cout << "Not connected to server..." << std::endl;
+				std::cout << "Not connected to game..." << std::endl;
 				Sleep(100);
 			}
 		}
@@ -446,7 +426,7 @@ static void SendToGameThread()
 			HandleServerPacket(msg);
 		}
 		catch (const std::exception& e) {
-			std::cout << "Receive error: " << e.what() << "\n";
+			//std::cout << "Receive error: " << e.what() << "\n";
 			Sleep(500);
 		}
 	}
@@ -509,7 +489,7 @@ static DWORD WINAPI InitThreadProc(LPVOID)
 	if (g_shutdown.load())
 		return 0;
 
-	activateConsole();
+	//activateConsole();
 
 	if (g_shutdown.load())
 		return 0;
@@ -546,7 +526,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
 		if (g_game.joinable())
 			g_game.join();
 
-		FreeConsole();
+		//FreeConsole();
 		break;
 	}
 	}
