@@ -1,0 +1,3 @@
+[submodule "client/asio"]
+	path = client/asio
+	url = https://github.com/chriskohlhoff/asio.git

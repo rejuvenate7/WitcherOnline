@@ -143,6 +143,7 @@
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(ProjectDir)asio\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -160,7 +161,6 @@
     <ClInclude Include="NetProto.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="script.h" />
-    <ClInclude Include="WorldClient.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DebugExecClient.cpp" />
@@ -174,7 +174,6 @@
     </ClCompile>
     <ClCompile Include="pugixml\pugixml.cpp" />
     <ClCompile Include="script.cpp" />
-    <ClCompile Include="WorldClient.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
