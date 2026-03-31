@@ -8,7 +8,6 @@
 #include <string>
 #include <sstream>
 #include <vector>
-#include <ws2tcpip.h>
 #include <regex>
 #include <filesystem>
 #include "pugixml\pugixml.hpp"
@@ -21,22 +20,30 @@ using namespace w3mp;
 static DebugExecClient g_client;
 static std::thread g_poll;
 static std::thread g_game;
-static std::atomic<bool> g_run{ false };
 
 std::string username = "Player";
 
-static std::atomic<bool> g_shutdown{ false };
 static HANDLE g_initThread = NULL;
 
 asio::io_context io;
-
 asio::ip::udp::resolver resolver(io);
 asio::ip::udp::socket theSocket(io);
-
 asio::ip::udp::endpoint serverEndpoint;
 
 static std::atomic<bool> g_usernameTaken{ false };
+static std::atomic<bool> g_banned{ false };
+static std::atomic<bool> g_notWhitelisted{ false };
+static std::atomic<bool> g_kicked{ false };
+static std::atomic<bool> g_shutdown{ false };
+static std::atomic<bool> g_run{ false };
 
+struct ExecJob {
+	std::string code, tag;
+	int timeoutMs;
+};
+
+static std::mutex g_qMu;
+static std::vector<ExecJob> g_jobs;
 
 fs::path getExecutablePath() {
 	char buffer[MAX_PATH];
@@ -100,10 +107,6 @@ std::vector<std::string> ParseValues(const std::string& input) {
 	return result;
 }
 
-struct ExecJob { std::string code, tag; int timeoutMs; };
-static std::mutex g_qMu;
-static std::vector<ExecJob> g_jobs;
-
 void PostExec(const std::string& code, const std::string& tag = "", int to = 300) {
 	if (!g_run.load())
 		return;
@@ -112,13 +115,14 @@ void PostExec(const std::string& code, const std::string& tag = "", int to = 300
 	g_jobs.push_back({ code, tag, to });
 }
 
-void disconnectClient(std::string id)
-{
-	PostExec("mpghosts_disconnect(\"" + id + "\")", "", 150);
+static inline void skip_ws(const char*& p) {
+	while (*p == ' ' || *p == '\t' || *p == '\r') ++p;
 }
 
-static inline void skip_ws(const char*& p) { while (*p == ' ' || *p == '\t' || *p == '\r') ++p; }
-static bool expect(const char*& p, char ch) { skip_ws(p); if (*p != ch) return false; ++p; return true; }
+static bool expect(const char*& p, char ch) {
+	skip_ws(p); if (*p != ch) return false; ++p; return true;
+}
+
 static bool parse_string(const char*& p, std::string& out) {
 	skip_ws(p); if (*p != '"') return false; ++p;
 	const char* s = p; while (*p && *p != '"') ++p; if (*p != '"') return false;
@@ -302,14 +306,23 @@ static void HandleServerPacket(const std::string& msg)
 		{
 			g_usernameTaken.store(true);
 			CloseOnlineSession();
-			return;
+		}
+		else if (parts.size() >= 2 && parts[1] == "BANNED")
+		{
+			g_banned.store(true);
+			CloseOnlineSession();
+		}
+		else if (parts.size() >= 2 && parts[1] == "NOT_WHITELISTED")
+		{
+			g_notWhitelisted.store(true);
+			CloseOnlineSession();
 		}
 
 		return;
 	}
 	else if (parts[0] == "KICK")
 	{
-		g_run.store(false);
+		g_kicked.store(true);
 		CloseOnlineSession();
 	}
 	else if (parts[0] == "PLAYER")
@@ -326,20 +339,6 @@ static void HandleServerPacket(const std::string& msg)
 		}
 
 		pushPlayer(world_[id]);
-	}
-	else if (parts[0] == "REMOVE")
-	{
-		if (parts.size() < 2)
-			return;
-
-		std::string id = parts[1];
-
-		{
-			std::lock_guard<std::mutex> lk(mu_);
-			world_.erase(id);
-		}
-
-		disconnectClient(id);
 	}
 }
 
@@ -362,12 +361,34 @@ static void PollPoseThread() {
 				}
 			}
 
+			std::cout << "0\n";
+
 			if (g_client.IsConnected() && g_usernameTaken.load())
 			{
 				PostExec("usernameTaken(\"" + username + "\")", "", 150);
 				Sleep(250);
 				continue;
 			}
+			else if (g_client.IsConnected() && g_kicked.load())
+			{
+				PostExec("kickedMsg()", "", 150);
+				Sleep(250);
+				continue;
+			}
+			else if (g_client.IsConnected() && g_banned.load())
+			{
+				PostExec("bannedMsg()", "", 150);
+				Sleep(250);
+				continue;
+			}
+			else if (g_client.IsConnected() && g_notWhitelisted.load())
+			{
+				PostExec("notWhitelistedMsg()", "", 150);
+				Sleep(250);
+				continue;
+			}
+
+			std::cout << "1\n";
 
 			if (g_client.IsConnected()) {
 
@@ -387,9 +408,10 @@ static void PollPoseThread() {
 
 					try {
 						theSocket.send_to(asio::buffer(packet), serverEndpoint);
+						std::cout << "Sent packet: " << packet << "\n";
 					}
 					catch (const std::exception& e) {
-						//std::cout << "Send error: " << e.what() << "\n";
+						std::cout << "Send error: " << e.what() << "\n";
 					}
 				}
 			}
@@ -413,6 +435,7 @@ static void SendToGameThread()
 
 	while (g_run.load())
 	{
+		std::cout << "loop\n";
 		try
 		{
 			asio::ip::udp::endpoint senderEndpoint;
@@ -424,9 +447,10 @@ static void SendToGameThread()
 
 			std::string msg(data.data(), len);
 			HandleServerPacket(msg);
+			std::cout << "Receive packet: " << msg << "\n";
 		}
 		catch (const std::exception& e) {
-			//std::cout << "Receive error: " << e.what() << "\n";
+			std::cout << "Receive error: " << e.what() << "\n";
 			Sleep(500);
 		}
 	}
@@ -477,8 +501,9 @@ void initScript()
 	g_run.store(true);
 
 	theSocket.open(asio::ip::udp::v4());
-
+	theSocket.bind(asio::ip::udp::endpoint(asio::ip::udp::v4(), 0));
 	serverEndpoint = *resolver.resolve(asio::ip::udp::v4(), ip, port).begin();
+	theSocket.connect(serverEndpoint);
 
 	g_poll = std::thread(PollPoseThread);
 	g_game = std::thread(SendToGameThread);
@@ -489,7 +514,7 @@ static DWORD WINAPI InitThreadProc(LPVOID)
 	if (g_shutdown.load())
 		return 0;
 
-	//activateConsole();
+	activateConsole();
 
 	if (g_shutdown.load())
 		return 0;
@@ -526,7 +551,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
 		if (g_game.joinable())
 			g_game.join();
 
-		//FreeConsole();
+		FreeConsole();
 		break;
 	}
 	}

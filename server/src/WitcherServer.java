@@ -32,7 +32,10 @@ public class WitcherServer
     private static final AtomicBoolean running = new AtomicBoolean(true);
     private static final AtomicBoolean whitelistEnabled = new AtomicBoolean(false);
 
+    private static final Map<String, UsernameReservation> reservedUsernames = new ConcurrentHashMap<>();
+
     private static final long PLAYER_TIMEOUT_MS = 5000;
+    private static final long USERNAME_HOLD_MS = 60_000;
     private static final int DEFAULT_PORT = 40000;
     private static final DateTimeFormatter LOG_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
@@ -103,7 +106,6 @@ public class WitcherServer
                     continue;
                 }
 
-                clients.add(sender);
                 handleMessage(socket, sender, msg);
 
             }
@@ -144,42 +146,112 @@ public class WitcherServer
         }
 
         String usernameKey = normalizeUsernameKey(username);
-
+        String senderIp = normalizeIp(sender.address.getHostAddress());
         long now = System.currentTimeMillis();
+
         PlayerSession current = players.get(usernameKey);
 
-        if (current == null)
+        if (current != null)
         {
-            PlayerSession created = new PlayerSession(username, sender, now);
-            PlayerSession race = players.putIfAbsent(usernameKey, created);
-            current = (race == null) ? created : race;
+            String currentIp = normalizeIp(current.endpoint.address.getHostAddress());
 
-            if (race == null)
+            boolean sameEndpoint = current.endpoint.equals(sender);
+            boolean sameIp = currentIp.equals(senderIp);
+            boolean expired = (now - current.lastSeen) > PLAYER_TIMEOUT_MS;
+
+            if (sameEndpoint)
             {
-                dbg("Accepted username %s for %s\n", username, sender);
+                // normal packet from same endpoint
+            }
+            else if (sameIp)
+            {
+                // reconnect from same IP, port may have changed
+                ClientEndpoint old = current.endpoint;
+                current.endpoint = sender;
+                dbg("Updated endpoint for %s from %s to %s\n", username, old, sender);
+            }
+            else if (expired)
+            {
+                // stale active session from another IP: convert it into a temporary reservation
+                boolean reserved = reserveTimedOutPlayer(socket, usernameKey, current, now);
+                if (reserved)
+                {
+                    dbg("Rejected %s from %s because username is reserved for previous IP\n", username, sender);
+                    safeSend(socket, sender, "ERROR\tUSERNAME_TAKEN");
+                    return;
+                }
+
+                current = players.get(usernameKey);
+                if (current != null)
+                {
+                    dbg("Rejected duplicate username %s from %s because owned by %s\n",
+                            username, sender, current.endpoint);
+                    safeSend(socket, sender, "ERROR\tUSERNAME_TAKEN");
+                    return;
+                }
+            }
+            else
+            {
+                dbg("Rejected duplicate username %s from %s because owned by %s\n",
+                        username, sender, current.endpoint);
+                safeSend(socket, sender, "ERROR\tUSERNAME_TAKEN");
+                return;
             }
         }
 
-        boolean sameEndpoint = current.endpoint.equals(sender);
-        boolean expired = (now - current.lastSeen) > PLAYER_TIMEOUT_MS;
-
-        if (!sameEndpoint && !expired)
+        // No active player owns the name. Check whether the username is reserved.
+        if (!players.containsKey(usernameKey))
         {
-            dbg("Rejected duplicate username %s from %s because owned by %s\n",
-                    username, sender, current.endpoint);
-            safeSend(socket, sender, "ERROR\tUSERNAME_TAKEN");
-            return;
+            UsernameReservation reservation = reservedUsernames.get(usernameKey);
+
+            if (reservation != null)
+            {
+                if (now >= reservation.expiresAt)
+                {
+                    reservedUsernames.remove(usernameKey, reservation);
+                    reservation = null;
+                }
+            }
+
+            if (reservation != null)
+            {
+                if (!reservation.ip.equals(senderIp))
+                {
+                    dbg("Rejected username %s from %s because it is reserved for IP %s\n",
+                            username, sender, reservation.ip);
+                    safeSend(socket, sender, "ERROR\tUSERNAME_TAKEN");
+                    return;
+                }
+
+                reservedUsernames.remove(usernameKey, reservation);
+                dbg("Restored reserved username %s for %s\n", username, sender);
+            }
+
+            PlayerSession created = new PlayerSession(username, sender, now);
+            PlayerSession race = players.putIfAbsent(usernameKey, created);
+
+            if (race == null)
+            {
+                current = created;
+                dbg("Accepted username %s for %s\n", username, sender);
+            }
+            else
+            {
+                current = race;
+
+                String currentIp = normalizeIp(current.endpoint.address.getHostAddress());
+                if (!currentIp.equals(senderIp) && !current.endpoint.equals(sender))
+                {
+                    dbg("Rejected duplicate username %s from %s because owned by %s\n",
+                            username, sender, current.endpoint);
+                    safeSend(socket, sender, "ERROR\tUSERNAME_TAKEN");
+                    return;
+                }
+
+                current.endpoint = sender;
+            }
         }
 
-        if (!sameEndpoint && expired)
-        {
-            PlayerSession replacement = new PlayerSession(username, sender, now);
-            players.put(usernameKey, replacement);
-            current = replacement;
-            dbg("Reclaimed expired username %s for %s\n", username, sender);
-        }
-
-        current.endpoint = sender;
         current.lastSeen = now;
 
         List<String> fields = new ArrayList<>();
@@ -189,6 +261,7 @@ public class WitcherServer
         }
 
         current.fields = Collections.unmodifiableList(fields);
+        clients.add(sender);
     }
 
     private static void cleanupLoop(DatagramSocket socket)
@@ -198,47 +271,36 @@ public class WitcherServer
             try
             {
                 long now = System.currentTimeMillis();
-                List<String> expiredUsers = new ArrayList<>();
 
                 for (Map.Entry<String, PlayerSession> entry : players.entrySet())
                 {
-                    if ((now - entry.getValue().lastSeen) > PLAYER_TIMEOUT_MS)
+                    PlayerSession session = entry.getValue();
+                    if ((now - session.lastSeen) > PLAYER_TIMEOUT_MS)
                     {
-                        expiredUsers.add(entry.getKey());
+                        reserveTimedOutPlayer(socket, entry.getKey(), session, now);
                     }
                 }
 
-                for (String usernameKey : expiredUsers)
+                for (Map.Entry<String, UsernameReservation> entry : reservedUsernames.entrySet())
                 {
-                    PlayerSession removed = players.remove(usernameKey);
-                    if (removed != null)
+                    UsernameReservation reservation = entry.getValue();
+                    if (now >= reservation.expiresAt)
                     {
-                        dbg("Timed out player %s\n", removed.username);
-                        broadcastRemove(socket, removed.username);
+                        if (reservedUsernames.remove(entry.getKey(), reservation))
+                        {
+                            dbg("Released reserved username %s for IP %s\n",
+                                    reservation.username,
+                                    reservation.ip);
+                        }
                     }
                 }
 
-                Set<ClientEndpoint> activeEndpoints = new HashSet<>();
-                for (PlayerSession session : players.values())
-                {
-                    activeEndpoints.add(session.endpoint);
-                }
-                clients.removeIf(endpoint -> !activeEndpoints.contains(endpoint));
-
+                cleanupClients();
                 Thread.sleep(1000);
-
             }
             catch (InterruptedException e)
             {
                 Thread.currentThread().interrupt();
-                break;
-            }
-            catch (SocketException e)
-            {
-                if (running.get())
-                {
-                    e.printStackTrace();
-                }
                 break;
             }
             catch (Exception e)
@@ -529,7 +591,7 @@ public class WitcherServer
         if (line.equals("about"))
         {
             dbg("--------- About ---------\n");
-            dbg("Witcher Online v1.0\n");
+            dbg("Witcher Online v2.0\n");
             dbg("by rejuvenate7\n");
             dbg("https://github.com/rejuvenate7\n");
             dbg("https://discord.gg/KYu9c5TWej\n\n");
@@ -541,19 +603,16 @@ public class WitcherServer
 
     private static void kickPlayer(DatagramSocket socket, PlayerSession victim, String kickText)
     {
-        PlayerSession removed = players.remove(normalizeUsernameKey(victim.username));
+        String usernameKey = normalizeUsernameKey(victim.username);
+
+        PlayerSession removed = players.remove(usernameKey);
+        reservedUsernames.remove(usernameKey);
+
         if (removed != null)
         {
             safeSend(socket, removed.endpoint, kickText);
-            try
-            {
-                broadcastRemove(socket, removed.username);
-            }
-            catch (Exception e)
-            {
-                e.printStackTrace();
-            }
         }
+
         cleanupClients();
     }
 
@@ -650,18 +709,6 @@ public class WitcherServer
         }
 
         return sb.toString();
-    }
-
-    private static void broadcastRemove(DatagramSocket socket, String playerId) throws Exception
-    {
-        String text = "REMOVE\t" + escapeField(playerId);
-        byte[] data = text.getBytes(StandardCharsets.UTF_8);
-
-        for (ClientEndpoint client : clients)
-        {
-            DatagramPacket packet = new DatagramPacket(data, data.length, client.address, client.port);
-            socket.send(packet);
-        }
     }
 
     private static boolean isIpBanned(String ip)
@@ -831,17 +878,6 @@ public class WitcherServer
                 return cliPort;
             }
             System.err.println("Invalid CLI port: " + args[0] + " (falling back)");
-        }
-
-        String envPort = System.getenv("W3MP_PORT");
-        if (envPort != null && !envPort.isBlank())
-        {
-            Integer parsed = parsePort(envPort.trim());
-            if (parsed != null)
-            {
-                return parsed;
-            }
-            System.err.println("Invalid W3MP_PORT: " + envPort + " (falling back)");
         }
 
         String propertyPort = properties.getProperty("port");
@@ -1149,5 +1185,28 @@ public class WitcherServer
     private static String normalizeUsernameKey(String username)
     {
         return username == null ? "" : username.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static boolean reserveTimedOutPlayer(DatagramSocket socket, String usernameKey, PlayerSession session, long now)
+    {
+        if (!players.remove(usernameKey, session))
+        {
+            return false;
+        }
+
+        String ip = normalizeIp(session.endpoint.address.getHostAddress());
+        reservedUsernames.put(usernameKey, new UsernameReservation(
+                session.username,
+                ip,
+                now + USERNAME_HOLD_MS
+        ));
+
+        dbg("Timed out player %s; reserving username for %d seconds to IP %s\n",
+                session.username,
+                USERNAME_HOLD_MS / 1000,
+                ip);
+
+        cleanupClients();
+        return true;
     }
 }
