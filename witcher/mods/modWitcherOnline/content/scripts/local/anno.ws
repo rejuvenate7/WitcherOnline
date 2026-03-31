@@ -52,6 +52,18 @@ timer function r_showUsernameAlert(dt : float, id : int)
 }
 
 @addMethod(CR4Player) 
+timer function r_showBannedAlert(dt : float, id : int)
+{
+    theGame.r_getMultiplayerClient().bannedMsg();
+}
+
+@addMethod(CR4Player) 
+timer function r_showNotWhitelistedAlert(dt : float, id : int)
+{
+    theGame.r_getMultiplayerClient().notWhitelistedMsg();
+}
+
+@addMethod(CR4Player) 
 timer function r_showJoinMessage(dt : float, id : int)
 {
     var players : array<r_RemotePlayer>;
@@ -186,6 +198,7 @@ function OnEnteredMainMenu()
 {
     wrappedMethod();
     theGame.r_getMultiplayerClient().setInGame(false);
+    theGame.r_getMultiplayerClient().setAfterLoading(false);
 }
 
 @wrapMethod(CR4Game)
@@ -193,6 +206,7 @@ function OnAfterLoadingScreenGameStart()
 {
     wrappedMethod();
     theGame.r_getMultiplayerClient().setInGame(true);
+    theGame.r_getMultiplayerClient().setAfterLoading(true);
     theGame.r_getMultiplayerClient().setSpawnTime(theGame.GetEngineTimeAsSeconds());
     theGame.r_getMultiplayerClient().setEmote(-1);
 
@@ -202,13 +216,26 @@ function OnAfterLoadingScreenGameStart()
     {
         thePlayer.AddTimer('r_showConnectionAlert', 1, false);
     }
-
-    if(theGame.r_getMultiplayerClient().getUsernameTaken())
+    else if(theGame.r_getMultiplayerClient().getUsernameTaken() && !theGame.r_getMultiplayerClient().getJoinMessage())
     {
         thePlayer.AddTimer('r_showUsernameAlert', 1, false);
+        theGame.r_getMultiplayerClient().setAlertedDisconnect();
+        theGame.r_getMultiplayerClient().setJoinMessage();
+    }
+    else if(theGame.r_getMultiplayerClient().getBanned() && !theGame.r_getMultiplayerClient().getJoinMessage())
+    {
+        thePlayer.AddTimer('r_showBannedAlert', 1, false);
+        theGame.r_getMultiplayerClient().setAlertedDisconnect();
+        theGame.r_getMultiplayerClient().setJoinMessage();
+    }
+    else if(theGame.r_getMultiplayerClient().getNotWhitelisted() && !theGame.r_getMultiplayerClient().getJoinMessage())
+    {
+        thePlayer.AddTimer('r_showNotWhitelistedAlert', 1, false);
+        theGame.r_getMultiplayerClient().setAlertedDisconnect();
+        theGame.r_getMultiplayerClient().setJoinMessage();
     }
 
-    if(theGame.r_getMultiplayerClient().getReceived() && !theGame.r_getMultiplayerClient().getJoinMessage() && !theGame.r_getMultiplayerClient().getUsernameTaken())
+    if(theGame.r_getMultiplayerClient().getReceived() && !theGame.r_getMultiplayerClient().getJoinMessage() && !theGame.r_getMultiplayerClient().getUsernameTaken() && !theGame.r_getMultiplayerClient().getBanned() && !theGame.r_getMultiplayerClient().getNotWhitelisted())
     {
         thePlayer.AddTimer('r_showWelcome', 1, false);
         thePlayer.AddTimer('r_showJoinMessage', 1.5, false);
@@ -222,6 +249,7 @@ function OnGameLoadInitFinishedSuccess()
     wrappedMethod();
     theGame.r_getMultiplayerClient().destroyAll();
     theGame.r_getMultiplayerClient().setInGame(false);
+    theGame.r_getMultiplayerClient().setAfterLoading(false);
 }
 
 @wrapMethod(CR4Player)

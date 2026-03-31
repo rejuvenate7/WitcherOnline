@@ -25,6 +25,7 @@ statemachine class r_MultiplayerClient
     private var players : array<r_RemotePlayer>;
     private var globalPlayers : array<r_RemotePlayer>;
     private var inGame : bool;
+    private var afterLoading : bool;
     private var spawnTime : float;
     private var execReceived : bool;
 
@@ -586,6 +587,12 @@ statemachine class r_MultiplayerClient
                 attach_vec.Y = 5.5f;
                 attach_vec.Z += 0.1f;
             }
+        }
+
+        if(rider != thePlayer && toAttach != thePlayer)
+        {
+            attach_vec.X -= 0.12f;
+            attach_vec.Y -= 0.5f;
         }
     
         rider.CreateAttachment(toAttach, , attach_vec, attach_rot);
@@ -2410,9 +2417,19 @@ statemachine class r_MultiplayerClient
         inGame = val;
     }
 
+    public function setAfterLoading(val : bool)
+    {
+        afterLoading = val;
+    }
+
     public function getInGame() : bool
     {
         return inGame;
+    }
+
+    public function getAfterLoading() : bool
+    {
+        return afterLoading;
     }
 
     public function getPlayers() : array<r_RemotePlayer>
@@ -2892,8 +2909,51 @@ statemachine class r_MultiplayerClient
         theGame.r_getMultiplayerClient().DisplayUserMessage(WitcherOnline_PlayerNotification(messagetitle, messagebody));
     }
 
+    function bannedMsg()
+    {
+        var messagetitle : string;
+        var messagebody : string;
+        
+        messagetitle = "<p align=\"center\">Failed to connect to server<br/></p>";
+        messagebody =
+        "<p align=\"center\">You were banned from the server.<br/>"
+        + "</p>";
+
+        theGame.r_getMultiplayerClient().DisplayUserMessage(WitcherOnline_PlayerNotification(messagetitle, messagebody));
+    }
+
+    function kickedMsg()
+    {
+        var messagetitle : string;
+        var messagebody : string;
+        
+        messagetitle = "<p align=\"center\">Failed to connect to server<br/></p>";
+        messagebody =
+        "<p align=\"center\">You were kicked from the server.<br/>"
+        + "</p>";
+
+        theGame.r_getMultiplayerClient().DisplayUserMessage(WitcherOnline_PlayerNotification(messagetitle, messagebody));
+    }
+
+    function notWhitelistedMsg()
+    {
+        var messagetitle : string;
+        var messagebody : string;
+        
+        messagetitle = "<p align=\"center\">Failed to connect to server<br/></p>";
+        messagebody =
+        "<p align=\"center\">You are not whitelisted on this server.<br/>"
+        + "</p>";
+
+        theGame.r_getMultiplayerClient().DisplayUserMessage(WitcherOnline_PlayerNotification(messagetitle, messagebody));
+    }
+
     private var usernameTakenUser : string; 
     private var usernameTaken : bool;
+    private var playerBanned : bool;
+    private var playerKicked : bool;
+    private var playerNotWhitelisted : bool;
+    private var alertedDisconnect : bool;
 
     function setUsernameTaken(user : string)
     {
@@ -2905,7 +2965,46 @@ statemachine class r_MultiplayerClient
     {
         return usernameTaken;
     }
-    
+
+    function setKicked()
+    {
+        playerKicked = true;
+    }
+
+    function getKicked() : bool
+    {
+        return playerKicked;
+    }
+
+    function setBanned()
+    {
+        playerBanned = true;
+    }
+
+    function getBanned() : bool
+    {
+        return playerBanned;
+    }
+
+    function setNotWhitelisted()
+    {
+        playerNotWhitelisted = true;
+    }
+
+    function getNotWhitelisted() : bool
+    {
+        return playerNotWhitelisted;
+    }
+
+    function setAlertedDisconnect()
+    {
+        alertedDisconnect = true;
+    }
+
+    function getAlertedDisconnect() : bool
+    {
+        return alertedDisconnect;
+    }
 }
 
 exec function mpghosts_setUserId(playerId : string, username : string)
@@ -4505,6 +4604,27 @@ state WO_Tick in r_MultiplayerClient
                 continue;
             }
 
+            if(parent.getBanned() && !parent.getAlertedDisconnect() && parent.getAfterLoading())
+            {
+                parent.bannedMsg();
+                parent.setAlertedDisconnect();
+            }
+            else if(parent.getKicked() && !parent.getAlertedDisconnect() && parent.getAfterLoading())
+            {
+                parent.kickedMsg();
+                parent.setAlertedDisconnect();
+            }
+            else if(parent.getNotWhitelisted() && !parent.getAlertedDisconnect() && parent.getAfterLoading())
+            {
+                parent.notWhitelistedMsg();
+                parent.setAlertedDisconnect();
+            }
+            else if(parent.getUsernameTaken() && !parent.getAlertedDisconnect() && parent.getAfterLoading())
+            {
+                parent.usernameTaken();
+                parent.setAlertedDisconnect();
+            }
+
             parent.renderPlayers();
             parent.updatePlayerChat();
             parent.updateLocalEmoteLoop();
@@ -4532,10 +4652,15 @@ exec function usernameTaken(username : string)
 
 exec function kickedMsg()
 {
-    GetWitcherPlayer().DisplayHudMessage("You were kicked from the server.");
+    theGame.r_getMultiplayerClient().setKicked();
 }
 
 exec function bannedMsg()
 {
-    GetWitcherPlayer().DisplayHudMessage("You were banned from the server.");
+    theGame.r_getMultiplayerClient().setBanned();
+}
+
+exec function notWhitelistedMsg()
+{
+    theGame.r_getMultiplayerClient().setNotWhitelisted();
 }

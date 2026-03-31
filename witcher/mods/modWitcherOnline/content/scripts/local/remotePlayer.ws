@@ -1231,7 +1231,7 @@ statemachine class r_RemotePlayer
 
     private function prune()
     {
-        if((theGame.GetEngineTimeAsSeconds() - lastUpdate) > 3)
+        if((theGame.GetEngineTimeAsSeconds() - lastUpdate) > 5)
         {
             theGame.r_getMultiplayerClient().disconnect(id);
             theGame.r_getMultiplayerClient().disconnectGlobal(id);
