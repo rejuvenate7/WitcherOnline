@@ -48,19 +48,19 @@ timer function r_showConnectionAlert(dt : float, id : int)
 @addMethod(CR4Player) 
 timer function r_showUsernameAlert(dt : float, id : int)
 {
-    theGame.r_getMultiplayerClient().usernameTaken();
+    theGame.r_getMultiplayerClient().showUsernameTaken();
 }
 
 @addMethod(CR4Player) 
 timer function r_showBannedAlert(dt : float, id : int)
 {
-    theGame.r_getMultiplayerClient().bannedMsg();
+    theGame.r_getMultiplayerClient().showBannedMsg();
 }
 
 @addMethod(CR4Player) 
 timer function r_showNotWhitelistedAlert(dt : float, id : int)
 {
-    theGame.r_getMultiplayerClient().notWhitelistedMsg();
+    theGame.r_getMultiplayerClient().showNotWhitelisted();
 }
 
 @addMethod(CR4Player) 
@@ -198,7 +198,6 @@ function OnEnteredMainMenu()
 {
     wrappedMethod();
     theGame.r_getMultiplayerClient().setInGame(false);
-    theGame.r_getMultiplayerClient().setAfterLoading(false);
 }
 
 @wrapMethod(CR4Game)
@@ -206,7 +205,6 @@ function OnAfterLoadingScreenGameStart()
 {
     wrappedMethod();
     theGame.r_getMultiplayerClient().setInGame(true);
-    theGame.r_getMultiplayerClient().setAfterLoading(true);
     theGame.r_getMultiplayerClient().setSpawnTime(theGame.GetEngineTimeAsSeconds());
     theGame.r_getMultiplayerClient().setEmote(-1);
 
@@ -234,8 +232,7 @@ function OnAfterLoadingScreenGameStart()
         theGame.r_getMultiplayerClient().setAlertedDisconnect();
         theGame.r_getMultiplayerClient().setJoinMessage();
     }
-
-    if(theGame.r_getMultiplayerClient().getReceived() && !theGame.r_getMultiplayerClient().getJoinMessage() && !theGame.r_getMultiplayerClient().getUsernameTaken() && !theGame.r_getMultiplayerClient().getBanned() && !theGame.r_getMultiplayerClient().getNotWhitelisted())
+    else if(theGame.r_getMultiplayerClient().getReceived() && !theGame.r_getMultiplayerClient().getJoinMessage() && !theGame.r_getMultiplayerClient().getUsernameTaken() && !theGame.r_getMultiplayerClient().getBanned() && !theGame.r_getMultiplayerClient().getNotWhitelisted())
     {
         thePlayer.AddTimer('r_showWelcome', 1, false);
         thePlayer.AddTimer('r_showJoinMessage', 1.5, false);
@@ -249,7 +246,6 @@ function OnGameLoadInitFinishedSuccess()
     wrappedMethod();
     theGame.r_getMultiplayerClient().destroyAll();
     theGame.r_getMultiplayerClient().setInGame(false);
-    theGame.r_getMultiplayerClient().setAfterLoading(false);
 }
 
 @wrapMethod(CR4Player)

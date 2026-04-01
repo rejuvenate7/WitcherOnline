@@ -51,60 +51,78 @@ fs::path getExecutablePath() {
 	return fs::path(buffer).parent_path().parent_path();
 }
 
-static inline bool ends_with(const std::string& s, const std::string& suffix) {
-	return s.size() >= suffix.size() && s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
-}
+struct ParsedHalves
+{
+	std::vector<std::string> first;
+	std::vector<std::string> second;
+};
 
-std::vector<std::string> ParseValues(const std::string& input) {
-	static const std::unordered_set<std::string> kStartMarkers = {
-		"chatstart","steelstart","silverstart","armorstart","glovesstart",
-		"pantsstart","bootsstart","headstart","hairstart","steelscabstart",
-		"silverscabstart","crossbowstart","maskstart", "namestart"
-	};
-
-	auto toEndToken = [](const std::string& startToken) {
-		return startToken.substr(0, startToken.size() - 5) + "end";
-		};
+static ParsedHalves ParseValuesSplitHalf(const std::string& input)
+{
+	static const std::string kStartMarker = "_s";
+	static const std::string kEndMarker = "_e";
+	static const std::string kHalfMarker = "half";
 
 	std::istringstream iss(input);
 	std::string word;
-	std::vector<std::string> result;
 
-	if (!(iss >> word)) return result;
+	ParsedHalves out;
+	std::vector<std::string>* current = &out.first;
+
+	if (!(iss >> word))
+		return out;
 
 	bool inBlock = false;
 	std::string blockAccum;
-	std::string endToken;
 
-	while (iss >> word) {
-		if (!inBlock) {
-			if (kStartMarkers.count(word)) {
+	while (iss >> word)
+	{
+		if (!inBlock)
+		{
+			if (word == kStartMarker)
+			{
 				inBlock = true;
-				endToken = toEndToken(word);
 				blockAccum.clear();
 				continue;
 			}
-			result.push_back(word);
+
+			if (word == kHalfMarker)
+			{
+				current = &out.second;
+				continue;
+			}
+
+			if (word == kEndMarker)
+			{
+				current->push_back(word);
+				continue;
+			}
+
+			current->push_back(word);
 		}
-		else {
-			if (word == endToken) {
-				result.push_back(blockAccum);
+		else
+		{
+			if (word == kEndMarker)
+			{
+				current->push_back(blockAccum);
 				inBlock = false;
 				blockAccum.clear();
-				endToken.clear();
 			}
-			else {
-				if (!blockAccum.empty()) blockAccum += ' ';
+			else
+			{
+				if (!blockAccum.empty())
+					blockAccum += ' ';
 				blockAccum += word;
 			}
 		}
 	}
 
-	if (inBlock && !blockAccum.empty()) {
-		result.push_back(blockAccum);
+	if (inBlock && !blockAccum.empty())
+	{
+		current->push_back(blockAccum);
 	}
 
-	return result;
+	return out;
 }
 
 void PostExec(const std::string& code, const std::string& tag = "", int to = 300) {
@@ -113,84 +131,6 @@ void PostExec(const std::string& code, const std::string& tag = "", int to = 300
 
 	std::lock_guard<std::mutex> lk(g_qMu);
 	g_jobs.push_back({ code, tag, to });
-}
-
-static inline void skip_ws(const char*& p) {
-	while (*p == ' ' || *p == '\t' || *p == '\r') ++p;
-}
-
-static bool expect(const char*& p, char ch) {
-	skip_ws(p); if (*p != ch) return false; ++p; return true;
-}
-
-static bool parse_string(const char*& p, std::string& out) {
-	skip_ws(p); if (*p != '"') return false; ++p;
-	const char* s = p; while (*p && *p != '"') ++p; if (*p != '"') return false;
-	out.assign(s, p - s); ++p; return true;
-}
-
-std::mutex mu_;
-std::unordered_map<std::string, std::vector<std::string>> world_;
-
-void parse_world_line(const std::string& line) {
-	const char* p = line.c_str();
-	if (line.size() < 7) return;
-	p += 6; skip_ws(p);
-	if (!expect(p, '[')) return;
-
-	std::unordered_map<std::string, std::vector<std::string>> nw;
-
-	for (;;) {
-		skip_ws(p);
-		if (*p == ']') { ++p; break; }
-		if (*p != '{') break; ++p;
-
-		std::string id;
-		std::vector<std::string> fields;
-
-		for (;;) {
-			skip_ws(p);
-			if (*p == '}') { ++p; break; }
-
-			std::string key; if (!parse_string(p, key)) return;
-			if (!expect(p, ':')) return;
-
-			if (key == "id") {
-				std::string v; if (!parse_string(p, v)) return; id = v;
-			}
-			else if (key == "d") {
-				if (!expect(p, '[')) return;
-				for (;;) {
-					skip_ws(p);
-					if (*p == ']') { ++p; break; }
-					std::string v; if (!parse_string(p, v)) return;
-					fields.push_back(v);
-					skip_ws(p);
-					if (*p == ',') { ++p; continue; }
-				}
-			}
-			else {
-				while (*p && *p != ',' && *p != '}') ++p;
-			}
-			skip_ws(p);
-			if (*p == ',') { ++p; continue; }
-		}
-		if (!id.empty()) nw[id] = std::move(fields);
-
-		skip_ws(p);
-		if (*p == ',') { ++p; continue; }
-		if (*p == ']') { ++p; break; }
-	}
-
-	{
-		std::lock_guard<std::mutex> lk(mu_);
-		world_.swap(nw);
-	}
-}
-
-std::unordered_map<std::string, std::vector<std::string>> snapshot() {
-	std::lock_guard<std::mutex> lk(mu_);
-	return world_;
 }
 
 static std::string EscapeField(const std::string& s)
@@ -210,9 +150,9 @@ static std::string EscapeField(const std::string& s)
 	return out;
 }
 
-static std::string BuildUpdatePacket(const std::string& id, const std::vector<std::string>& fields)
+static std::string BuildPacket(const std::string& opcode, const std::string& id, const std::vector<std::string>& fields)
 {
-	std::string packet = "UPDATE\t" + id;
+	std::string packet = opcode + "\t" + id;
 
 	for (const auto& f : fields)
 	{
@@ -255,31 +195,97 @@ static std::vector<std::string> SplitTabs(const std::string& s)
 	return parts;
 }
 
-void pushPlayer(std::vector<std::string> p)
+static std::string EscapeExecQuoted(const std::string& s, char quote)
 {
-	std::string code = "mpghosts_updatePlayerData(";
-	code += "\"";
-	code += p[0];
-	code += "\", ";
+	std::string out;
+	out.reserve(s.size() + 8);
 
-	for (int i = 0; i < p.size(); i++)
+	for (char c : s)
 	{
-		std::string value = p[i];
-
-		if (value.find(' ') != std::string::npos) {
-			value = "'" + value + "'";
+		if (c == '\\')
+			out += "\\\\";
+		else if (c == quote)
+		{
+			out += '\\';
+			out += c;
 		}
-
-		code += value;
-
-		if (i == p.size() - 1)
-			code += ")";
+		else if (c == '\n')
+			out += "\\n";
+		else if (c == '\r')
+			out += "\\r";
+		else if (c == '\t')
+			out += "\\t";
 		else
-			code += ", ";
+			out += c;
 	}
 
-	std::string out;
-	g_client.ExecNoWaitLatest("pos:" + p[0], code);
+	return out;
+}
+
+static void AppendExecField(std::string& code, const std::string& value)
+{
+	code += ", ";
+
+	if (value.find_first_of(" \t\r\n") != std::string::npos)
+	{
+		code += "'";
+		code += EscapeExecQuoted(value, '\'');
+		code += "'";
+	}
+	else
+	{
+		code += value;
+	}
+}
+
+void pushPlayer(const std::string& id, const std::vector<std::string>& update1A, const std::vector<std::string>& update1B,
+	const std::vector<std::string>& update2A, const std::vector<std::string>& update2B)
+{
+	if (id.empty())
+		return;
+
+	std::vector<std::string> firstHalf;
+	firstHalf.reserve(update1A.size() + update1B.size());
+	firstHalf.insert(firstHalf.end(), update1A.begin(), update1A.end());
+	firstHalf.insert(firstHalf.end(), update1B.begin(), update1B.end());
+
+	std::vector<std::string> secondHalf;
+	secondHalf.reserve(update2A.size() + update2B.size());
+	secondHalf.insert(secondHalf.end(), update2A.begin(), update2A.end());
+	secondHalf.insert(secondHalf.end(), update2B.begin(), update2B.end());
+
+	if (firstHalf.empty() || secondHalf.empty())
+		return;
+
+	std::string code1 = "wo_update(";
+	code1 += "\"";
+	code1 += EscapeExecQuoted(id, '"');
+	code1 += "\"";
+
+	for (size_t i = 0; i < firstHalf.size(); ++i)
+	{
+		AppendExecField(code1, firstHalf[i]);
+	}
+
+	code1 += ")";
+
+	std::string code2 = "wo_update2(";
+	code2 += "\"";
+	code2 += EscapeExecQuoted(id, '"');
+	code2 += "\"";
+
+	for (size_t i = 0; i < secondHalf.size(); ++i)
+	{
+		AppendExecField(code2, secondHalf[i]);
+	}
+
+	code2 += ")";
+
+	g_client.ExecNoWaitLatest("wo1:" + id, code1);
+	g_client.ExecNoWaitLatest("wo2:" + id, code2);
+
+	//std::cout << "Code1: " << code1 << "\n";
+	//std::cout << "Code2: " << code2 << "\n";
 }
 
 static void CloseOnlineSession()
@@ -293,6 +299,22 @@ static void CloseOnlineSession()
 	{
 	}
 }
+
+struct RemotePlayerChunks
+{
+	std::vector<std::string> update1A;
+	std::vector<std::string> update1B;
+	std::vector<std::string> update2A;
+	std::vector<std::string> update2B;
+
+	bool has1A = false;
+	bool has1B = false;
+	bool has2A = false;
+	bool has2B = false;
+};
+
+std::mutex remoteMu;
+std::unordered_map<std::string, RemotePlayerChunks> remotePlayers;
 
 static void HandleServerPacket(const std::string& msg)
 {
@@ -324,21 +346,75 @@ static void HandleServerPacket(const std::string& msg)
 	{
 		g_kicked.store(true);
 		CloseOnlineSession();
+		return;
 	}
-	else if (parts[0] == "PLAYER")
+	else if (
+		parts[0] == "UPDATE1A" ||
+		parts[0] == "UPDATE1B" ||
+		parts[0] == "UPDATE2A" ||
+		parts[0] == "UPDATE2B")
 	{
 		if (parts.size() < 2)
 			return;
 
+		std::string opcode = parts[0];
 		std::string id = parts[1];
 		std::vector<std::string> fields(parts.begin() + 2, parts.end());
 
+		bool readyToPush = false;
+
+		std::vector<std::string> u1a;
+		std::vector<std::string> u1b;
+		std::vector<std::string> u2a;
+		std::vector<std::string> u2b;
+
 		{
-			std::lock_guard<std::mutex> lk(mu_);
-			world_[id] = std::move(fields);
+			std::lock_guard<std::mutex> lk(remoteMu);
+			auto& rp = remotePlayers[id];
+
+			if (opcode == "UPDATE1A")
+			{
+				rp.update1A = std::move(fields);
+				rp.has1A = true;
+			}
+			else if (opcode == "UPDATE1B")
+			{
+				rp.update1B = std::move(fields);
+				rp.has1B = true;
+			}
+			else if (opcode == "UPDATE2A")
+			{
+				rp.update2A = std::move(fields);
+				rp.has2A = true;
+			}
+			else if (opcode == "UPDATE2B")
+			{
+				rp.update2B = std::move(fields);
+				rp.has2B = true;
+			}
+
+			if (rp.has1A && rp.has1B && rp.has2A && rp.has2B)
+			{
+				u1a = rp.update1A;
+				u1b = rp.update1B;
+				u2a = rp.update2A;
+				u2b = rp.update2B;
+
+				rp.has1A = false;
+				rp.has1B = false;
+				rp.has2A = false;
+				rp.has2B = false;
+
+				readyToPush = true;
+			}
 		}
 
-		pushPlayer(world_[id]);
+		if (readyToPush)
+		{
+			pushPlayer(id, u1a, u1b, u2a, u2b);
+		}
+
+		return;
 	}
 }
 
@@ -360,8 +436,6 @@ static void PollPoseThread() {
 					g_client.ExecTagged(j.code, j.tag, out, j.timeoutMs);
 				}
 			}
-
-			std::cout << "0\n";
 
 			if (g_client.IsConnected() && g_usernameTaken.load())
 			{
@@ -388,31 +462,64 @@ static void PollPoseThread() {
 				continue;
 			}
 
-			std::cout << "1\n";
-
 			if (g_client.IsConnected()) {
 
 				std::string out;
-
-				auto tStart = clock::now();
-
-				bool ok = g_client.ExecTagged("mpghosts_getData(\"" + username + "\", \"" + username + "\")", "mpghosts_cli", out, 500);
-				auto tEnd = clock::now();
-
-				auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(tEnd - tStart).count();
+				bool ok = g_client.ExecTagged("wo_get(\"" + username + "\")", "wo", out, 500);
 
 				if (ok)
 				{
-					std::vector<std::string> fields = ParseValues(out);
-					std::string packet = BuildUpdatePacket(username, fields);
+					ParsedHalves halves = ParseValuesSplitHalf(out);
+
+					std::string packet1a = BuildPacket("UPDATE1A", username, halves.first);
+					std::string packet1b = BuildPacket("UPDATE1B", username, halves.second);
+
+					//std::cout << "Got data 1A (" << packet1a.size() << " bytes): " << packet1a << "\n";
+					//std::cout << "Got data 1B (" << packet1b.size() << " bytes): " << packet1b << "\n";
 
 					try {
-						theSocket.send_to(asio::buffer(packet), serverEndpoint);
-						std::cout << "Sent packet: " << packet << "\n";
+						if (!halves.first.empty())
+							theSocket.send(asio::buffer(packet1a));
+
+						if (!halves.second.empty())
+							theSocket.send(asio::buffer(packet1b));
 					}
 					catch (const std::exception& e) {
-						std::cout << "Send error: " << e.what() << "\n";
+						std::cout << "Send error (wo_get halves): " << e.what() << "\n";
 					}
+				}
+				else
+				{
+					std::cout << "Failed to get Data 1 " << out << std::endl;
+				}
+
+				std::string out2;
+				bool ok2 = g_client.ExecTagged("wo_get2(\"" + username + "\")", "wo2", out2, 500);
+
+				if (ok2)
+				{
+					ParsedHalves halves2 = ParseValuesSplitHalf(out2);
+
+					std::string packet2a = BuildPacket("UPDATE2A", username, halves2.first);
+					std::string packet2b = BuildPacket("UPDATE2B", username, halves2.second);
+
+					//std::cout << "Got data 2A (" << packet2a.size() << " bytes): " << packet2a << "\n";
+					//std::cout << "Got data 2B (" << packet2b.size() << " bytes): " << packet2b << "\n";
+
+					try {
+						if (!halves2.first.empty())
+							theSocket.send(asio::buffer(packet2a));
+
+						if (!halves2.second.empty())
+							theSocket.send(asio::buffer(packet2b));
+					}
+					catch (const std::exception& e) {
+						std::cout << "Send error (wo_get2 halves): " << e.what() << "\n";
+					}
+				}
+				else
+				{
+					std::cout << "Failed to get Data 2 " << out2 << std::endl;
 				}
 			}
 			else
@@ -435,7 +542,6 @@ static void SendToGameThread()
 
 	while (g_run.load())
 	{
-		std::cout << "loop\n";
 		try
 		{
 			asio::ip::udp::endpoint senderEndpoint;
@@ -447,7 +553,7 @@ static void SendToGameThread()
 
 			std::string msg(data.data(), len);
 			HandleServerPacket(msg);
-			std::cout << "Receive packet: " << msg << "\n";
+			//std::cout << "Receive packet: " << msg << "\n";
 		}
 		catch (const std::exception& e) {
 			std::cout << "Receive error: " << e.what() << "\n";
@@ -480,10 +586,15 @@ void initScript()
 
 	username = std::regex_replace(user, std::regex("[^A-Za-z0-9_]"), "");
 
+	if (username.length() > 16)
+	{
+		username.resize(16);
+	}
+
 	std::string ip = xml.child("ServerIP").text().as_string();
 	std::string port = xml.child("Port").text().as_string();
 
-	if (ip.empty())
+	if (ip.empty() || username.empty() || username.length() < 2)
 	{
 		return;
 	}
@@ -514,7 +625,7 @@ static DWORD WINAPI InitThreadProc(LPVOID)
 	if (g_shutdown.load())
 		return 0;
 
-	activateConsole();
+	//activateConsole();
 
 	if (g_shutdown.load())
 		return 0;
@@ -551,7 +662,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
 		if (g_game.joinable())
 			g_game.join();
 
-		FreeConsole();
+		//FreeConsole();
 		break;
 	}
 	}

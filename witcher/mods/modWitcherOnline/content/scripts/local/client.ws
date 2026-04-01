@@ -25,7 +25,6 @@ statemachine class r_MultiplayerClient
     private var players : array<r_RemotePlayer>;
     private var globalPlayers : array<r_RemotePlayer>;
     private var inGame : bool;
-    private var afterLoading : bool;
     private var spawnTime : float;
     private var execReceived : bool;
 
@@ -2045,6 +2044,7 @@ statemachine class r_MultiplayerClient
         {
             if(chatOneliner && chatOneliner.visible)
             {
+                lastChat = "";
                 deleteChatOneliner();
             }
         }
@@ -2070,10 +2070,10 @@ statemachine class r_MultiplayerClient
         return joinMessage;
     }
 
-    public function setUserId(id : string, username : string)
+    public function setUserId(id : string)
     {
         this.id = id;
-        this.username = username;
+        this.username = id;
     }
 
     public function getId() : string
@@ -2417,19 +2417,9 @@ statemachine class r_MultiplayerClient
         inGame = val;
     }
 
-    public function setAfterLoading(val : bool)
-    {
-        afterLoading = val;
-    }
-
     public function getInGame() : bool
     {
         return inGame;
-    }
-
-    public function getAfterLoading() : bool
-    {
-        return afterLoading;
     }
 
     public function getPlayers() : array<r_RemotePlayer>
@@ -2477,7 +2467,7 @@ statemachine class r_MultiplayerClient
         return femaleTemp;
     }
 
-    public function updatePlayerData(idName : name, username : string, x : float, y : float, z : float, w : float, heading : float, speed : float, 
+    public function updatePlayerData(idName : name, x : float, y : float, z : float, w : float, heading : float, speed : float, 
                                         area : int, clientInGame : bool, heldItem : string, offhandItem : string, inCombat : bool, 
                                         isSwimming : bool, curState : name, lastJumpTime : float, lastJumpType : EJumpType, 
                                         lastClimbType : EClimbHeightType, isDiving : bool, isFalling : bool, lastLightAttackTime : float, 
@@ -2487,10 +2477,7 @@ statemachine class r_MultiplayerClient
                                         lastEmote : int, lastEmoteTime : float, lastChatTime : float, lastChat : string, chillOutAnim : name, yaw : float, stamina : float, swirling : bool, rend : bool,
                                         channeling : bool, menuName : string, lastActionTime : float, lastAction : EPlayerExplorationAction,
                                         steel : name, silver : name, armor : name, gloves : name, pants : name, boots : name, head : name, hair : name, steelScab : name, silverScab : name, crossbow : name, mask : name,
-                                        cpcPlayerType : ENR_PlayerType, cpcHead : name, cpcHair : string, cpcBody : string, cpcTorso : string, cpcArms : string, cpcGloves : string, cpcDress : string, cpcLegs : string, cpcShoes : string, cpcMisc : string,
-                                        cpcItem1 : string, cpcItem2 : string, cpcItem3 : string, cpcItem4 : string, cpcItem5 : string, cpcItem6 : string, cpcItem7 : string, cpcItem8 : string, cpcItem9 : string, cpcItem10 : string,
-                                        optional isRiding : bool, optional ridingPlayerId : string, optional outgoingTradeTo : string, optional outgoingTradeItem : name, optional outgoingTradePrice : int, optional outgoingTradeFlag : int,
-                                        optional horseAppearance : string) 
+                                        isRiding : bool, ridingPlayerId : string, outgoingTradeTo : string, outgoingTradeItem : name, outgoingTradePrice : int, outgoingTradeFlag : int, horseAppearance : string) 
     {
         var i : int;
         var p : r_RemotePlayer;
@@ -2498,8 +2485,10 @@ statemachine class r_MultiplayerClient
         var oneliner : MP_SU_Oneliner;
         var foundGlobal : bool;
         var id : string;
+        var username : string;
 
         id = NameToString(idName);
+        username = id;
 
         if((id == theGame.r_getMultiplayerClient().getUserId()) && !theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_ShowSelf'))
         {
@@ -2646,30 +2635,6 @@ statemachine class r_MultiplayerClient
                 players[i].eq_silverScab = silverScab;
                 players[i].eq_crossbow = crossbow;
                 players[i].eq_mask = mask;
-
-                //cpc
-                players[i].cpcPlayerType = cpcPlayerType;
-                players[i].cpcHead = cpcHead;
-                players[i].cpcHair = cpcHair;
-                players[i].cpcBody = cpcBody;
-                players[i].cpcTorso = cpcTorso;
-                players[i].cpcArms = cpcArms;
-                players[i].cpcGloves = cpcGloves;
-                players[i].cpcDress = cpcDress;
-                players[i].cpcLegs = cpcLegs;
-                players[i].cpcShoes = cpcShoes;
-                players[i].cpcMisc = cpcMisc;
-
-                players[i].cpcItem1 = cpcItem1;
-                players[i].cpcItem2 = cpcItem2;
-                players[i].cpcItem3 = cpcItem3;
-                players[i].cpcItem4 = cpcItem4;
-                players[i].cpcItem5 = cpcItem5;
-                players[i].cpcItem6 = cpcItem6;
-                players[i].cpcItem7 = cpcItem7;
-                players[i].cpcItem8 = cpcItem8;
-                players[i].cpcItem9 = cpcItem9;
-                players[i].cpcItem10 = cpcItem10;
                 return;
             }
         }
@@ -2756,6 +2721,65 @@ statemachine class r_MultiplayerClient
             p.Init();
 
             players.PushBack(p);
+        }
+    }
+
+    public function updatePlayerData2(idName : name, cpcPlayerType : ENR_PlayerType, cpcHead : name, cpcHair : string, cpcBody : string, cpcTorso : string, cpcArms : string, cpcGloves : string, cpcDress : string, cpcLegs : string, cpcShoes : string, cpcMisc : string,
+                                    cpcItem1 : string, cpcItem2 : string, cpcItem3 : string, cpcItem4 : string, cpcItem5 : string, cpcItem6 : string, cpcItem7 : string, cpcItem8 : string, cpcItem9 : string, cpcItem10 : string) 
+    {
+        var i : int;
+        var foundGlobal : bool;
+        var id : string;
+
+        id = NameToString(idName);
+
+        foundGlobal = false;
+        for (i = 0; i < globalPlayers.Size(); i += 1)
+        {
+            if (globalPlayers[i].id == id)
+            {
+                globalPlayers[i].lastUpdate = theGame.GetEngineTimeAsSeconds(); 
+                foundGlobal = true;
+                break;
+            }
+        }
+
+        if (!foundGlobal)
+        {
+            return;
+        }
+
+        for(i = 0; i < players.Size(); i+=1)
+        {
+            if(players[i].id == id)
+            {
+                players[i].lastUpdate = theGame.GetEngineTimeAsSeconds();
+
+                //cpc
+                players[i].cpcPlayerType = cpcPlayerType;
+                players[i].cpcHead = cpcHead;
+                players[i].cpcHair = cpcHair;
+                players[i].cpcBody = cpcBody;
+                players[i].cpcTorso = cpcTorso;
+                players[i].cpcArms = cpcArms;
+                players[i].cpcGloves = cpcGloves;
+                players[i].cpcDress = cpcDress;
+                players[i].cpcLegs = cpcLegs;
+                players[i].cpcShoes = cpcShoes;
+                players[i].cpcMisc = cpcMisc;
+
+                players[i].cpcItem1 = cpcItem1;
+                players[i].cpcItem2 = cpcItem2;
+                players[i].cpcItem3 = cpcItem3;
+                players[i].cpcItem4 = cpcItem4;
+                players[i].cpcItem5 = cpcItem5;
+                players[i].cpcItem6 = cpcItem6;
+                players[i].cpcItem7 = cpcItem7;
+                players[i].cpcItem8 = cpcItem8;
+                players[i].cpcItem9 = cpcItem9;
+                players[i].cpcItem10 = cpcItem10;
+                return;
+            }
         }
     }
 
@@ -2895,7 +2919,7 @@ statemachine class r_MultiplayerClient
         }
     }
 
-    function usernameTaken()
+    function showUsernameTaken()
     {
         var messagetitle : string;
         var messagebody : string;
@@ -2909,7 +2933,7 @@ statemachine class r_MultiplayerClient
         theGame.r_getMultiplayerClient().DisplayUserMessage(WitcherOnline_PlayerNotification(messagetitle, messagebody));
     }
 
-    function bannedMsg()
+    function showBannedMsg()
     {
         var messagetitle : string;
         var messagebody : string;
@@ -2922,7 +2946,7 @@ statemachine class r_MultiplayerClient
         theGame.r_getMultiplayerClient().DisplayUserMessage(WitcherOnline_PlayerNotification(messagetitle, messagebody));
     }
 
-    function kickedMsg()
+    function showKickedMsg()
     {
         var messagetitle : string;
         var messagebody : string;
@@ -2935,7 +2959,7 @@ statemachine class r_MultiplayerClient
         theGame.r_getMultiplayerClient().DisplayUserMessage(WitcherOnline_PlayerNotification(messagetitle, messagebody));
     }
 
-    function notWhitelistedMsg()
+    function showNotWhitelisted()
     {
         var messagetitle : string;
         var messagebody : string;
@@ -3007,13 +3031,7 @@ statemachine class r_MultiplayerClient
     }
 }
 
-exec function mpghosts_setUserId(playerId : string, username : string)
-{
-    theGame.r_getMultiplayerClient().setUserId(playerId, username);
-    theGame.r_getMultiplayerClient().setReceived();
-}
-
-exec function mpghosts_getData(optional playerId : string, optional username : string)
+exec function wo_get(playerId : string)
 {
     var pos : Vector;
     var list : string;
@@ -3058,24 +3076,11 @@ exec function mpghosts_getData(optional playerId : string, optional username : s
 
     var horseAppearance : string;
 
-    theGame.r_getMultiplayerClient().setUserId(playerId, username);
+    theGame.r_getMultiplayerClient().setUserId(playerId);
     theGame.r_getMultiplayerClient().setReceived();
 
     inv = thePlayer.GetInventory();
     pos = thePlayer.GetWorldPosition();
-
-    user = theGame.r_getMultiplayerClient().getUsername();
-
-    list += "namestart ";
-    if(user == "" || user == " ")
-    {
-        list += "Player";
-    }
-    else
-    {
-        list += user;
-    }
-    list += " nameend ";
 
     list += pos.X;
     list += " ";
@@ -3277,9 +3282,9 @@ exec function mpghosts_getData(optional playerId : string, optional username : s
     list += theGame.r_getMultiplayerClient().getLastChatTime();
     list += " ";
 
-    list += "chatstart ";
+    list += "_s ";
     list += theGame.r_getMultiplayerClient().getChat();
-    list += " chatend ";
+    list += " _e ";
 
     list += ((ChillOutStateCO_Action) Chill().State()).GetAnimation();
     list += " ";
@@ -3383,7 +3388,10 @@ exec function mpghosts_getData(optional playerId : string, optional username : s
     inv.GetItemEquippedOnSlot(EES_RangedWeapon, id);
     crossbow = inv.GetItemName(id);
 
-    list += "steelstart ";
+     // separator
+    list += "half ";
+
+    list += "_s ";
     if(thePlayer.IsCiri() && GetCiriPlayer().HasSword())
     {
         list += 'Zireal Sword';
@@ -3392,52 +3400,166 @@ exec function mpghosts_getData(optional playerId : string, optional username : s
     {
         list += steelName;
     }
-    list += " steelend ";
+    list += " _e ";
 
-    list += "silverstart ";
+    list += "_s ";
     list += silverName;
-    list += " silverend ";
+    list += " _e ";
 
-    list += "armorstart ";
+    list += "_s ";
     list += armor;
-    list += " armorend ";
+    list += " _e ";
 
-    list += "glovesstart ";
+    list += "_s ";
     list += gloves;
-    list += " glovesend ";
+    list += " _e ";
 
-    list += "pantsstart ";
+    list += "_s ";
     list += pants;
-    list += " pantsend ";
+    list += " _e ";
 
-    list += "bootsstart ";
+    list += "_s ";
     list += boots;
-    list += " bootsend ";
+    list += " _e ";
 
-    list += "headstart ";
+    list += "_s ";
     list += head;
-    list += " headend ";
+    list += " _e ";
 
-    list += "hairstart ";
+    list += "_s ";
     list += hair;
-    list += " hairend ";
+    list += " _e ";
 
-    list += "steelscabstart ";
+    list += "_s ";
     list += steelScab;
-    list += " steelscabend ";
+    list += " _e ";
 
-    list += "silverscabstart ";
+    list += "_s ";
     list += silverScab;
-    list += " silverscabend ";
+    list += " _e ";
 
-    list += "crossbowstart ";
+    list += "_s ";
     list += crossbow;
-    list += " crossbowend ";
+    list += " _e ";
 
-    list += "maskstart ";
+    list += "_s ";
     list += mask;
-    list += " maskend ";
+    list += " _e ";
 
+    list += theGame.r_getMultiplayerClient().isRiding();
+    list += " ";
+
+    ridingPlayer = theGame.r_getMultiplayerClient().getRidingPlayer();
+
+    if(ridingPlayer && ridingPlayer.id != "")
+    {
+        list += ridingPlayer.id;
+    }
+    else
+    {
+        list += "none";
+    }
+    list += " ";
+
+    outgoingPlayer = theGame.r_getMultiplayerClient().getOutgoingTradeTo();
+
+    if(outgoingPlayer != "")
+    {
+        list += outgoingPlayer;
+    }
+    else
+    {
+        list += "none";
+    }
+    list += " ";
+
+    outgoingTradeItem = theGame.r_getMultiplayerClient().getOutgoingTradeItem();
+
+    if(outgoingTradeItem != '')
+    {
+        list += "_s ";
+        list += outgoingTradeItem;
+        list += " _e";
+    }
+    else
+    {
+        list += "none";
+    }
+    list += " ";
+
+    list += theGame.r_getMultiplayerClient().getOutgoingTradePrice();
+    list += " ";
+
+    list += theGame.r_getMultiplayerClient().getOutgoingTradeFlag();
+    list += " ";
+    
+    horseAppearance = theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_HorseAppearance');
+
+    if(horseAppearance == "0" || horseAppearance == "1" || horseAppearance == "2" || horseAppearance == "3" || horseAppearance == "4" || horseAppearance == "5")
+    {
+        list += horseAppearance;
+    }
+    else
+    {
+        list += "none";
+    }
+    list += " ";
+
+    Log("wo "+list);
+}
+
+exec function wo_get2(playerId : string)
+{
+    var pos : Vector;
+    var list : string;
+    var inv : CInventoryComponent;
+    var steel, silver : SItemUniqueId;
+    var ids : array<SItemUniqueId>;
+    var offhandItem : bool;
+    var theHorse : CActor;
+    var type 		: EExplorationType;
+    var selectedItemId : SItemUniqueId;
+    var user : string;
+    var playerRotation      : EulerAngles;
+    var rootMenu : CR4Menu;
+
+    var id : SItemUniqueId;
+    var steelName : name;
+    var silverName : name;
+    var armor : name;
+    var gloves : name;
+    var pants : name;
+    var boots : name;
+    var i : int;
+    var acs : array< CComponent >;
+	var head : name;
+	var hair : name;
+	var steelScab : name;
+	var silverScab : name;
+	var crossbow : name;
+	var mask : name;
+
+    var fallDist : float;
+    
+    // cpc
+    var templates : array< array<String> >;
+    var appearanceItems : array< array<String> >;
+    var heads : array< name >;
+    var curType : ENR_PlayerType;
+
+    var ridingPlayer : r_RemotePlayer;
+    var outgoingPlayer : string;
+    var outgoingTradeItem : name;
+
+    var horseAppearance : string;
+
+    theGame.r_getMultiplayerClient().setUserId(playerId);
+    theGame.r_getMultiplayerClient().setReceived();
+
+    inv = thePlayer.GetInventory();
+    pos = thePlayer.GetWorldPosition();
+
+    user = theGame.r_getMultiplayerClient().getUsername();
 
     // cpc
     templates = NR_GetPlayerManager().m_appearanceTemplates;
@@ -3549,6 +3671,8 @@ exec function mpghosts_getData(optional playerId : string, optional username : s
     }
     list += " ";
 
+    list += "half ";
+
     // cpc items
     for(i = 0; i < 9; i+=1)
     {
@@ -3580,69 +3704,10 @@ exec function mpghosts_getData(optional playerId : string, optional username : s
     }
     list += " ";
 
-    list += theGame.r_getMultiplayerClient().isRiding();
-    list += " ";
-
-    ridingPlayer = theGame.r_getMultiplayerClient().getRidingPlayer();
-
-    if(ridingPlayer && ridingPlayer.id != "")
-    {
-        list += ridingPlayer.id;
-    }
-    else
-    {
-        list += "none";
-    }
-    list += " ";
-
-    outgoingPlayer = theGame.r_getMultiplayerClient().getOutgoingTradeTo();
-
-    if(outgoingPlayer != "")
-    {
-        list += outgoingPlayer;
-    }
-    else
-    {
-        list += "none";
-    }
-    list += " ";
-
-    outgoingTradeItem = theGame.r_getMultiplayerClient().getOutgoingTradeItem();
-
-    if(outgoingTradeItem != '')
-    {
-        list += "namestart ";
-        list += outgoingTradeItem;
-        list += " nameend";
-    }
-    else
-    {
-        list += "none";
-    }
-    list += " ";
-
-    list += theGame.r_getMultiplayerClient().getOutgoingTradePrice();
-    list += " ";
-
-    list += theGame.r_getMultiplayerClient().getOutgoingTradeFlag();
-    list += " ";
-    
-    horseAppearance = theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_HorseAppearance');
-
-    if(horseAppearance == "0" || horseAppearance == "1" || horseAppearance == "2" || horseAppearance == "3" || horseAppearance == "4" || horseAppearance == "5")
-    {
-        list += horseAppearance;
-    }
-    else
-    {
-        list += "none";
-    }
-    list += " ";
-
-    Log("mpghosts_cli "+list);
+    Log("wo2 "+list);
 }
 
-exec function mpghosts_updatePlayerData(id : name, username : string, x : float, y : float, z : float, w : float, heading : float, speed : float, area : int, 
+exec function wo_update(id : name, x : float, y : float, z : float, w : float, heading : float, speed : float, area : int, 
                                         inGame : bool, heldItem : string, offhandItem : string, inCombat : bool, isSwimming : bool, curState : name, 
                                         lastJumpTime : float, lastJumpType : EJumpType, lastClimbType : EClimbHeightType, isDiving : bool, isFalling : bool,
                                         lastLightAttackTime : float, lastHeavyAttackTime : float, lastDodgeTime : float, lastRollTime : float, isGuarded : bool,
@@ -3651,22 +3716,24 @@ exec function mpghosts_updatePlayerData(id : name, username : string, x : float,
                                         lastEmote : int, lastEmoteTime : float, lastChatTime : float, lastChat : string, chillOutAnim : name, yaw : float, stamina : float, swirling : bool, rend : bool,
                                         channeling : bool, menuName : string, lastActionTime : float, lastAction : EPlayerExplorationAction,
                                         steel : name, silver : name, armor : name, gloves : name, pants : name, boots : name, head : name, hair : name, steelScab : name, silverScab : name, crossbow : name, mask : name,
-                                        cpcPlayerType : ENR_PlayerType, cpcHead : name, cpcHair : string, cpcBody : string, cpcTorso : string, cpcArms : string, cpcGloves : string, cpcDress : string, cpcLegs : string, cpcShoes : string, cpcMisc : string,
-                                        cpcItem1 : string, cpcItem2 : string, cpcItem3 : string, cpcItem4 : string, cpcItem5 : string, cpcItem6 : string, cpcItem7 : string, cpcItem8 : string, cpcItem9 : string, cpcItem10 : string,
-                                        optional isRiding : bool, optional ridingPlayerId : string, optional outgoingTradeTo : string, optional outgoingTradeItem : name, optional outgoingTradePrice : int, optional outgoingTradeFlag : int,
-                                        optional horseAppearance : string) 
+                                        isRiding : bool, ridingPlayerId : string, outgoingTradeTo : string, outgoingTradeItem : name, outgoingTradePrice : int, outgoingTradeFlag : int, horseAppearance : string) 
 {
-    theGame.r_getMultiplayerClient().updatePlayerData(id, username, x, y, z, w, heading, speed, area, inGame, heldItem, offhandItem, inCombat, isSwimming, 
+    theGame.r_getMultiplayerClient().updatePlayerData(id, x, y, z, w, heading, speed, area, inGame, heldItem, offhandItem, inCombat, isSwimming, 
                                                             curState, lastJumpTime, lastJumpType, lastClimbType, isDiving, isFalling, lastLightAttackTime,
                                                             lastHeavyAttackTime, lastDodgeTime, lastRollTime, isGuarded, lastHit, lastParry, lastFinisher, finisherMonster,
                                                             signType, lastSign, isSailing, isMounted, horseSpeed, aimingCrossbow, isLadder, currentState, bombSelected, isAlive,
                                                             lastEmote, lastEmoteTime, lastChatTime, lastChat, chillOutAnim, yaw, stamina, swirling, rend,
                                                             channeling, menuName, lastActionTime, lastAction,
                                                             steel, silver, armor, gloves, pants, boots, head, hair, steelScab, silverScab, crossbow, mask,
-                                                            cpcPlayerType, cpcHead, cpcHair, cpcBody, cpcTorso, cpcArms, cpcGloves, cpcDress, cpcLegs, cpcShoes, cpcMisc,
-                                                            cpcItem1, cpcItem2, cpcItem3, cpcItem4, cpcItem5, cpcItem6, cpcItem7, cpcItem8, cpcItem9, cpcItem10,
-                                                            isRiding, ridingPlayerId, outgoingTradeTo, outgoingTradeItem, outgoingTradePrice, outgoingTradeFlag,
-                                                            horseAppearance);
+                                                            isRiding, ridingPlayerId, outgoingTradeTo, outgoingTradeItem, outgoingTradePrice, outgoingTradeFlag, horseAppearance);
+}
+
+exec function wo_update2(id : name, cpcPlayerType : ENR_PlayerType, cpcHead : name, cpcHair : string, cpcBody : string, cpcTorso : string, cpcArms : string, cpcGloves : string, cpcDress : string, cpcLegs : string, 
+                         cpcShoes : string, cpcMisc : string, cpcItem1 : string, cpcItem2 : string, cpcItem3 : string, cpcItem4 : string, cpcItem5 : string, cpcItem6 : string, cpcItem7 : string, cpcItem8 : string, 
+                         cpcItem9 : string, cpcItem10 : string)
+{
+    theGame.r_getMultiplayerClient().updatePlayerData2(id, cpcPlayerType, cpcHead, cpcHair, cpcBody, cpcTorso, cpcArms, cpcGloves, cpcDress, cpcLegs, cpcShoes, cpcMisc,
+                                                       cpcItem1, cpcItem2, cpcItem3, cpcItem4, cpcItem5, cpcItem6, cpcItem7, cpcItem8, cpcItem9, cpcItem10);
 }
 
 exec function mpghosts_disconnect(id :string)
@@ -4331,6 +4398,11 @@ function mpghosts_emote(num : int)
 
 function mpghosts_chat(msg : string)
 {
+    if (StrLen(msg) > 65)
+    {
+        msg = StrLeft(msg, 65);
+    }
+
     theGame.r_getMultiplayerClient().setChat(msg);
     theGame.r_getMultiplayerClient().setLastChatTime(theGame.GetEngineTimeAsSeconds());
 }
@@ -4604,24 +4676,24 @@ state WO_Tick in r_MultiplayerClient
                 continue;
             }
 
-            if(parent.getBanned() && !parent.getAlertedDisconnect() && parent.getAfterLoading())
+            if(parent.getBanned() && !parent.getAlertedDisconnect())
             {
-                parent.bannedMsg();
+                parent.showBannedMsg();
                 parent.setAlertedDisconnect();
             }
-            else if(parent.getKicked() && !parent.getAlertedDisconnect() && parent.getAfterLoading())
+            else if(parent.getKicked() && !parent.getAlertedDisconnect())
             {
-                parent.kickedMsg();
+                parent.showKickedMsg();
                 parent.setAlertedDisconnect();
             }
-            else if(parent.getNotWhitelisted() && !parent.getAlertedDisconnect() && parent.getAfterLoading())
+            else if(parent.getNotWhitelisted() && !parent.getAlertedDisconnect())
             {
-                parent.notWhitelistedMsg();
+                parent.showNotWhitelisted();
                 parent.setAlertedDisconnect();
             }
-            else if(parent.getUsernameTaken() && !parent.getAlertedDisconnect() && parent.getAfterLoading())
+            else if(parent.getUsernameTaken() && !parent.getAlertedDisconnect())
             {
-                parent.usernameTaken();
+                parent.showUsernameTaken();
                 parent.setAlertedDisconnect();
             }
 

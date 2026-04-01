@@ -2418,6 +2418,17 @@ statemachine class r_RemotePlayer
                                 queueAnim('combat_locomotion_run_cycle_fast_forward', 2.0, 0, 0, 'sword_movement_run');
                             }
                         }
+                        else if(lastMovementType == 'sword_slow_walk')
+                        {
+                            if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
+                            {
+                                queueAnim('combat_locomotion_walk_cycle_slow_forward_triple_01', 3, 0, 0, 'sword_movement_slow_walk');
+                            }
+                            else
+                            {
+                                queueAnim('combat_locomotion_walk_cycle_slow_forward_triple_01', 3.7, 0, 0, 'sword_movement_slow_walk');
+                            }
+                        }
                         else if(lastMovementType != 'sword_idle')
                         {
                             if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
@@ -2476,7 +2487,7 @@ statemachine class r_RemotePlayer
                             queueAnim('combat_locomotion_man_geralt_ex_idle', 2.67, 0.7, 0, 'sword_movement_idle');
                         }
                     }
-                    if(lastMovementType == 'sword_walk' || lastMovementType == 'sword_slow_walk')
+                    else if(lastMovementType == 'sword_walk' || lastMovementType == 'sword_slow_walk')
                     {
                         if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
                         {
@@ -2800,6 +2811,18 @@ statemachine class r_RemotePlayer
                                 queueAnim('locomotion_run_cycle_fast_forward', 0.67, 0, 0, 'movement_run');
                             }
                         }
+                        else if(lastMovementType == 'slow_walk')
+                        {
+                            //
+                            if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
+                            {
+                                queueAnim('locomotion_walk_cycle_slow_forward_triple_01', 3, 0, 0, 'movement_slow_walk');
+                            }
+                            else
+                            {
+                                queueAnim('locomotion_walk_cycle_slow_forward_triple_01', 3.7, 0, 0, 'movement_slow_walk');
+                            }
+                        }
                         else if(lastMovementType != 'idle')
                         {
                             if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
@@ -2856,7 +2879,7 @@ statemachine class r_RemotePlayer
                             queueAnim('locomotion_idle', 5.00, 0.7, 0, 'movement_idle');
                         }
                     }
-                    if(lastMovementType == 'walk' || lastMovementType == 'slow_walk')
+                    else if(lastMovementType == 'walk' || lastMovementType == 'slow_walk')
                     {
                         if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
                         {
@@ -2996,7 +3019,7 @@ statemachine class r_RemotePlayer
                             queueAnim('walk', 1.00, 0.4, 0, 'movement_walk');
                         }
                     }
-                    if(lastMovementType == 'run')
+                    else if(lastMovementType == 'run')
                     {
                         if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
                         {

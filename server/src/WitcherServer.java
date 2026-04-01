@@ -92,16 +92,18 @@ public class WitcherServer
                         StandardCharsets.UTF_8
                 );
 
+                //dbg("Received packet len=%d from %s:%d\n", packet.getLength(), packet.getAddress().getHostAddress(), packet.getPort());
+
                 if (isIpBanned(senderIp))
                 {
-                    dbg("Rejected packet from banned IP %s:%d\n", senderIp, sender.port);
+                    //dbg("Rejected packet from banned IP %s:%d\n", senderIp, sender.port);
                     safeSend(socket, sender, "ERROR\tBANNED");
                     continue;
                 }
 
                 if (whitelistEnabled.get() && !isIpWhitelisted(senderIp))
                 {
-                    dbg("Rejected packet from non-whitelisted IP %s:%d\n", senderIp, sender.port);
+                    //dbg("Rejected packet from non-whitelisted IP %s:%d\n", senderIp, sender.port);
                     safeSend(socket, sender, "ERROR\tNOT_WHITELISTED");
                     continue;
                 }
@@ -124,6 +126,14 @@ public class WitcherServer
         }
     }
 
+    private static boolean isUpdateOpcode(String opcode)
+    {
+        return "UPDATE1A".equals(opcode)
+                || "UPDATE1B".equals(opcode)
+                || "UPDATE2A".equals(opcode)
+                || "UPDATE2B".equals(opcode);
+    }
+
     private static void handleMessage(DatagramSocket socket, ClientEndpoint sender, String msg) throws Exception
     {
         String[] parts = msg.split("\t", -1);
@@ -133,7 +143,9 @@ public class WitcherServer
             return;
         }
 
-        if (!"UPDATE".equals(parts[0]))
+        String opcode = parts[0];
+
+        if (!isUpdateOpcode(opcode))
         {
             return;
         }
@@ -165,14 +177,12 @@ public class WitcherServer
             }
             else if (sameIp)
             {
-                // reconnect from same IP, port may have changed
                 ClientEndpoint old = current.endpoint;
                 current.endpoint = sender;
                 dbg("Updated endpoint for %s from %s to %s\n", username, old, sender);
             }
             else if (expired)
             {
-                // stale active session from another IP: convert it into a temporary reservation
                 boolean reserved = reserveTimedOutPlayer(socket, usernameKey, current, now);
                 if (reserved)
                 {
@@ -260,7 +270,25 @@ public class WitcherServer
             fields.add(unescapeField(parts[i]));
         }
 
-        current.fields = Collections.unmodifiableList(fields);
+        List<String> frozenFields = Collections.unmodifiableList(fields);
+
+        if ("UPDATE1A".equals(opcode))
+        {
+            current.update1AFields = frozenFields;
+        }
+        else if ("UPDATE1B".equals(opcode))
+        {
+            current.update1BFields = frozenFields;
+        }
+        else if ("UPDATE2A".equals(opcode))
+        {
+            current.update2AFields = frozenFields;
+        }
+        else if ("UPDATE2B".equals(opcode))
+        {
+            current.update2BFields = frozenFields;
+        }
+
         clients.add(sender);
     }
 
@@ -318,19 +346,10 @@ public class WitcherServer
             {
                 for (PlayerSession session : players.values())
                 {
-                    String packetText = buildPlayerPacket(session.username, session.fields);
-                    byte[] data = packetText.getBytes(StandardCharsets.UTF_8);
-
-                    for (ClientEndpoint client : clients)
-                    {
-                        DatagramPacket packet = new DatagramPacket(
-                                data,
-                                data.length,
-                                client.address,
-                                client.port
-                        );
-                        socket.send(packet);
-                    }
+                    broadcastChunk(socket, session, "UPDATE1A", session.update1AFields);
+                    broadcastChunk(socket, session, "UPDATE1B", session.update1BFields);
+                    broadcastChunk(socket, session, "UPDATE2A", session.update2AFields);
+                    broadcastChunk(socket, session, "UPDATE2B", session.update2BFields);
                 }
 
                 Thread.sleep(100);
@@ -354,6 +373,41 @@ public class WitcherServer
                 e.printStackTrace();
             }
         }
+    }
+
+    private static void broadcastChunk(DatagramSocket socket, PlayerSession session, String opcode, List<String> fields) throws Exception
+    {
+        if (fields == null || fields.isEmpty())
+        {
+            return;
+        }
+
+        String packetText = buildTypedPacket(opcode, session.username, fields);
+        byte[] data = packetText.getBytes(StandardCharsets.UTF_8);
+
+        for (ClientEndpoint client : clients)
+        {
+            DatagramPacket packet = new DatagramPacket(
+                    data,
+                    data.length,
+                    client.address,
+                    client.port
+            );
+            socket.send(packet);
+        }
+    }
+
+    private static String buildTypedPacket(String opcode, String playerId, List<String> fields)
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.append(opcode).append("\t").append(escapeField(playerId));
+
+        for (String field : fields)
+        {
+            sb.append("\t").append(escapeField(field));
+        }
+
+        return sb.toString();
     }
 
     private static void consoleLoop(DatagramSocket socket)
@@ -389,10 +443,10 @@ public class WitcherServer
             for (PlayerSession session : players.values()) {
                 long secsSinceSeen = Math.max(0L, (now - session.lastSeen) / 1000L);
 
-                String locationRaw = getLocation(session.fields);
+                String locationRaw = getLocation(session.update1AFields);
                 String region = getRegion(locationRaw);
 
-                List<String> coords = getCoords(session.fields);
+                List<String> coords = getCoords(session.update1AFields);
                 String coordsStr = "?";
                 if (coords.size() == 3) {
                     coordsStr = "(" + coords.get(0) + ", " + coords.get(1) + ", " + coords.get(2) + ")";
@@ -696,19 +750,6 @@ public class WitcherServer
                 e.printStackTrace();
             }
         }
-    }
-
-    private static String buildPlayerPacket(String playerId, List<String> fields)
-    {
-        StringBuilder sb = new StringBuilder();
-        sb.append("PLAYER").append("\t").append(escapeField(playerId));
-
-        for (String field : fields)
-        {
-            sb.append("\t").append(escapeField(field));
-        }
-
-        return sb.toString();
     }
 
     private static boolean isIpBanned(String ip)
