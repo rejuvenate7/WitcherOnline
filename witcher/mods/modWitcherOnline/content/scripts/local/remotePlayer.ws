@@ -265,6 +265,13 @@ statemachine class r_RemotePlayer
     public var prevEmote : int;
     public var prevPropEmote : bool;
 
+    public var playerNum : int;
+    default playerNum = -1;
+
+    public var morphActive : bool;
+    public var morphType : name;
+    public var morphAppearance : name;
+
     private function loadHead(newHeadName : name) {
 		var headManager : CHeadManagerComponent;
 
@@ -767,7 +774,7 @@ statemachine class r_RemotePlayer
         pin = new MP_SU_MapPin in this;
         pin.tag = "MPGhost_" + id;
         pin.pin_tag = idName;
-        pin.playerId = StringToInt(id);
+        pin.playerId = playerNum;
 
         if(ghost)
         {
@@ -860,6 +867,11 @@ statemachine class r_RemotePlayer
 
     public function Init()
     {
+        if (playerNum < 0)
+        {
+            playerNum = theGame.r_getMultiplayerClient().getNextPlayerNum();
+        }
+        
         if(isInRange())
         {
             spawnGhost();

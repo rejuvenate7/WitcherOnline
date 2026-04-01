@@ -117,6 +117,21 @@ statemachine class r_MultiplayerClient
     private var lastMenuScroll : int;
     private var joinMessage : bool;
 
+    private var nextPlayerNum : int;
+    default nextPlayerNum = 1000;
+
+    public function getNextPlayerNum() : int
+    {
+        var toReturn : int;
+
+        toReturn = nextPlayerNum;
+        nextPlayerNum += 1;
+
+        GetWitcherPlayer().DisplayHudMessage("New player num " + toReturn);
+
+        return toReturn;
+    }
+
     function Mount(actor : CActor, itemName: name, optional notHand: bool): SItemUniqueId {
         var items: array<SItemUniqueId>;
         items = actor.GetInventory().GetItemsByName(itemName);
@@ -590,8 +605,15 @@ statemachine class r_MultiplayerClient
 
         if(rider != thePlayer && toAttach != thePlayer)
         {
-            attach_vec.X -= 0.12f;
-            attach_vec.Y -= 0.5f;
+            if(player && (player.cpcPlayerType != ENR_PlayerGeralt && player.cpcPlayerType != ENR_PlayerWitcher && player.cpcPlayerType != ENR_PlayerUnknown))
+            {
+
+            }
+            else
+            {
+                attach_vec.X -= 0.12f;
+                attach_vec.Y -= 0.5f;
+            }
         }
     
         rider.CreateAttachment(toAttach, , attach_vec, attach_rot);
@@ -2477,7 +2499,8 @@ statemachine class r_MultiplayerClient
                                         lastEmote : int, lastEmoteTime : float, lastChatTime : float, lastChat : string, chillOutAnim : name, yaw : float, stamina : float, swirling : bool, rend : bool,
                                         channeling : bool, menuName : string, lastActionTime : float, lastAction : EPlayerExplorationAction,
                                         steel : name, silver : name, armor : name, gloves : name, pants : name, boots : name, head : name, hair : name, steelScab : name, silverScab : name, crossbow : name, mask : name,
-                                        isRiding : bool, ridingPlayerId : string, outgoingTradeTo : string, outgoingTradeItem : name, outgoingTradePrice : int, outgoingTradeFlag : int, horseAppearance : string) 
+                                        isRiding : bool, ridingPlayerId : string, outgoingTradeTo : string, outgoingTradeItem : name, outgoingTradePrice : int, outgoingTradeFlag : int, horseAppearance : string,
+                                        morphActive : bool, morphType : name, morphAppearance : name) 
     {
         var i : int;
         var p : r_RemotePlayer;
@@ -2622,6 +2645,10 @@ statemachine class r_MultiplayerClient
                 players[i].outgoingTradeFlag = outgoingTradeFlag;
                 players[i].horseAppearance = horseAppearance;
 
+                players[i].morphActive = morphActive;
+                players[i].morphType = morphType;
+                players[i].morphAppearance = morphAppearance;
+
                 // armor
                 players[i].eq_steel = steel;
                 players[i].eq_silver = silver;
@@ -2704,6 +2731,10 @@ statemachine class r_MultiplayerClient
             p.outgoingTradePrice = outgoingTradePrice;
             p.outgoingTradeFlag = outgoingTradeFlag;
             p.horseAppearance = horseAppearance;
+
+            p.morphActive = morphActive;
+            p.morphType = morphType;
+            p.morphAppearance = morphAppearance;
 
             // armor
             p.eq_steel = steel;
@@ -3075,6 +3106,11 @@ exec function wo_get(playerId : string)
     var outgoingTradeItem : name;
 
     var horseAppearance : string;
+
+    var morphMap : NR_Map;
+    var morphActive : int;
+    var morphType : name;
+    var morphAppearance : name;
 
     theGame.r_getMultiplayerClient().setUserId(playerId);
     theGame.r_getMultiplayerClient().setReceived();
@@ -3505,6 +3541,42 @@ exec function wo_get(playerId : string)
     }
     list += " ";
 
+    morphMap = NR_GetMagicManager().GetMap('none');
+
+    morphActive = morphMap.getI("nr_polymorphysm_active");
+    morphType = morphMap.getN("nr_polymorphysm_type");
+    morphAppearance = morphMap.getN("nr_polymorphysm_appearance");
+
+    if(morphActive == 1)
+    {
+        list += "true";
+    }
+    else
+    {
+        list += "false";
+    }
+    list += " ";
+
+    if(morphType != '')
+    {
+        list += morphType;
+    }
+    else
+    {
+        list += "none";
+    }
+    list += " ";
+
+    if(morphAppearance != '')
+    {
+        list += morphAppearance;
+    }
+    else
+    {
+        list += "none";
+    }
+    list += " ";
+
     Log("wo "+list);
 }
 
@@ -3716,7 +3788,8 @@ exec function wo_update(id : name, x : float, y : float, z : float, w : float, h
                                         lastEmote : int, lastEmoteTime : float, lastChatTime : float, lastChat : string, chillOutAnim : name, yaw : float, stamina : float, swirling : bool, rend : bool,
                                         channeling : bool, menuName : string, lastActionTime : float, lastAction : EPlayerExplorationAction,
                                         steel : name, silver : name, armor : name, gloves : name, pants : name, boots : name, head : name, hair : name, steelScab : name, silverScab : name, crossbow : name, mask : name,
-                                        isRiding : bool, ridingPlayerId : string, outgoingTradeTo : string, outgoingTradeItem : name, outgoingTradePrice : int, outgoingTradeFlag : int, horseAppearance : string) 
+                                        isRiding : bool, ridingPlayerId : string, outgoingTradeTo : string, outgoingTradeItem : name, outgoingTradePrice : int, outgoingTradeFlag : int, horseAppearance : string,
+                                        morphActive : bool, morphType : name, morphAppearance : name) 
 {
     theGame.r_getMultiplayerClient().updatePlayerData(id, x, y, z, w, heading, speed, area, inGame, heldItem, offhandItem, inCombat, isSwimming, 
                                                             curState, lastJumpTime, lastJumpType, lastClimbType, isDiving, isFalling, lastLightAttackTime,
@@ -3725,7 +3798,8 @@ exec function wo_update(id : name, x : float, y : float, z : float, w : float, h
                                                             lastEmote, lastEmoteTime, lastChatTime, lastChat, chillOutAnim, yaw, stamina, swirling, rend,
                                                             channeling, menuName, lastActionTime, lastAction,
                                                             steel, silver, armor, gloves, pants, boots, head, hair, steelScab, silverScab, crossbow, mask,
-                                                            isRiding, ridingPlayerId, outgoingTradeTo, outgoingTradeItem, outgoingTradePrice, outgoingTradeFlag, horseAppearance);
+                                                            isRiding, ridingPlayerId, outgoingTradeTo, outgoingTradeItem, outgoingTradePrice, outgoingTradeFlag, horseAppearance,
+                                                            morphActive, morphType, morphAppearance);
 }
 
 exec function wo_update2(id : name, cpcPlayerType : ENR_PlayerType, cpcHead : name, cpcHair : string, cpcBody : string, cpcTorso : string, cpcArms : string, cpcGloves : string, cpcDress : string, cpcLegs : string, 
@@ -4735,4 +4809,58 @@ exec function bannedMsg()
 exec function notWhitelistedMsg()
 {
     theGame.r_getMultiplayerClient().setNotWhitelisted();
+}
+
+exec function unlockmagic()
+{
+	NR_GetMagicManager().SetActionSkillLevel(ENR_HandFx, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_Teleport, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_CounterPush, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_SpecialLumos, 1);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_SpecialWeatherChange, 1);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_LightAbstract, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_Slash, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_ThrowAbstract, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_Lightning, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_ProjectileWithPrepare, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_BombExplosion, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_Rock, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_RipApart, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_HeavyAbstract, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_FastTravelTeleport, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_SpecialShield, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_SpecialTornado, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_SpecialControl, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_SpecialMeteor, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_SpecialServant, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_SpecialLightningFall, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_SpecialField, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_SpecialMeteorFall, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_SpecialPolymorphism, 10);
+	NR_GetMagicManager().SetActionSkillLevel(ENR_WaterTrap, 10);
+}
+
+exec function spawnmagic(resourceName : name)
+{
+    //nr_transform_cat
+    //nr_transform_crow
+    //nr_transform_owl
+    var ent : CActor;
+    ent = (CActor)theGame.CreateEntity((CEntityTemplate)LoadResource( resourceName ), thePlayer.GetWorldPosition(), thePlayer.GetWorldRotation(), true, true, false, PM_DontPersist );
+    ((CActor)ent).GetMovingAgentComponent().SetGameplayRelativeMoveSpeed(1);
+}
+
+exec function check()
+{  
+    var map : NR_Map;
+    var active : int;
+    var type : name;
+    var appearance : name;
+    map = NR_GetMagicManager().GetMap('none');
+
+    active = map.getI("nr_polymorphysm_active");
+    type = map.getN("nr_polymorphysm_type");
+    appearance = map.getN("nr_polymorphysm_appearance");
+
+    GetWitcherPlayer().DisplayHudMessage(active + " " + type + " " + appearance);
 }

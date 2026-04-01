@@ -92,7 +92,7 @@ public class WitcherServer
                         StandardCharsets.UTF_8
                 );
 
-                //dbg("Received packet len=%d from %s:%d\n", packet.getLength(), packet.getAddress().getHostAddress(), packet.getPort());
+                dbg("Received packet len=%d from %s:%d val:%s\n", packet.getLength(), packet.getAddress().getHostAddress(), packet.getPort(), msg);
 
                 if (isIpBanned(senderIp))
                 {
