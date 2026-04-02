@@ -260,6 +260,7 @@ statemachine class r_RemotePlayer
 
     public var horse : CActor;
     public var boat : CActor;
+    public var morph : CActor;
 
     public var horseAppearance : string;
     public var prevEmote : int;
@@ -271,6 +272,7 @@ statemachine class r_RemotePlayer
     public var morphActive : bool;
     public var morphType : name;
     public var morphAppearance : name;
+    public var morphRotation : float;
 
     private function loadHead(newHeadName : name) {
 		var headManager : CHeadManagerComponent;
@@ -5626,7 +5628,137 @@ state WO_UpdateCPC in r_RemotePlayer
         }
     }
 
+    latent function spawnMorph()
+    {
+        var ent_2 : CEntity;
+        var temp_2 : CEntityTemplate;
+        var horseTag : array<name>;
+
+        if (parent.morphType == 'cat') {
+            temp_2 = (CEntityTemplate)LoadResourceAsync( 'nr_transform_cat' );
+        }
+        else if (parent.morphType == 'crow') {
+            temp_2 = (CEntityTemplate)LoadResourceAsync( 'nr_transform_crow' );
+        }
+        else {
+            temp_2 = (CEntityTemplate)LoadResourceAsync( 'nr_transform_owl' );
+        }
+
+        crowBehState = '';
+        horseTag.Clear();
+        horseTag.PushBack('online_horse');
+
+        parent.morph = (CActor)theGame.CreateEntity(temp_2, parent.ghost.GetWorldPosition(), parent.ghost.GetWorldRotation(), true,false,false,PM_DontPersist,horseTag);
+
+        if(parent.morphType == 'owl')
+        {
+            ((CActor)parent.morph).EnableCollisions(true);
+            ApplyCrowBehStateIfNew('FlyInPlace');
+        }
+        else
+        {
+            ((CActor)parent.morph).EnableCollisions(false);
+        }
+
+        ((CActor)parent.morph).EnableCharacterCollisions(false); 
+        ((CActor)parent.horse).SetGameplayVisibility( false );
+
+        updateMorphAppearance();
+    }
+
+    function updateMorphAppearance()
+    {
+        if(((CActor)parent.morph).GetAppearance() != parent.morphAppearance)
+        {
+            ((CActor)parent.morph).ApplyAppearance(parent.morphAppearance);
+        }
+    }
+
+    latent function destroyMorph()
+    {
+        parent.morph.Destroy();
+        parent.morph = NULL;
+    }
+
+    var cooldown : float;
+    var lastMorphPos : Vector;
+
+    function moveMorph()
+    {
+        var adjustor : CMovementAdjustor; 
+        var ticket : SMovementAdjustmentRequestTicket; 
+        var targpos : Vector;
+        var velo : float;
+        var now : float = theGame.GetEngineTimeAsSeconds();
+        var ghostPos : Vector;
+    
+        targpos = parent.pos;
+
+        adjustor = ((CActor)parent.morph).GetMovingAgentComponent().GetMovementAdjustor();
+
+        if(parent.morphType == 'cat')
+        {
+            ((CActor)parent.morph).GetMovingAgentComponent().SetGameplayRelativeMoveSpeed(parent.speed);
+            ((CActor)parent.morph).SetBehaviorVariable('Editor_MovementRotation', parent.morphRotation);
+        }
+        else
+        {
+            ((CActor)parent.morph).GetMovingAgentComponent().SetGameplayRelativeMoveSpeed(0);
+        }
+
+        if(parent.morphType == 'owl' || parent.morphType == 'crow')
+        {
+            //ApplyCrowBehStateIfNew('GlideForward');
+            ghostPos = parent.ghost.GetWorldPosition();
+            if(VecDistance2D(lastMorphPos, ghostPos) < 0.03)
+            {
+                ApplyCrowBehStateIfNew('FlyInPlace');
+            }
+            else
+            {
+                ApplyCrowBehStateIfNew('FlyForward');
+            }
+
+            lastMorphPos = ghostPos;
+        }
+        
+        if(parent.morphType == 'owl')
+        {
+            parent.morph.TeleportWithRotation( parent.ghost.GetWorldPosition(), parent.ghost.GetWorldRotation() );
+        }
+        else
+        {
+            adjustor.Cancel(adjustor.GetRequest('w3mp_morphsync'));
+            ticket = adjustor.CreateNewRequest('w3mp_morphsync');
+
+            adjustor.AdjustmentDuration(ticket, 1);
+            adjustor.AdjustLocationVertically(ticket, true);
+            adjustor.ScaleAnimationLocationVertically(ticket, true);
+            adjustor.RotateTo(ticket, parent.heading); 
+            adjustor.SlideTo(ticket, targpos);
+        }
+    }
+
+    var crowBehState : name;
+
+    public function ApplyCrowBehStateIfNew(newStateName : name) 
+    {
+        if(!parent.morph)
+        {
+            return;
+        }
+        
+		if (crowBehState != newStateName) 
+        {
+			if (parent.morph.GetRootAnimatedComponent().RaiseBehaviorEvent(newStateName)) 
+            {
+				crowBehState = newStateName;
+			}
+		}
+	}
+
     private var lastSailing : bool;
+    private var lastMorph : bool;
 
     entry function wo_updateCPCEntry()
 	{
@@ -5638,6 +5770,54 @@ state WO_UpdateCPC in r_RemotePlayer
                 continue;
             }
 
+            if(parent.morphActive)
+            {
+                if(!lastMorph || !parent.morph)
+                {
+                    thePlayer.PlayEffect('teleport_appear_violet');
+                    // spawn morph
+                    spawnMorph();
+
+                    // play morph fx
+
+                    lastMorph = true;
+                }
+
+                if(parent.ghost.GetVisibility())
+                {
+                    parent.ghost.SetVisibility(false);
+                }
+
+                if (!(((CAnimatedComponent)parent.ghost.GetComponentByClassName('CAnimatedComponent')).HasFrozenPose()))
+                {
+                    ((CAnimatedComponent)parent.ghost.GetComponentByClassName('CAnimatedComponent')).FreezePose();
+                }
+
+                moveMorph();
+                updateMorphAppearance();
+            }
+            else
+            {
+                if(lastMorph)
+                {
+                    // destroy morph
+                    destroyMorph();
+
+                    if(!parent.ghost.GetVisibility())
+                    {
+                        parent.ghost.SetVisibility(true);
+                    }
+
+                    if ((((CAnimatedComponent)parent.horse.GetComponentByClassName('CAnimatedComponent')).HasFrozenPose()))
+                    {
+                        ((CAnimatedComponent)parent.horse.GetComponentByClassName('CAnimatedComponent')).UnfreezePose();
+                    }
+
+                    lastMorph = false;
+                }
+            }
+
+            // horse
             if(parent.isMounted)
             {
                 if(!parent.lastMounted || !parent.horse)

@@ -27,6 +27,7 @@ statemachine class r_MultiplayerClient
     private var inGame : bool;
     private var spawnTime : float;
     private var execReceived : bool;
+    private var serverReceived : bool;
 
     private var lightAttackAnims : array<r_Anim>;
     private var heavyAttackAnims : array<r_Anim>;
@@ -126,8 +127,6 @@ statemachine class r_MultiplayerClient
 
         toReturn = nextPlayerNum;
         nextPlayerNum += 1;
-
-        GetWitcherPlayer().DisplayHudMessage("New player num " + toReturn);
 
         return toReturn;
     }
@@ -2082,6 +2081,16 @@ statemachine class r_MultiplayerClient
         return execReceived;
     }
 
+    public function setServerReceived()
+    {
+        serverReceived = true;
+    }
+
+    public function getServerReceived() : bool
+    {
+        return serverReceived;
+    }
+
     public function setJoinMessage()
     {
         joinMessage = true;
@@ -2500,7 +2509,7 @@ statemachine class r_MultiplayerClient
                                         channeling : bool, menuName : string, lastActionTime : float, lastAction : EPlayerExplorationAction,
                                         steel : name, silver : name, armor : name, gloves : name, pants : name, boots : name, head : name, hair : name, steelScab : name, silverScab : name, crossbow : name, mask : name,
                                         isRiding : bool, ridingPlayerId : string, outgoingTradeTo : string, outgoingTradeItem : name, outgoingTradePrice : int, outgoingTradeFlag : int, horseAppearance : string,
-                                        morphActive : bool, morphType : name, morphAppearance : name) 
+                                        morphActive : bool, morphType : name, morphAppearance : name, morphRotation : float) 
     {
         var i : int;
         var p : r_RemotePlayer;
@@ -2509,6 +2518,8 @@ statemachine class r_MultiplayerClient
         var foundGlobal : bool;
         var id : string;
         var username : string;
+
+        setServerReceived();
 
         id = NameToString(idName);
         username = id;
@@ -2648,6 +2659,7 @@ statemachine class r_MultiplayerClient
                 players[i].morphActive = morphActive;
                 players[i].morphType = morphType;
                 players[i].morphAppearance = morphAppearance;
+                players[i].morphRotation = morphRotation;
 
                 // armor
                 players[i].eq_steel = steel;
@@ -2762,6 +2774,8 @@ statemachine class r_MultiplayerClient
         var foundGlobal : bool;
         var id : string;
 
+        setServerReceived();
+
         id = NameToString(idName);
 
         foundGlobal = false;
@@ -2828,7 +2842,7 @@ statemachine class r_MultiplayerClient
             }
             else
             {
-                if(!players[i].ghost.GetVisibility())
+                if(!players[i].ghost.GetVisibility() && !players[i].morphActive)
                 {
                     players[i].ghost.SetVisibility(true);
                 }
@@ -2950,18 +2964,40 @@ statemachine class r_MultiplayerClient
         }
     }
 
+    function tutorialPopup(messageTitle : string, messageText : string) {
+        var tut: W3TutorialPopupData;
+
+        tut = new W3TutorialPopupData in thePlayer;
+
+        tut.managerRef = theGame.GetTutorialSystem();
+        tut.messageTitle = messageTitle;
+        tut.messageText = messageText;
+
+        tut.enableGlossoryLink = false;
+        tut.autosize = true;
+        tut.blockInput = true;
+        tut.pauseGame = true;
+        tut.fullscreen = true;
+        tut.canBeShownInMenus = true;
+
+        tut.duration = -1;
+        tut.posX = 0;
+        tut.posY = 0;
+        tut.enableAcceptButton = true;
+
+        theGame.GetTutorialSystem().ShowTutorialHint(tut);
+    }
+
     function showUsernameTaken()
     {
         var messagetitle : string;
         var messagebody : string;
         
-        messagetitle = "<p align=\"center\">Failed to connect to server<br/></p>";
-        messagebody =
-        "<p align=\"center\">Another player is connected with the username '" +usernameTakenUser + "'.<br/><br/>"
-        + "Change your username in the Witcher Online config."
-        + "</p>";
+        messagetitle = "Failed to connect to server";
+        messagebody = "Another player is connected with the username '" +usernameTakenUser + "'.<br/><br/>"
+        + "Change your username in the Witcher Online config.";
 
-        theGame.r_getMultiplayerClient().DisplayUserMessage(WitcherOnline_PlayerNotification(messagetitle, messagebody));
+        tutorialPopup(messagetitle, messagebody);
     }
 
     function showBannedMsg()
@@ -2969,12 +3005,10 @@ statemachine class r_MultiplayerClient
         var messagetitle : string;
         var messagebody : string;
         
-        messagetitle = "<p align=\"center\">Failed to connect to server<br/></p>";
-        messagebody =
-        "<p align=\"center\">You were banned from the server.<br/>"
-        + "</p>";
+        messagetitle = "Failed to connect to server";
+        messagebody = "You were banned from the server.";
 
-        theGame.r_getMultiplayerClient().DisplayUserMessage(WitcherOnline_PlayerNotification(messagetitle, messagebody));
+        tutorialPopup(messagetitle, messagebody);
     }
 
     function showKickedMsg()
@@ -2982,12 +3016,10 @@ statemachine class r_MultiplayerClient
         var messagetitle : string;
         var messagebody : string;
         
-        messagetitle = "<p align=\"center\">Failed to connect to server<br/></p>";
-        messagebody =
-        "<p align=\"center\">You were kicked from the server.<br/>"
-        + "</p>";
+        messagetitle = "Failed to connect to server";
+        messagebody = "You were kicked from the server.";
 
-        theGame.r_getMultiplayerClient().DisplayUserMessage(WitcherOnline_PlayerNotification(messagetitle, messagebody));
+        tutorialPopup(messagetitle, messagebody);
     }
 
     function showNotWhitelisted()
@@ -2995,12 +3027,10 @@ statemachine class r_MultiplayerClient
         var messagetitle : string;
         var messagebody : string;
         
-        messagetitle = "<p align=\"center\">Failed to connect to server<br/></p>";
-        messagebody =
-        "<p align=\"center\">You are not whitelisted on this server.<br/>"
-        + "</p>";
+        messagetitle = "Failed to connect to server";
+        messagebody = "You are not whitelisted on this server.";
 
-        theGame.r_getMultiplayerClient().DisplayUserMessage(WitcherOnline_PlayerNotification(messagetitle, messagebody));
+        tutorialPopup(messagetitle, messagebody);
     }
 
     private var usernameTakenUser : string; 
@@ -3060,6 +3090,30 @@ statemachine class r_MultiplayerClient
     {
         return alertedDisconnect;
     }
+
+    function checkAlerts()
+    {
+        if(getBanned() && !getAlertedDisconnect())
+        {
+            showBannedMsg();
+            setAlertedDisconnect();
+        }
+        else if(getKicked() && !getAlertedDisconnect())
+        {
+            showKickedMsg();
+            setAlertedDisconnect();
+        }
+        else if(getNotWhitelisted() && !getAlertedDisconnect())
+        {
+            showNotWhitelisted();
+            setAlertedDisconnect();
+        }
+        else if(getUsernameTaken() && !getAlertedDisconnect())
+        {
+            showUsernameTaken();
+            setAlertedDisconnect();
+        }
+    }
 }
 
 exec function wo_get(playerId : string)
@@ -3112,6 +3166,8 @@ exec function wo_get(playerId : string)
     var morphType : name;
     var morphAppearance : name;
 
+    var transformedNPC : CActor;
+
     theGame.r_getMultiplayerClient().setUserId(playerId);
     theGame.r_getMultiplayerClient().setReceived();
 
@@ -3133,7 +3189,21 @@ exec function wo_get(playerId : string)
     list += thePlayer.GetHeading();
     list += " ";
 
-    list += thePlayer.GetMovingAgentComponent().GetRelativeMoveSpeed();
+    transformedNPC = theGame.GetActorByTag('NR_TRANSFORM_NPC');
+    morphMap = NR_GetMagicManager().GetMap('none');
+
+    morphActive = morphMap.getI("nr_polymorphysm_active");
+    morphType = morphMap.getN("nr_polymorphysm_type");
+    morphAppearance = morphMap.getN("nr_polymorphysm_appearance");
+
+    if(transformedNPC && morphActive)
+    {
+        list += transformedNPC.GetBehaviorVariable('Editor_MovementSpeed');
+    }
+    else
+    {
+        list += thePlayer.GetMovingAgentComponent().GetRelativeMoveSpeed();
+    }
     list += " ";
 
     list += theGame.GetCommonMapManager().GetCurrentArea();
@@ -3541,12 +3611,6 @@ exec function wo_get(playerId : string)
     }
     list += " ";
 
-    morphMap = NR_GetMagicManager().GetMap('none');
-
-    morphActive = morphMap.getI("nr_polymorphysm_active");
-    morphType = morphMap.getN("nr_polymorphysm_type");
-    morphAppearance = morphMap.getN("nr_polymorphysm_appearance");
-
     if(morphActive == 1)
     {
         list += "true";
@@ -3574,6 +3638,16 @@ exec function wo_get(playerId : string)
     else
     {
         list += "none";
+    }
+    list += " ";
+
+    if(transformedNPC && morphActive)
+    {
+        list += transformedNPC.GetBehaviorVariable('Editor_MovementRotation');
+    }
+    else
+    {
+        list += "0";
     }
     list += " ";
 
@@ -3789,7 +3863,7 @@ exec function wo_update(id : name, x : float, y : float, z : float, w : float, h
                                         channeling : bool, menuName : string, lastActionTime : float, lastAction : EPlayerExplorationAction,
                                         steel : name, silver : name, armor : name, gloves : name, pants : name, boots : name, head : name, hair : name, steelScab : name, silverScab : name, crossbow : name, mask : name,
                                         isRiding : bool, ridingPlayerId : string, outgoingTradeTo : string, outgoingTradeItem : name, outgoingTradePrice : int, outgoingTradeFlag : int, horseAppearance : string,
-                                        morphActive : bool, morphType : name, morphAppearance : name) 
+                                        morphActive : bool, morphType : name, morphAppearance : name, morphRotation : float) 
 {
     theGame.r_getMultiplayerClient().updatePlayerData(id, x, y, z, w, heading, speed, area, inGame, heldItem, offhandItem, inCombat, isSwimming, 
                                                             curState, lastJumpTime, lastJumpType, lastClimbType, isDiving, isFalling, lastLightAttackTime,
@@ -3799,7 +3873,7 @@ exec function wo_update(id : name, x : float, y : float, z : float, w : float, h
                                                             channeling, menuName, lastActionTime, lastAction,
                                                             steel, silver, armor, gloves, pants, boots, head, hair, steelScab, silverScab, crossbow, mask,
                                                             isRiding, ridingPlayerId, outgoingTradeTo, outgoingTradeItem, outgoingTradePrice, outgoingTradeFlag, horseAppearance,
-                                                            morphActive, morphType, morphAppearance);
+                                                            morphActive, morphType, morphAppearance, morphRotation);
 }
 
 exec function wo_update2(id : name, cpcPlayerType : ENR_PlayerType, cpcHead : name, cpcHair : string, cpcBody : string, cpcTorso : string, cpcArms : string, cpcGloves : string, cpcDress : string, cpcLegs : string, 
@@ -4750,27 +4824,7 @@ state WO_Tick in r_MultiplayerClient
                 continue;
             }
 
-            if(parent.getBanned() && !parent.getAlertedDisconnect())
-            {
-                parent.showBannedMsg();
-                parent.setAlertedDisconnect();
-            }
-            else if(parent.getKicked() && !parent.getAlertedDisconnect())
-            {
-                parent.showKickedMsg();
-                parent.setAlertedDisconnect();
-            }
-            else if(parent.getNotWhitelisted() && !parent.getAlertedDisconnect())
-            {
-                parent.showNotWhitelisted();
-                parent.setAlertedDisconnect();
-            }
-            else if(parent.getUsernameTaken() && !parent.getAlertedDisconnect())
-            {
-                parent.showUsernameTaken();
-                parent.setAlertedDisconnect();
-            }
-
+            parent.checkAlerts();
             parent.renderPlayers();
             parent.updatePlayerChat();
             parent.updateLocalEmoteLoop();
@@ -4863,4 +4917,42 @@ exec function check()
     appearance = map.getN("nr_polymorphysm_appearance");
 
     GetWitcherPlayer().DisplayHudMessage(active + " " + type + " " + appearance);
+}
+exec function popup()
+{
+    /*var popup_data: TextPopupData = new TextPopupData in theGame;
+
+    popup_data.SetMessageTitle( "hello" );
+    popup_data.SetMessageText( "bruh" );
+    //popup_data.m_TextContent = "Hello";
+    //popup_data.m_TextTitle = "Hellod";
+    popup_data.PauseGame = true;
+    
+    theGame.RequestMenu('PopupMenu', popup_data);*/
+
+    theGame.RequestPopup('MessagePopup');
+}
+
+exec function tut() {
+  var tut: W3TutorialPopupData;
+
+  tut = new W3TutorialPopupData in thePlayer;
+
+  tut.managerRef = theGame.GetTutorialSystem();
+  tut.messageTitle = "Hello";
+  tut.messageText = "Body";
+
+  tut.enableGlossoryLink = false;
+  tut.autosize = true;
+  tut.blockInput = true;
+  tut.pauseGame = true;
+  tut.fullscreen = true;
+  tut.canBeShownInMenus = true;
+
+  tut.duration = -1; // input
+  tut.posX = 0;
+  tut.posY = 0;
+  tut.enableAcceptButton = true;
+
+  theGame.GetTutorialSystem().ShowTutorialHint(tut);
 }
