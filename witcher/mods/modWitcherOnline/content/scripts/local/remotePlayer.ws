@@ -1082,6 +1082,12 @@ statemachine class r_RemotePlayer
             boat.Destroy();
             boat = NULL;
         }
+
+        if(morph)
+        {
+            morph.Destroy();
+            morph = NULL;
+        }
     }
 
     var lastMountType : string;
@@ -5490,6 +5496,11 @@ state WO_UpdateCPC in r_RemotePlayer
         var anchor : CEntity;
         var anchor_temp : CEntityTemplate;
 
+        if(parent.boat)
+        {
+            parent.boat.Destroy();
+        }
+
         temp_2 = (CEntityTemplate)LoadResourceAsync("dlc\dlc_mpmod\data\entities\online_boat.w2ent", true);
 
         horseTag.Clear();
@@ -5633,6 +5644,11 @@ state WO_UpdateCPC in r_RemotePlayer
         var ent_2 : CEntity;
         var temp_2 : CEntityTemplate;
         var horseTag : array<name>;
+
+        if(parent.morph)
+        {
+            parent.morph.Destroy();
+        }
 
         if (parent.morphType == 'cat') {
             temp_2 = (CEntityTemplate)LoadResourceAsync( 'nr_transform_cat' );

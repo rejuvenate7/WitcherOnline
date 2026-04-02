@@ -112,6 +112,7 @@ statemachine class r_MultiplayerClient
     private var emotesMenuItems : array<r_RemoteMenuItem>;
     private var chatMenuItems : array<r_RemoteMenuItem>;
     private var propMenuItems : array<r_RemoteMenuItem>;
+    private var morphMenuItems : array<r_RemoteMenuItem>;
 
     private var menuSlots : array<MP_SU_OnelinerEntity>;
 
@@ -709,6 +710,7 @@ statemachine class r_MultiplayerClient
         emoteMenuItems.Clear();
         chatMenuItems.Clear();
         propMenuItems.Clear();
+        morphMenuItems.Clear();
 
         if(player.isSailing)
         {
@@ -726,6 +728,16 @@ statemachine class r_MultiplayerClient
         // main menu
         addMainMenuItem("Chat >", "open_chat");
         addMainMenuItem("Emotes >", "open_emotes");
+
+        if(cpcPlayerType == ENR_PlayerSorceress)
+        {
+            addMainMenuItem("Morphs >", "open_morphs");
+        }
+        else
+        {
+            addMainMenuItem("Morphs >", "locked");
+        }
+
         addMainMenuItem(ridePrompt, "ride");
         addMainMenuItem("Trade", "trade");
         addMainMenuItem("Close", "close");
@@ -783,6 +795,13 @@ statemachine class r_MultiplayerClient
         addPropMenuItem("Pull Bag", "emote_pullbag");
         addPropMenuItem("Shovel", "emote_shovel");
         addPropMenuItem("Horn", "emote_horn");
+
+        // morphs
+        addMorphMenuItem("Owl", "morph_owl");
+        addMorphMenuItem("Crow", "morph_crow");
+        addMorphMenuItem("Cat", "morph_cat");
+        addMorphMenuItem("Fox", "morph_fox");
+        addMorphMenuItem("Back", "back_to_main");
 
         if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
         {
@@ -854,6 +873,14 @@ statemachine class r_MultiplayerClient
         chatMenuItems.PushBack(item);
     }
 
+    private function addMorphMenuItem(label : string, action : string)
+    {
+        var item : r_RemoteMenuItem;
+        item.label = label;
+        item.action = action;
+        morphMenuItems.PushBack(item);
+    }
+
     private function getCurrentMenuSize() : int
     {
         if(currentMenuId == 1)
@@ -867,6 +894,9 @@ statemachine class r_MultiplayerClient
 
         if(currentMenuId == 4)
             return emotesMenuItems.Size();
+
+        if(currentMenuId == 5)
+            return morphMenuItems.Size();
 
         return mainMenuItems.Size();
     }
@@ -885,6 +915,9 @@ statemachine class r_MultiplayerClient
         if(currentMenuId == 4)
             return emotesMenuItems[index].label;
 
+        if(currentMenuId == 5)
+            return morphMenuItems[index].label;
+
         return mainMenuItems[index].label;
     }
 
@@ -902,6 +935,9 @@ statemachine class r_MultiplayerClient
         if(currentMenuId == 4)
             return emotesMenuItems[index].action;
 
+        if(currentMenuId == 5)
+            return morphMenuItems[index].action;
+
         return mainMenuItems[index].action;
     }
     
@@ -918,7 +954,7 @@ statemachine class r_MultiplayerClient
         deleteMenu();
 
         menuSelectedPlayer = player;
-        maxVisibleOptions = 5;
+        maxVisibleOptions = 6;
 
         buildMenus(player);
 
@@ -999,6 +1035,36 @@ statemachine class r_MultiplayerClient
         {
             openMenuById(3);
             theSound.SoundEvent('gui_global_panel_open');
+        }
+        else if(action == "open_morphs")
+        {
+            openMenuById(5);
+            theSound.SoundEvent('gui_global_panel_open');
+        }
+        else if(action == "locked")
+        {
+            theSound.SoundEvent('gui_global_denied');
+            GetWitcherPlayer().DisplayHudMessage("To use morphs, switch to Sorceress in Custom Player Characters.");
+        }
+        else if(action == "morph_owl")
+        {
+            setPoly(true, 'owl');
+            deleteMenu();
+        }
+        else if(action == "morph_crow")
+        {
+            setPoly(true, 'crow');
+            deleteMenu();
+        }
+        else if(action == "morph_fox")
+        {
+            setPoly(true, 'fox');
+            deleteMenu();
+        }
+        else if(action == "morph_cat")
+        {
+            setPoly(true, 'cat');
+            deleteMenu();
         }
         else if(action == "open_chat")
         {
@@ -1183,7 +1249,8 @@ statemachine class r_MultiplayerClient
         {
             mpghosts_emote(37);
         }
-        else if(action == "emote_cowerlow")
+        
+        if(action == "emote_cowerlow")
         {
             mpghosts_emote(41);
         }
@@ -1239,8 +1306,7 @@ statemachine class r_MultiplayerClient
         {
             mpghosts_emote(46);
         }
-        
-        if(action == "emote_pullbag")
+        else if(action == "emote_pullbag")
         {
             mpghosts_emote(51);
         }
@@ -1360,10 +1426,24 @@ statemachine class r_MultiplayerClient
     private function buildMenuText(label : string, sizeI : int, isSelected : bool) : string
     {
         var color : string;
+        var cpcPlayerType : ENR_PlayerType;
+
+        cpcPlayerType = NR_GetPlayerManager().GetCurrentPlayerType();
 
         if(label == "Back" || label == "Close")
         {
             color = "#EDCBA3";
+        }
+        else if(label == "Morphs >")
+        {
+            if(cpcPlayerType == ENR_PlayerSorceress)
+            {
+                color = "#FFFFFF";
+            }
+            else
+            {
+                color = "#ff0000";
+            }
         }
         else
         {
@@ -1392,7 +1472,7 @@ statemachine class r_MultiplayerClient
         var forwardOffset : float = 0.15;
 
         var sideOffset : float = 0.55;
-        var height     : float = 1.30;
+        var height     : float = 1.15; //1.3
         var spacing    : float;
 
         var myPos      : Vector;
@@ -3114,6 +3194,15 @@ statemachine class r_MultiplayerClient
             setAlertedDisconnect();
         }
     }
+
+    protected var poly : bool;
+    protected var toMorph : name;
+
+    function setPoly(val : bool, type : name)
+    {
+        poly = val;
+        toMorph = type;
+    }
 }
 
 exec function wo_get(playerId : string)
@@ -4807,6 +4896,60 @@ state WO_Tick in r_MultiplayerClient
         this.GotoState('WO_ClientIdle');
 	}
 
+    latent function castPoly()
+    {
+        var nr_manager : NR_MagicManager = NR_GetMagicManager();
+        var action : NR_MagicSpecialPolymorphism;
+        var morphType : name;
+        var catNames : array<name>;
+        var foxNames : array<name>;
+        var finalMorph : name;
+
+        if(NR_GetPlayerManager().GetCurrentPlayerType() != ENR_PlayerSorceress)
+        {
+            return;
+        }
+
+        morphType = parent.toMorph;
+
+        if(morphType == 'fox')
+        {
+            finalMorph = 'cat';
+        }
+        else
+        {
+            finalMorph = morphType;
+        }
+
+        action = new NR_MagicSpecialPolymorphism in nr_manager;
+        action.drainStaminaOnPerform = false;
+        nr_manager.AddActionScripted(action);
+
+        action.RestoreFromSave();
+        action.animalType = finalMorph;
+
+        catNames.PushBack('cat_vanilla_01');
+        catNames.PushBack('cat_vanilla_02');
+        catNames.PushBack('cat_vanilla_03');
+        catNames.PushBack('cat_vanilla_04');
+        foxNames.PushBack('fox_red');
+        foxNames.PushBack('fox_silverish');
+        foxNames.PushBack('fox_black');
+
+        if(morphType == 'fox')
+        {
+            action.appearanceName = foxNames[ NR_GetRandomGenerator().next(foxNames.Size()) ];
+        }
+        else if(morphType == 'cat')
+        {
+            action.appearanceName = catNames[ NR_GetRandomGenerator().next(catNames.Size()) ];
+        }
+
+        action.OnInit();
+        action.OnPrepare();
+        action.OnPerform();
+    }
+
     entry function wo_tickEntry()
 	{
         while(true)
@@ -4822,6 +4965,12 @@ state WO_Tick in r_MultiplayerClient
                 parent.destroyAll();
                 SleepOneFrame();
                 continue;
+            }
+
+            if(parent.poly)
+            {
+                castPoly();
+                parent.poly = false;
             }
 
             parent.checkAlerts();
@@ -4894,65 +5043,7 @@ exec function unlockmagic()
 	NR_GetMagicManager().SetActionSkillLevel(ENR_WaterTrap, 10);
 }
 
-exec function spawnmagic(resourceName : name)
+exec function poly()
 {
-    //nr_transform_cat
-    //nr_transform_crow
-    //nr_transform_owl
-    var ent : CActor;
-    ent = (CActor)theGame.CreateEntity((CEntityTemplate)LoadResource( resourceName ), thePlayer.GetWorldPosition(), thePlayer.GetWorldRotation(), true, true, false, PM_DontPersist );
-    ((CActor)ent).GetMovingAgentComponent().SetGameplayRelativeMoveSpeed(1);
-}
-
-exec function check()
-{  
-    var map : NR_Map;
-    var active : int;
-    var type : name;
-    var appearance : name;
-    map = NR_GetMagicManager().GetMap('none');
-
-    active = map.getI("nr_polymorphysm_active");
-    type = map.getN("nr_polymorphysm_type");
-    appearance = map.getN("nr_polymorphysm_appearance");
-
-    GetWitcherPlayer().DisplayHudMessage(active + " " + type + " " + appearance);
-}
-exec function popup()
-{
-    /*var popup_data: TextPopupData = new TextPopupData in theGame;
-
-    popup_data.SetMessageTitle( "hello" );
-    popup_data.SetMessageText( "bruh" );
-    //popup_data.m_TextContent = "Hello";
-    //popup_data.m_TextTitle = "Hellod";
-    popup_data.PauseGame = true;
-    
-    theGame.RequestMenu('PopupMenu', popup_data);*/
-
-    theGame.RequestPopup('MessagePopup');
-}
-
-exec function tut() {
-  var tut: W3TutorialPopupData;
-
-  tut = new W3TutorialPopupData in thePlayer;
-
-  tut.managerRef = theGame.GetTutorialSystem();
-  tut.messageTitle = "Hello";
-  tut.messageText = "Body";
-
-  tut.enableGlossoryLink = false;
-  tut.autosize = true;
-  tut.blockInput = true;
-  tut.pauseGame = true;
-  tut.fullscreen = true;
-  tut.canBeShownInMenus = true;
-
-  tut.duration = -1; // input
-  tut.posX = 0;
-  tut.posY = 0;
-  tut.enableAcceptButton = true;
-
-  theGame.GetTutorialSystem().ShowTutorialHint(tut);
+    theGame.r_getMultiplayerClient().setPoly(true, 'crow');
 }
