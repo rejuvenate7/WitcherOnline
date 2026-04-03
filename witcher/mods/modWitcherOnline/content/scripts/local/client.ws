@@ -285,7 +285,7 @@ statemachine class r_MultiplayerClient
                     // reset our outgoing trade price
                     thePlayer.GetInventory().RemoveItemByName(outgoingTradeItem, 1);
                     thePlayer.AddMoney(outgoingTradePrice);
-                    theSound.SoundEvent('gui_enchanting_runeword_add');
+                    mpghosts_playSound('gui_enchanting_runeword_add');
                     GetWitcherPlayer().DisplayHudMessage("The trade has been completed!");
                     
                     outgoingTradeFlag = -4;
@@ -298,7 +298,7 @@ statemachine class r_MultiplayerClient
                 {
                     // reset our outgoing trade price
                     GetWitcherPlayer().DisplayHudMessage("The trade was declined.");
-                    theSound.SoundEvent('gui_enchanting_runeword_remove');
+                    mpghosts_playSound('gui_enchanting_runeword_remove');
                     
                     outgoingTradeFlag = -4;
                     tradeLastCompleted = theGame.GetEngineTimeAsSeconds();
@@ -331,7 +331,7 @@ statemachine class r_MultiplayerClient
                 {
                     GetWitcherPlayer().DisplayHudMessage("You do not have enough crowns to complete this trade!");
                     outgoingTradeFlag = -3;
-                    theSound.SoundEvent('gui_enchanting_runeword_remove');
+                    mpghosts_playSound('gui_enchanting_runeword_remove');
                     tradeInProgress = false;
                     return;
                 }
@@ -342,7 +342,7 @@ statemachine class r_MultiplayerClient
             }
         }
 
-        theSound.SoundEvent('gui_enchanting_runeword_add');
+        mpghosts_playSound('gui_enchanting_runeword_add');
 
         GetWitcherPlayer().DisplayHudMessage("The trade has been completed!");
 
@@ -357,7 +357,7 @@ statemachine class r_MultiplayerClient
 
         if(playSound)
         {
-            theSound.SoundEvent('gui_global_panel_close');
+            mpghosts_playSound('gui_global_panel_close');
         }
 
         outgoingTradeFlag = -3;
@@ -658,7 +658,7 @@ statemachine class r_MultiplayerClient
         outgoingTradePrice = amount;
         outgoingTradeFlag = 0;
         GetWitcherPlayer().DisplayHudMessage("Trade request sent to " +outgoingTradeTo.username);
-        theSound.SoundEvent('gui_global_highlight');
+        mpghosts_playSound('gui_global_highlight');
     }
 
     function updateCamera( out moveData : SCameraMovementData, dt : float ) : bool
@@ -985,7 +985,7 @@ statemachine class r_MultiplayerClient
 
         menuOpen = true;
         updateMenuPositions();
-        theSound.SoundEvent('gui_global_panel_open');
+        mpghosts_playSound('gui_global_panel_open');
     }
 
     private function openMenuById(menuId : int)
@@ -1011,7 +1011,7 @@ statemachine class r_MultiplayerClient
         if(action == "close")
         {
             deleteMenu();
-            theSound.SoundEvent('gui_global_panel_close');
+            mpghosts_playSound('gui_global_panel_close');
         }
         else if(action == "ride")
         {
@@ -1024,62 +1024,62 @@ statemachine class r_MultiplayerClient
         else if(action == "emotes_menu")
         {
             openMenuById(1);
-            theSound.SoundEvent('gui_global_panel_open');
+            mpghosts_playSound('gui_global_panel_open');
         }
         else if(action == "open_emotes")
         {
             openMenuById(4);
-            theSound.SoundEvent('gui_global_panel_open');
+            mpghosts_playSound('gui_global_panel_open');
         }
         else if(action == "props_menu")
         {
             openMenuById(3);
-            theSound.SoundEvent('gui_global_panel_open');
+            mpghosts_playSound('gui_global_panel_open');
         }
         else if(action == "open_morphs")
         {
             openMenuById(5);
-            theSound.SoundEvent('gui_global_panel_open');
+            mpghosts_playSound('gui_global_panel_open');
         }
         else if(action == "locked")
         {
-            theSound.SoundEvent('gui_global_denied');
+            mpghosts_playSound('gui_global_denied');
             GetWitcherPlayer().DisplayHudMessage("To use morphs, switch to Sorceress in Custom Player Characters.");
         }
         else if(action == "morph_owl")
         {
-            setPoly(true, 'owl');
+            mpghosts_morph('owl');
             deleteMenu();
         }
         else if(action == "morph_crow")
         {
-            setPoly(true, 'crow');
+            mpghosts_morph('crow');
             deleteMenu();
         }
         else if(action == "morph_fox")
         {
-            setPoly(true, 'fox');
+            mpghosts_morph('fox');
             deleteMenu();
         }
         else if(action == "morph_cat")
         {
-            setPoly(true, 'cat');
+            mpghosts_morph('cat');
             deleteMenu();
         }
         else if(action == "open_chat")
         {
             openMenuById(2);
-            theSound.SoundEvent('gui_global_panel_open');
+            mpghosts_playSound('gui_global_panel_open');
         }
         else if(action == "back_to_main")
         {
             openMenuById(0);
-            theSound.SoundEvent('gui_global_panel_close');
+            mpghosts_playSound('gui_global_panel_close');
         }
         else if(action == "back_to_emotes")
         {
             openMenuById(4);
-            theSound.SoundEvent('gui_global_panel_close');
+            mpghosts_playSound('gui_global_panel_close');
         }
         else if(action == "emote_wave")
         {
@@ -1417,7 +1417,7 @@ statemachine class r_MultiplayerClient
             menuScroll = maxScroll;
         }
 
-        theSound.SoundEvent('gui_global_highlight');
+        mpghosts_playSound('gui_global_highlight');
     }
     
     private var lastMenuSize : int;
@@ -5043,7 +5043,55 @@ exec function unlockmagic()
 	NR_GetMagicManager().SetActionSkillLevel(ENR_WaterTrap, 10);
 }
 
-exec function poly()
+function mpghosts_morph(type : name)
 {
-    theGame.r_getMultiplayerClient().setPoly(true, 'crow');
+    var morphMap : NR_Map;
+    var morphActive : int;
+    var cpcPlayerType : ENR_PlayerType;
+
+    cpcPlayerType = NR_GetPlayerManager().GetCurrentPlayerType();  
+    morphMap = NR_GetMagicManager().GetMap('none');
+    morphActive = morphMap.getI("nr_polymorphysm_active");
+
+    if(cpcPlayerType == ENR_PlayerSorceress)
+    {
+        if(!morphActive)
+        {
+            theGame.r_getMultiplayerClient().setPoly(true, type);
+        }
+        else
+        {
+            mpghosts_playSound('gui_global_denied');
+            GetWitcherPlayer().DisplayHudMessage("To change morphs, first unmorph by holding Cast Sign.");
+        }
+    }
+    else
+    {
+        mpghosts_playSound('gui_global_denied');
+        GetWitcherPlayer().DisplayHudMessage("To use morphs, switch to Sorceress in Custom Player Characters.");
+    }
+}
+exec function cat()
+{
+    mpghosts_morph('cat');
+}
+
+exec function fox()
+{
+    mpghosts_morph('fox');
+}
+
+exec function owl()
+{
+    mpghosts_morph('owl');
+}
+
+exec function crow()
+{
+    mpghosts_morph('crow');
+}
+
+function mpghosts_playSound(sound : name)
+{
+    theSound.SoundEvent(sound);
 }

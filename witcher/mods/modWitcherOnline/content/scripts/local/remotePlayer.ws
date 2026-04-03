@@ -5790,11 +5790,7 @@ state WO_UpdateCPC in r_RemotePlayer
             {
                 if(!lastMorph || !parent.morph)
                 {
-                    thePlayer.PlayEffect('teleport_appear_violet');
-                    // spawn morph
                     spawnMorph();
-
-                    // play morph fx
 
                     lastMorph = true;
                 }
