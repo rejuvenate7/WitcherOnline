@@ -11,6 +11,7 @@ public class PlayerSession
     public volatile List<String> update1BFields = Collections.emptyList();
     public volatile List<String> update2AFields = Collections.emptyList();
     public volatile List<String> update2BFields = Collections.emptyList();
+    public volatile List<String> update3Fields = Collections.emptyList();
 
     public PlayerSession(String username, ClientEndpoint endpoint, long lastSeen)
     {

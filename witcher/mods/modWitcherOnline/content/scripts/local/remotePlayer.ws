@@ -17,6 +17,12 @@ struct r_Anim
     var duration : float;
 }
 
+struct r_GwentGame
+{
+    var deck : SDeckDefinition;
+    var faction : eGwintFaction;
+}
+
 statemachine class r_RemotePlayer 
 {
     public var id      : string;
@@ -273,6 +279,26 @@ statemachine class r_RemotePlayer
     public var morphType : name;
     public var morphAppearance : name;
     public var morphRotation : float;
+
+    public var gwentGame : r_GwentGame;
+
+    public function setDeck(val : SDeckDefinition)
+    {
+        gwentGame.deck = val;
+    }
+
+    public function setFaction(val : int)
+    {
+        var manager : CR4GwintManager;
+        manager = theGame.GetGwintManager();
+
+        gwentGame.faction = manager.leaderIndexToFaction(val);
+    }
+
+    public function getGwentGame() : r_GwentGame
+    {
+        return gwentGame;
+    }
 
     private function loadHead(newHeadName : name) {
 		var headManager : CHeadManagerComponent;

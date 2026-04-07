@@ -2908,6 +2908,89 @@ statemachine class r_MultiplayerClient
         }
     }
 
+    public function updatePlayerData3(idName : name, gwentData : string)
+    {
+        var i : int;
+        var foundGlobal : bool;
+        var id : string;
+
+        var remaining : string;
+        var token : string;
+        var factionName : string;
+        var leaderIndex : int;
+        var cardValue : int;
+
+        var gwentCards : array<int>;
+        var deck : SDeckDefinition;
+
+        setServerReceived();
+
+        id = NameToString(idName);
+
+        foundGlobal = false;
+        for (i = 0; i < globalPlayers.Size(); i += 1)
+        {
+            if (globalPlayers[i].id == id)
+            {
+                globalPlayers[i].lastUpdate = theGame.GetEngineTimeAsSeconds(); 
+                foundGlobal = true;
+                break;
+            }
+        }
+
+        if (!foundGlobal)
+        {
+            return;
+        }
+
+        for(i = 0; i < players.Size(); i+=1)
+        {
+            if(players[i].id == id)
+            {
+                players[i].lastUpdate = theGame.GetEngineTimeAsSeconds();
+
+                remaining = gwentData;
+
+                // faction name
+                if (!StrSplitFirst(remaining, " ", factionName, remaining))
+                {
+                    return;
+                }
+
+                // leader index
+                if (!StrSplitFirst(remaining, " ", token, remaining))
+                {
+                    return;
+                }
+
+                leaderIndex = StringToInt(token, -1);
+
+                // cards
+                while (StrSplitFirst(remaining, " ", token, remaining))
+                {
+                    cardValue = StringToInt(token, -1);
+                    gwentCards.PushBack(cardValue);
+                }
+
+                // last remaining card
+                if (StrLen(remaining) > 0)
+                {
+                    cardValue = StringToInt(remaining, -1);
+                    gwentCards.PushBack(cardValue);
+                }
+
+                deck.cardIndices = gwentCards;
+                deck.leaderIndex = leaderIndex;
+                deck.unlocked = true;
+                deck.specialCard = -1;
+
+                players[i].setDeck(deck);
+                players[i].setFaction(leaderIndex);
+                return;
+            }
+        }
+    }
+
     public function renderPlayers()
     {
         var i : int;
@@ -3942,6 +4025,53 @@ exec function wo_get2(playerId : string)
     Log("wo2 "+list);
 }
 
+exec function wo_get3(playerId : string)
+{
+    var manager : CR4GwintManager;
+    var selectedFaction : eGwintFaction;
+    var deck : SDeckDefinition;
+    var i : int;
+    var list : string;
+    
+    theGame.r_getMultiplayerClient().setUserId(playerId);
+    theGame.r_getMultiplayerClient().setReceived();
+
+    manager = theGame.GetGwintManager();
+    selectedFaction = manager.GetSelectedPlayerDeck();
+    deck = manager.GetCurrentPlayerDeck();
+
+    list += selectedFaction;
+    list += " ";
+
+    list += deck.leaderIndex;
+    list += " ";
+
+    //LogChannel('GwentTest', "Faction: " +selectedFaction + " DeckDef:");
+
+    for(i = 0; i < deck.cardIndices.Size(); i+=1)
+    {
+        //LogChannel('cardIndices', i + ": " + deck.cardIndices[i]);
+        list += deck.cardIndices[i];
+        list += " ";
+    }
+    
+    //LogChannel('leaderIndex', deck.leaderIndex);
+    //LogChannel('unlocked', deck.unlocked);
+    //LogChannel('specialCard', deck.specialCard);
+
+    /*for(i = 0; i < deck.dynamicCardRequirements.Size(); i+=1)
+    {
+        LogChannel('dynamicCardRequirements', i + ": " + deck.dynamicCardRequirements[i]);
+    }
+
+    for(i = 0; i < deck.dynamicCards.Size(); i+=1)
+    {
+        LogChannel('dynamicCards', i + ": " + deck.dynamicCards[i]);
+    }*/
+
+    Log("wo3 "+list);
+}
+
 exec function wo_update(id : name, x : float, y : float, z : float, w : float, heading : float, speed : float, area : int, 
                                         inGame : bool, heldItem : string, offhandItem : string, inCombat : bool, isSwimming : bool, curState : name, 
                                         lastJumpTime : float, lastJumpType : EJumpType, lastClimbType : EClimbHeightType, isDiving : bool, isFalling : bool,
@@ -3971,6 +4101,11 @@ exec function wo_update2(id : name, cpcPlayerType : ENR_PlayerType, cpcHead : na
 {
     theGame.r_getMultiplayerClient().updatePlayerData2(id, cpcPlayerType, cpcHead, cpcHair, cpcBody, cpcTorso, cpcArms, cpcGloves, cpcDress, cpcLegs, cpcShoes, cpcMisc,
                                                        cpcItem1, cpcItem2, cpcItem3, cpcItem4, cpcItem5, cpcItem6, cpcItem7, cpcItem8, cpcItem9, cpcItem10);
+}
+
+exec function wo_update3(id : name, gwentData : string)
+{
+    theGame.r_getMultiplayerClient().updatePlayerData3(id, gwentData);
 }
 
 exec function mpghosts_disconnect(id :string)
@@ -5094,4 +5229,40 @@ exec function crow()
 function mpghosts_playSound(sound : name)
 {
     theSound.SoundEvent(sound);
+}
+
+exec function checkdeck(player : string)
+{
+    var remotePlayer : r_RemotePlayer;
+    var gwentGame : r_GwentGame;
+    var deck : SDeckDefinition;
+    var cards : array<int>;
+    var faction : eGwintFaction;
+    var i : int;
+    var leaderCard : int;
+
+    remotePlayer = mpghosts_getPlayer(player);
+
+    if(remotePlayer)
+    {
+        gwentGame = remotePlayer.getGwentGame();
+
+        deck = gwentGame.deck;
+        faction = gwentGame.faction;
+        
+        cards = deck.cardIndices;
+        leaderCard = deck.leaderIndex;
+
+        LogChannel('WO_Deck', "Faction: " + faction);
+        LogChannel('WO_Deck', "Leader: " + leaderCard);
+
+        for(i = 0; i < cards.Size(); i+=1)
+        {
+            LogChannel('WO_Deck', "Card " +i+ ": " +cards[i]);
+        }
+    }
+    else
+    {
+        GetWitcherPlayer().DisplayHudMessage("No player found by that name.");
+    }
 }

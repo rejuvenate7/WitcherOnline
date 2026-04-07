@@ -288,6 +288,31 @@ void pushPlayer(const std::string& id, const std::vector<std::string>& update1A,
 	//std::cout << "Code2: " << code2 << "\n";
 }
 
+static void pushPlayer3(const std::string& id, const std::vector<std::string>& update3)
+{
+	if (id.empty() || update3.empty())
+		return;
+
+	std::string merged;
+	for (size_t i = 0; i < update3.size(); ++i)
+	{
+		if (i > 0)
+			merged += " ";
+
+		merged += update3[i];
+	}
+
+	std::string code3 = "wo_update3(";
+	code3 += "\"";
+	code3 += EscapeExecQuoted(id, '"');
+	code3 += "\"";
+	code3 += ", \"";
+	code3 += EscapeExecQuoted(merged, '"');
+	code3 += "\")";
+
+	g_client.ExecNoWaitLatest("wo3:" + id, code3);
+}
+
 static void CloseOnlineSession()
 {
 	try
@@ -352,7 +377,8 @@ static void HandleServerPacket(const std::string& msg)
 		parts[0] == "UPDATE1A" ||
 		parts[0] == "UPDATE1B" ||
 		parts[0] == "UPDATE2A" ||
-		parts[0] == "UPDATE2B")
+		parts[0] == "UPDATE2B" ||
+		parts[0] == "UPDATE3")
 	{
 		if (parts.size() < 2)
 			return;
@@ -360,6 +386,12 @@ static void HandleServerPacket(const std::string& msg)
 		std::string opcode = parts[0];
 		std::string id = parts[1];
 		std::vector<std::string> fields(parts.begin() + 2, parts.end());
+
+		if (opcode == "UPDATE3")
+		{
+			pushPlayer3(id, fields);
+			return;
+		}
 
 		bool readyToPush = false;
 
@@ -521,6 +553,36 @@ static void PollPoseThread() {
 				{
 					std::cout << "Failed to get Data 2 " << out2 << std::endl;
 				}
+
+				std::string out3;
+				bool ok3 = g_client.ExecTagged("wo_get3(\"" + username + "\")", "wo3", out3, 500);
+
+				if (ok3)
+				{
+					ParsedHalves halves3 = ParseValuesSplitHalf(out3);
+
+					std::vector<std::string> fields3;
+					fields3.reserve(halves3.first.size() + halves3.second.size());
+					fields3.insert(fields3.end(), halves3.first.begin(), halves3.first.end());
+					fields3.insert(fields3.end(), halves3.second.begin(), halves3.second.end());
+
+					std::string packet3 = BuildPacket("UPDATE3", username, fields3);
+
+					//std::cout << "Got data 3 (" << out3.size() << " bytes): " << out3 << "\n";
+					//std::cout << "Sending packet3: " << packet3 << "\n";
+
+					try {
+						if (!fields3.empty())
+							theSocket.send(asio::buffer(packet3));
+					}
+					catch (const std::exception& e) {
+						std::cout << "Send error (wo_get3): " << e.what() << "\n";
+					}
+				}
+				else
+				{
+					std::cout << "Failed to get Data 3 " << out3 << std::endl;
+				}
 			}
 			else
 			{
@@ -625,7 +687,7 @@ static DWORD WINAPI InitThreadProc(LPVOID)
 	if (g_shutdown.load())
 		return 0;
 
-	//activateConsole();
+	activateConsole();
 
 	if (g_shutdown.load())
 		return 0;
@@ -662,7 +724,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
 		if (g_game.joinable())
 			g_game.join();
 
-		//FreeConsole();
+		FreeConsole();
 		break;
 	}
 	}
