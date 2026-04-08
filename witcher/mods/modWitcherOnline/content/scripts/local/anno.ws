@@ -447,6 +447,9 @@ function PlayerStartAction( playerAction : EPlayerExplorationAction, optional an
 @wrapMethod(CR4ItemSelectionPopup)
 function OnCallSelectItem(itemId : SItemUniqueId)
 {
+    var defMgr : CDefinitionsManagerAccessor = theGame.GetDefinitionsManager();
+    var itemName : name;
+
     if(m_DataObject.wo_isTrade)
     {
         theGame.r_getMultiplayerClient().tradeSelectItem(itemId);
@@ -455,6 +458,27 @@ function OnCallSelectItem(itemId : SItemUniqueId)
     else if(m_DataObject.wo_isReceivingTrade)
     {
         theGame.r_getMultiplayerClient().acceptTrade();
+        ClosePopup();
+    }
+    else if(m_DataObject.wo_isReceivingGwent)
+    {
+        theGame.r_getMultiplayerClient().acceptGwentRequest();
+        ClosePopup();
+    }
+    else if(m_DataObject.wo_isGwent)
+    {
+        itemName = m_DataObject.targetInventory.GetItemName(itemId);
+
+        if(itemName == 'wo_timed_gwent')
+        {
+            theGame.r_getMultiplayerClient().setGwentGameType(GG_Timed);
+        }
+        else
+        {
+            theGame.r_getMultiplayerClient().setGwentGameType(GG_Normal);
+        }
+
+        theGame.r_getMultiplayerClient().openGwentBetWindow();
         ClosePopup();
     }
     else
@@ -473,6 +497,13 @@ function OnCloseSelectionPopup()
         mpghosts_playSound('gui_enchanting_runeword_remove');
         ClosePopup();
     }
+    else if(m_DataObject.wo_isReceivingGwent)
+    {
+        GetWitcherPlayer().DisplayHudMessage("The Gwent duel was declined.");
+        theGame.r_getMultiplayerClient().declineGwentRequest();
+        mpghosts_playSound('gui_enchanting_runeword_remove');
+        ClosePopup();
+    }
     else
     {
         wrappedMethod();
@@ -488,7 +519,7 @@ function OnConfigUI()
 
     m_DataObject = (W3ItemSelectionPopupData)GetPopupInitData();
 
-    if(m_DataObject.wo_isTrade || m_DataObject.wo_isReceivingTrade)
+    if(m_DataObject.wo_isTrade || m_DataObject.wo_isReceivingTrade || m_DataObject.wo_isGwent || m_DataObject.wo_isReceivingGwent)
     {
         super.OnConfigUI();
 		
@@ -545,6 +576,34 @@ function OnConfigUI()
             m_tradeInventory.GetInventoryFlashArray(l_flashArray, l_flashObject);		
             m_flashValueStorage.SetFlashArray( "repair.grid.player", l_flashArray );
         }
+        else if(m_DataObject.wo_isGwent)
+        {
+            m_tradeInventory = new W3GuiSelectItemComponent in theGame.GetGuiManager();
+            m_tradeInventory.Initialize( m_DataObject.targetInventory );
+            m_tradeInventory.ignorePosition = true;
+            m_tradeInventory.SetFilterType( IFT_None );
+
+            m_fxSetCategory.InvokeSelfOneArg( FlashArgString("Select the Gwent match type to send to " + m_DataObject.wo_toGwent) );
+
+            l_flashObject = m_flashValueStorage.CreateTempFlashObject();
+            l_flashArray = m_flashValueStorage.CreateTempFlashArray();		
+            m_tradeInventory.GetInventoryFlashArray(l_flashArray, l_flashObject);		
+            m_flashValueStorage.SetFlashArray( "repair.grid.player", l_flashArray );
+        }
+        else if(m_DataObject.wo_isReceivingGwent)
+        {
+            m_tradeInventory = new W3GuiSelectItemComponent in theGame.GetGuiManager();
+            m_tradeInventory.Initialize( m_DataObject.targetInventory );
+            m_tradeInventory.ignorePosition = true;
+            m_tradeInventory.SetFilterType( IFT_None );
+
+            m_fxSetCategory.InvokeSelfOneArg( FlashArgString(m_DataObject.wo_toGwent + " wants to play Gwent and bets " + m_DataObject.wo_betAmount + " crowns") );
+
+            l_flashObject = m_flashValueStorage.CreateTempFlashObject();
+            l_flashArray = m_flashValueStorage.CreateTempFlashArray();		
+            m_tradeInventory.GetInventoryFlashArray(l_flashArray, l_flashObject);		
+            m_flashValueStorage.SetFlashArray( "repair.grid.player", l_flashArray );
+        }
     }
     else
     {
@@ -559,10 +618,22 @@ var wo_toTrade : string;
 var wo_isTrade : bool;
 
 @addField(W3ItemSelectionPopupData)
+var wo_isGwent : bool;
+
+@addField(W3ItemSelectionPopupData)
+var wo_isReceivingGwent : bool;
+
+@addField(W3ItemSelectionPopupData)
+var wo_toGwent : string;
+
+@addField(W3ItemSelectionPopupData)
 var wo_isReceivingTrade : bool;
 
 @addField(W3ItemSelectionPopupData)
 var wo_crownsAmount : int;
+
+@addField(W3ItemSelectionPopupData)
+var wo_betAmount : int;
 
 @wrapMethod(CPlayerInput)
 function OnToggleSigns( action : SInputAction )

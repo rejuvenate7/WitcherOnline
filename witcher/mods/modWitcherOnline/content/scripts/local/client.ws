@@ -18,6 +18,23 @@ struct r_RemoteMenuItem
     var action : string;
 }
 
+enum E_GwentRequest
+{
+    E_None,
+	E_RequestTimed,
+	E_RequestNormal,
+	E_Accept,	
+	E_Decline,
+    E_Ack
+}
+
+enum E_GwentGameType
+{
+    GG_None,
+	GG_Timed,
+    GG_Normal
+}
+
 statemachine class r_MultiplayerClient
 {
     private var chillDefs : array<r_ChillDef>;
@@ -121,6 +138,342 @@ statemachine class r_MultiplayerClient
 
     private var nextPlayerNum : int;
     default nextPlayerNum = 1000;
+
+    // gwent request
+    private var outgoingGwentTo : string;
+    private var outgoingGwentRequest : E_GwentRequest;
+    default outgoingGwentRequest = E_None;
+    private var shownGwentRequestWindow : bool;
+    private var outgoingGwentBet : int;
+    private var requestedGwentGameType : E_GwentGameType;
+    default requestedGwentGameType = GG_None;
+
+    private var inGwentGame : bool;
+    private var gwentOpponent : r_RemotePlayer;
+
+    private var gwentLastCompleted : float;
+    default gwentLastCompleted = -999;
+
+    private var resetGwentFlagPending : bool;
+    default resetGwentFlagPending = false;
+
+    private var resetGwentFlagAt : float;
+    default resetGwentFlagAt = -999;
+
+    public function checkIncomingGwentRequests()
+    {
+        var i : int;
+
+        if(resetGwentFlagPending && (theGame.GetEngineTimeAsSeconds() >= resetGwentFlagAt))
+        {
+            clearGwentRequestState();
+        }
+
+        if((theGame.GetEngineTimeAsSeconds() - gwentLastCompleted) < 3)
+        {
+            return;
+        }
+
+        for(i = 0; i < players.Size(); i += 1)
+        {
+            if(players[i].outgoingGwentTo == id)
+            {
+                if((players[i].outgoingGwentRequest == E_RequestTimed || players[i].outgoingGwentRequest == E_RequestNormal) && !players[i].gwentHandshake)
+                {
+                    if(inGwentGame || shownGwentRequestWindow || thePlayer.IsInCombat() || theGame.IsDialogOrCutscenePlaying())
+                    {
+                        return;
+                    }
+
+                    if(players[i].outgoingGwentRequest == E_RequestTimed)
+                    {
+                        LogChannel('GWENTMATCH', players[i].username + " wants to play TIMED gwent!");
+                    }
+                    else
+                    {
+                        LogChannel('GWENTMATCH', players[i].username + " wants to play NORMAL gwent!");
+                    }
+
+                    if(openIncomingGwentRequest(players[i]))
+                    {
+                        outgoingGwentTo = players[i].id;
+                        outgoingGwentRequest = E_None;
+                        players[i].gwentHandshake = true;
+                        gwentOpponent = players[i];
+                        shownGwentRequestWindow = true;
+                    }
+                    else
+                    {
+                        outgoingGwentTo = players[i].id;
+                        outgoingGwentRequest = E_Decline;
+                        players[i].gwentHandshake = true;
+                        gwentOpponent = players[i];
+                        shownGwentRequestWindow = false;
+                    }
+
+                    return;
+                }
+                else if(players[i].outgoingGwentRequest == E_Accept && outgoingGwentRequest != E_Ack && !inGwentGame)
+                {
+                    LogChannel('GWENTMATCH', players[i].username + " has accepted your request!");
+
+                    gwentOpponent = players[i];
+                    startGwentGame(gwentOpponent, requestedGwentGameType, outgoingGwentBet);
+
+                    outgoingGwentRequest = E_Ack;
+                    gwentLastCompleted = theGame.GetEngineTimeAsSeconds();
+                    resetGwentFlagPending = true;
+                    resetGwentFlagAt = gwentLastCompleted + 3.0;
+                    return;
+                }
+                else if(players[i].outgoingGwentRequest == E_Decline && outgoingGwentRequest != E_Ack && !inGwentGame)
+                {
+                    LogChannel('GWENTMATCH', players[i].username + " has declined your request!");
+                    GetWitcherPlayer().DisplayHudMessage("The gwent request was declined.");
+                    mpghosts_playSound('gui_enchanting_runeword_remove');
+
+                    outgoingGwentRequest = E_Ack;
+                    gwentLastCompleted = theGame.GetEngineTimeAsSeconds();
+                    resetGwentFlagPending = true;
+                    resetGwentFlagAt = gwentLastCompleted + 3.0;
+                    return;
+                }
+                else if(players[i].outgoingGwentRequest == E_Ack)
+                {
+                    outgoingGwentRequest = E_None;
+                    players[i].gwentHandshake = false;
+                    return;
+                }
+            }
+        }
+    }
+
+    public function clearGwentRequestState()
+    {
+        outgoingGwentTo = "";
+        outgoingGwentRequest = E_None;
+        shownGwentRequestWindow = false;
+        outgoingGwentBet = 0;
+        requestedGwentGameType = GG_None;
+        resetGwentFlagPending = false;
+        resetGwentFlagAt = -999;
+    }
+
+    public function acceptGwentRequest()
+    {
+        var gameType : E_GwentGameType;
+
+        if(!shownGwentRequestWindow || !gwentOpponent)
+            return;
+
+        if(gwentOpponent.outgoingGwentRequest == E_RequestTimed)
+        {
+            gameType = GG_Timed;
+        }
+        else
+        {
+            gameType = GG_Normal;
+        }
+
+        outgoingGwentRequest = E_Accept;
+        outgoingGwentTo = gwentOpponent.id;
+        shownGwentRequestWindow = false;
+
+        LogChannel('GWENTMATCH', "Accepted gwent duel request!");
+
+        startGwentGame(gwentOpponent, gameType, gwentOpponent.outgoingGwentBet);
+    }
+
+    public function declineGwentRequest()
+    {
+        if(!shownGwentRequestWindow || !gwentOpponent)
+            return;
+
+        outgoingGwentRequest = E_Decline;
+        outgoingGwentTo = gwentOpponent.id;
+        shownGwentRequestWindow = false;
+
+        LogChannel('GWENTMATCH', "Declined gwent duel request!");
+        GetWitcherPlayer().DisplayHudMessage("Declined gwent duel request!");
+        mpghosts_playSound('gui_global_panel_close');
+    }
+
+    public function startGwentGame(opponent : r_RemotePlayer, type : E_GwentGameType, bet : int)
+    {
+        var gwentGame : r_GwentGame;
+        var deck : SDeckDefinition;
+        var cards : array<int>;
+        var faction : eGwintFaction;
+        var i : int;
+        var leaderCard : int;
+
+        inGwentGame = true;
+        gwentOpponent = opponent;
+
+        LogChannel('GWENTMATCH', "Started game of gwent against " + opponent.username + " with type " + type);
+        GetWitcherPlayer().DisplayHudMessage("Started game of gwent against " + opponent.username + " with type " + type);
+
+        gwentGame = opponent.getGwentGame();
+
+        deck = gwentGame.deck;
+        faction = gwentGame.faction;
+        
+        cards = deck.cardIndices;
+        leaderCard = deck.leaderIndex;
+
+        LogChannel('WO_Deck', "Faction: " + faction);
+        LogChannel('WO_Deck', "Leader: " + leaderCard);
+
+        for(i = 0; i < cards.Size(); i+=1)
+        {
+            LogChannel('WO_Deck', "Card " +i+ ": " +cards[i]);
+        }
+    }
+
+    // should make function that auto clear request after 15 seconds from when it was created
+
+    public function onGwentGameEnd()
+    {
+        clearGwentRequestState();
+        inGwentGame = false;
+        gwentOpponent = NULL;
+        gwentLastCompleted = theGame.GetEngineTimeAsSeconds();
+    }
+
+    public function settleGwentBet(localPlayerWon : bool)
+    {
+        if(activeGwentBet <= 0)
+            return;
+
+        if(localPlayerWon)
+        {
+            thePlayer.AddMoney(activeGwentBet);
+        }
+        else
+        {
+            thePlayer.RemoveMoney(activeGwentBet);
+        }
+    }
+
+    public function getOutgoingGwentTo() : string
+    {
+        return outgoingGwentTo;
+    }
+
+    public function getOutgoingGwentRequest() : E_GwentRequest
+    {
+        return outgoingGwentRequest;
+    }
+
+    public function getOutgoingGwentBet() : int
+    {
+        return outgoingGwentBet;
+    }
+    
+    public function gwentRequest(toRequest : string) : bool
+    {
+        var cat : array<name>;
+        var m_popupData : W3ItemSelectionPopupData;
+        var inventory : CInventoryComponent;
+        var ids : array<SItemUniqueId>;
+
+        if(toRequest == id)
+        {
+            GetWitcherPlayer().DisplayHudMessage("You cannot duel yourself!");
+            return false;
+        }
+        else if(inGwentGame)
+        {
+            GetWitcherPlayer().DisplayHudMessage("You are already in a game of Gwent!");
+            return false;
+        }
+
+        outgoingGwentTo = toRequest;
+        
+        inventory = new CInventoryComponent in thePlayer;
+        ids = inventory.AddAnItem('wo_timed_gwent', 1);
+        ids = inventory.AddAnItem('wo_notime_gwent', 1);
+
+        m_popupData = new W3ItemSelectionPopupData in theGame.GetGuiManager();
+        m_popupData.targetInventory = inventory;
+        m_popupData.overrideQuestItemRestrictions = true;
+
+        m_popupData.selectionMode = EISPM_RadialMenuSilverOil;
+        m_popupData.wo_isGwent = true;
+        m_popupData.wo_toGwent = toRequest;
+        
+        theGame.RequestPopup('ItemSelectionPopup', m_popupData);
+
+        return true;
+    }
+
+    public function openIncomingGwentRequest(player : r_RemotePlayer) : bool
+    {
+        var cat : array<name>;
+        var m_popupData : W3ItemSelectionPopupData;
+        var inventory : CInventoryComponent;
+        var ids : array<SItemUniqueId>;
+        var type : E_GwentRequest;
+        
+        inventory = new CInventoryComponent in thePlayer;
+
+        if(player.outgoingGwentRequest == E_RequestTimed)
+        {
+            ids = inventory.AddAnItem('wo_timed_gwent', 1);
+        }
+        else
+        {
+            ids = inventory.AddAnItem('wo_notime_gwent', 1);
+        }
+
+        /*if(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_AutoDeclineTrade'))
+        {
+            declineTrade(false);
+            return false;
+        }*/
+
+        m_popupData = new W3ItemSelectionPopupData in theGame.GetGuiManager();
+        m_popupData.targetInventory = inventory;
+        m_popupData.overrideQuestItemRestrictions = true;
+
+        m_popupData.selectionMode = EISPM_RadialMenuSilverOil;
+        m_popupData.wo_isReceivingGwent = true;
+        m_popupData.wo_toGwent = player.username;
+        m_popupData.wo_betAmount = player.outgoingGwentBet;
+        
+        theGame.RequestPopup('ItemSelectionPopup', m_popupData);
+
+        return true;
+    }
+
+    public function openGwentBetWindow()
+    {
+        var price: r_BetWindow;
+        price = new r_BetWindow in theGame;
+        price.openBetWindow();
+    }
+
+    public function setGwentBetAmount(amount : int)
+    {
+        GetWitcherPlayer().DisplayHudMessage("Gwent duel request sent to " +outgoingGwentTo);
+        mpghosts_playSound('gui_global_highlight');
+
+        if(requestedGwentGameType == GG_Timed)
+        {
+            outgoingGwentRequest = E_RequestTimed;
+        }
+        else
+        {
+            outgoingGwentRequest = E_RequestNormal;
+        }
+        
+        outgoingGwentBet = amount;
+    }
+
+    public function setGwentGameType(val : E_GwentGameType)
+    {
+        requestedGwentGameType = val;
+    }
 
     public function getNextPlayerNum() : int
     {
@@ -2908,7 +3261,7 @@ statemachine class r_MultiplayerClient
         }
     }
 
-    public function updatePlayerData3(idName : name, gwentData : string)
+    public function updatePlayerData3(idName : name, outgoingGwentTo : string, outgoingGwentRequest : E_GwentRequest, outgoingGwentBet : int, gwentData : string)
     {
         var i : int;
         var foundGlobal : bool;
@@ -2948,6 +3301,9 @@ statemachine class r_MultiplayerClient
             if(players[i].id == id)
             {
                 players[i].lastUpdate = theGame.GetEngineTimeAsSeconds();
+                players[i].outgoingGwentTo = outgoingGwentTo;
+                players[i].outgoingGwentRequest = outgoingGwentRequest;
+                players[i].outgoingGwentBet = outgoingGwentBet;
 
                 remaining = gwentData;
 
@@ -4032,6 +4388,7 @@ exec function wo_get3(playerId : string)
     var deck : SDeckDefinition;
     var i : int;
     var list : string;
+    var outgoingGwentTo : string;
     
     theGame.r_getMultiplayerClient().setUserId(playerId);
     theGame.r_getMultiplayerClient().setReceived();
@@ -4039,6 +4396,24 @@ exec function wo_get3(playerId : string)
     manager = theGame.GetGwintManager();
     selectedFaction = manager.GetSelectedPlayerDeck();
     deck = manager.GetCurrentPlayerDeck();
+    
+    outgoingGwentTo = theGame.r_getMultiplayerClient().getOutgoingGwentTo();
+
+    if(outgoingGwentTo != "")
+    {
+        list += outgoingGwentTo;
+    }
+    else
+    {
+        list += "none";
+    }
+    list += " ";
+
+    list += theGame.r_getMultiplayerClient().getOutgoingGwentRequest();
+    list += " ";
+
+    list += theGame.r_getMultiplayerClient().getOutgoingGwentBet();
+    list += " ";
 
     list += selectedFaction;
     list += " ";
@@ -4103,9 +4478,9 @@ exec function wo_update2(id : name, cpcPlayerType : ENR_PlayerType, cpcHead : na
                                                        cpcItem1, cpcItem2, cpcItem3, cpcItem4, cpcItem5, cpcItem6, cpcItem7, cpcItem8, cpcItem9, cpcItem10);
 }
 
-exec function wo_update3(id : name, gwentData : string)
+exec function wo_update3(id : name, outgoingGwentTo : string, outgoingGwentRequest : E_GwentRequest, outgoingGwentBet : int, gwentData : string)
 {
-    theGame.r_getMultiplayerClient().updatePlayerData3(id, gwentData);
+    theGame.r_getMultiplayerClient().updatePlayerData3(id, outgoingGwentTo, outgoingGwentRequest, outgoingGwentBet, gwentData);
 }
 
 exec function mpghosts_disconnect(id :string)
@@ -5115,6 +5490,7 @@ state WO_Tick in r_MultiplayerClient
             parent.pruneGlobalPlayers(5);
             parent.updateMenuPositions();
             parent.checkOutgoingTrades();
+            parent.checkIncomingGwentRequests();
             parent.checkRidingAttachment();
             parent.checkPlayerChange();
             MP_SU_moveMinimapPins();
@@ -5265,4 +5641,14 @@ exec function checkdeck(player : string)
     {
         GetWitcherPlayer().DisplayHudMessage("No player found by that name.");
     }
+}
+
+exec function duel(val : string)
+{
+    theGame.r_getMultiplayerClient().gwentRequest(val);
+}
+
+exec function endgwent()
+{
+    theGame.r_getMultiplayerClient().onGwentGameEnd();
 }

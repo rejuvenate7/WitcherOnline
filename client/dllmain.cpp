@@ -290,24 +290,39 @@ void pushPlayer(const std::string& id, const std::vector<std::string>& update1A,
 
 static void pushPlayer3(const std::string& id, const std::vector<std::string>& update3)
 {
-	if (id.empty() || update3.empty())
+	if (id.empty() || update3.size() < 2)
 		return;
 
-	std::string merged;
-	for (size_t i = 0; i < update3.size(); ++i)
-	{
-		if (i > 0)
-			merged += " ";
+	const std::string& outgoingGwentTo = update3[0];
+	const std::string& outgoingGwentRequest = update3[1];
+	const std::string& outgoingGwentBet = update3[2];
 
-		merged += update3[i];
+	std::string gwentData;
+	for (size_t i = 3; i < update3.size(); ++i)
+	{
+		if (!gwentData.empty())
+			gwentData += " ";
+
+		gwentData += update3[i];
 	}
 
 	std::string code3 = "wo_update3(";
 	code3 += "\"";
 	code3 += EscapeExecQuoted(id, '"');
 	code3 += "\"";
+
 	code3 += ", \"";
-	code3 += EscapeExecQuoted(merged, '"');
+	code3 += EscapeExecQuoted(outgoingGwentTo, '"');
+	code3 += "\"";
+
+	code3 += ", ";
+	code3 += outgoingGwentRequest;
+
+	code3 += ", ";
+	code3 += outgoingGwentBet;
+
+	code3 += ", \"";
+	code3 += EscapeExecQuoted(gwentData, '"');
 	code3 += "\")";
 
 	g_client.ExecNoWaitLatest("wo3:" + id, code3);
@@ -687,7 +702,7 @@ static DWORD WINAPI InitThreadProc(LPVOID)
 	if (g_shutdown.load())
 		return 0;
 
-	activateConsole();
+	//activateConsole();
 
 	if (g_shutdown.load())
 		return 0;
@@ -724,7 +739,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
 		if (g_game.joinable())
 			g_game.join();
 
-		FreeConsole();
+		//FreeConsole();
 		break;
 	}
 	}

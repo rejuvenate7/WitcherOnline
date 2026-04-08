@@ -46,3 +46,26 @@ class r_TradeSliderData extends BettingSliderData
   
 }
 
+
+class r_BetWindow extends CR4HudModuleDialog {
+  function DialogueSliderDataPopupResult(value: float, optional isItemReward: bool) {
+    var bet_amount : int;
+    super.DialogueSliderDataPopupResult(0, false);
+    bet_amount = (int)(value);
+
+    theGame.r_getMultiplayerClient().setGwentBetAmount(bet_amount);
+  }
+  
+  function openBetWindow() {
+    var data: r_TradeSliderData;
+    data = new r_TradeSliderData in this;
+    data.SetMessageTitle( "Bet" );
+    data.dialogueRef = this;
+    data.BlurBackground = false;
+    data.minValue = 0;
+    data.maxValue = 1000;
+    data.currentValue = Clamp(50, 0, 25000);
+    theGame.RequestMenu('PopupMenu', data);
+  }
+  
+}

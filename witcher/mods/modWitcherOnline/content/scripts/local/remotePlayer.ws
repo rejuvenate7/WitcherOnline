@@ -164,6 +164,13 @@ statemachine class r_RemotePlayer
 
     public var tradeHandshake : bool;
 
+    // gwent
+    public var outgoingGwentTo : string;
+    public var outgoingGwentRequest : E_GwentRequest;
+    public var outgoingGwentBet : int;
+
+    public var gwentHandshake : bool;
+
     // items
     public var eq_steel : name;
     public var eq_silver : name;
