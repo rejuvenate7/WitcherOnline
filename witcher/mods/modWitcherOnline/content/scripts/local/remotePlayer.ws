@@ -168,6 +168,7 @@ statemachine class r_RemotePlayer
     public var outgoingGwentTo : string;
     public var outgoingGwentRequest : E_GwentRequest;
     public var outgoingGwentBet : int;
+    public var outgoingGwentSeed : int;
 
     public var gwentHandshake : bool;
 

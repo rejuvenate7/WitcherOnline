@@ -145,6 +145,7 @@ statemachine class r_MultiplayerClient
     default outgoingGwentRequest = E_None;
     private var shownGwentRequestWindow : bool;
     private var outgoingGwentBet : int;
+    private var outgoingGwentSeed : int;
     private var requestedGwentGameType : E_GwentGameType;
     default requestedGwentGameType = GG_None;
 
@@ -162,7 +163,9 @@ statemachine class r_MultiplayerClient
 
     private var lastGwentAction : string;
     private var lastGwentActionTime  : float;
+
     private var activeGwentBet : int;
+    private var activeGwentSeed : int;
 
     public function checkIncomingGwentRequests()
     {
@@ -222,7 +225,7 @@ statemachine class r_MultiplayerClient
                     LogChannel('GWENTMATCH', players[i].username + " has accepted your request!");
 
                     gwentOpponent = players[i];
-                    startGwentGame(gwentOpponent, requestedGwentGameType, outgoingGwentBet);
+                    startGwentGame(gwentOpponent, requestedGwentGameType, outgoingGwentBet, outgoingGwentSeed);
 
                     outgoingGwentRequest = E_Ack;
                     gwentLastCompleted = theGame.GetEngineTimeAsSeconds();
@@ -258,6 +261,7 @@ statemachine class r_MultiplayerClient
         outgoingGwentRequest = E_None;
         shownGwentRequestWindow = false;
         outgoingGwentBet = 0;
+        outgoingGwentSeed = 0;
         requestedGwentGameType = GG_None;
         resetGwentFlagPending = false;
         resetGwentFlagAt = -999;
@@ -285,7 +289,7 @@ statemachine class r_MultiplayerClient
 
         LogChannel('GWENTMATCH', "Accepted gwent duel request!");
 
-        startGwentGame(gwentOpponent, gameType, gwentOpponent.outgoingGwentBet);
+        startGwentGame(gwentOpponent, gameType, gwentOpponent.outgoingGwentBet, gwentOpponent.outgoingGwentSeed);
     }
 
     public function declineGwentRequest()
@@ -302,7 +306,7 @@ statemachine class r_MultiplayerClient
         mpghosts_playSound('gui_global_panel_close');
     }
 
-    public function startGwentGame(opponent : r_RemotePlayer, type : E_GwentGameType, bet : int)
+    public function startGwentGame(opponent : r_RemotePlayer, type : E_GwentGameType, bet : int, seed : int)
     {
         var gwentGame : r_GwentGame;
         var deck : SDeckDefinition;
@@ -314,9 +318,10 @@ statemachine class r_MultiplayerClient
         inGwentGame = true;
         gwentOpponent = opponent;
         activeGwentBet = bet;
+        activeGwentSeed = seed;
 
-        LogChannel('GWENTMATCH', "Started game of gwent against " + opponent.username + " with type " + type);
-        GetWitcherPlayer().DisplayHudMessage("Started game of gwent against " + opponent.username + " with type " + type);
+        LogChannel('GWENTMATCH', "Started game of gwent against " + opponent.username + " with type " + type + " and seed " + seed);
+        GetWitcherPlayer().DisplayHudMessage("Started game of gwent against " + opponent.username + " with type " + type + " and seed " + seed);
 
         gwentGame = opponent.getGwentGame();
 
@@ -399,6 +404,8 @@ statemachine class r_MultiplayerClient
         inGwentGame = false;
         gwentOpponent = NULL;
         gwentLastCompleted = theGame.GetEngineTimeAsSeconds();
+        activeGwentBet = 0;
+        activeGwentSeed = 0;
     }
 
     public function settleGwentBet(localPlayerWon : bool)
@@ -431,6 +438,11 @@ statemachine class r_MultiplayerClient
     public function getOutgoingGwentBet() : int
     {
         return outgoingGwentBet;
+    }
+
+    public function getOutgoingGwentSeed() : int
+    {
+        return outgoingGwentSeed;
     }
     
     public function gwentRequest(toRequest : string) : bool
@@ -518,8 +530,8 @@ statemachine class r_MultiplayerClient
 
     public function setGwentBetAmount(amount : int)
     {
-        GetWitcherPlayer().DisplayHudMessage("Gwent duel request sent to " +outgoingGwentTo);
-        mpghosts_playSound('gui_global_highlight');
+        outgoingGwentBet = amount;
+        setGwentSeed();
 
         if(requestedGwentGameType == GG_Timed)
         {
@@ -529,8 +541,14 @@ statemachine class r_MultiplayerClient
         {
             outgoingGwentRequest = E_RequestNormal;
         }
-        
-        outgoingGwentBet = amount;
+
+        GetWitcherPlayer().DisplayHudMessage("Gwent duel request sent to " +outgoingGwentTo);
+        mpghosts_playSound('gui_global_highlight');
+    }
+
+    public function setGwentSeed()
+    {
+        outgoingGwentSeed = RandRange(999999, 1);
     }
 
     public function setGwentGameType(val : E_GwentGameType)
@@ -3324,7 +3342,7 @@ statemachine class r_MultiplayerClient
         }
     }
 
-    public function updatePlayerData3(idName : name, outgoingGwentTo : string, outgoingGwentRequest : E_GwentRequest, outgoingGwentBet : int, lastGwentAction : string, lastGwentActionTime : float, gwentData : string)
+    public function updatePlayerData3(idName : name, outgoingGwentTo : string, outgoingGwentRequest : E_GwentRequest, outgoingGwentBet : int, outgoingGwentSeed : int, lastGwentAction : string, lastGwentActionTime : float, gwentData : string)
     {
         var i : int;
         var foundGlobal : bool;
@@ -3367,6 +3385,7 @@ statemachine class r_MultiplayerClient
                 players[i].outgoingGwentTo = outgoingGwentTo;
                 players[i].outgoingGwentRequest = outgoingGwentRequest;
                 players[i].outgoingGwentBet = outgoingGwentBet;
+                players[i].outgoingGwentSeed = outgoingGwentSeed;
                 players[i].lastGwentAction = lastGwentAction;
                 players[i].lastGwentActionTime = lastGwentActionTime;
 
@@ -4481,6 +4500,9 @@ exec function wo_get3(playerId : string)
     list += theGame.r_getMultiplayerClient().getOutgoingGwentBet();
     list += " ";
 
+    list += theGame.r_getMultiplayerClient().getOutgoingGwentSeed();
+    list += " ";
+
     //actions
 
     lastGwentAction = theGame.r_getMultiplayerClient().getLastGwentAction();
@@ -4561,9 +4583,9 @@ exec function wo_update2(id : name, cpcPlayerType : ENR_PlayerType, cpcHead : na
                                                        cpcItem1, cpcItem2, cpcItem3, cpcItem4, cpcItem5, cpcItem6, cpcItem7, cpcItem8, cpcItem9, cpcItem10);
 }
 
-exec function wo_update3(id : name, outgoingGwentTo : string, outgoingGwentRequest : E_GwentRequest, outgoingGwentBet : int, lastGwentAction : string, lastGwentActionTime : float, gwentData : string)
+exec function wo_update3(id : name, outgoingGwentTo : string, outgoingGwentRequest : E_GwentRequest, outgoingGwentBet : int, outgoingGwentSeed : int, lastGwentAction : string, lastGwentActionTime : float, gwentData : string)
 {
-    theGame.r_getMultiplayerClient().updatePlayerData3(id, outgoingGwentTo, outgoingGwentRequest, outgoingGwentBet, lastGwentAction, lastGwentActionTime, gwentData);
+    theGame.r_getMultiplayerClient().updatePlayerData3(id, outgoingGwentTo, outgoingGwentRequest, outgoingGwentBet, outgoingGwentSeed, lastGwentAction, lastGwentActionTime, gwentData);
 }
 
 exec function mpghosts_disconnect(id :string)
