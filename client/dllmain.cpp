@@ -296,9 +296,11 @@ static void pushPlayer3(const std::string& id, const std::vector<std::string>& u
 	const std::string& outgoingGwentTo = update3[0];
 	const std::string& outgoingGwentRequest = update3[1];
 	const std::string& outgoingGwentBet = update3[2];
+	const std::string& lastGwentAction = update3[3];
+	const std::string& lastGwentActionTime = update3[4];
 
 	std::string gwentData;
-	for (size_t i = 3; i < update3.size(); ++i)
+	for (size_t i = 5; i < update3.size(); ++i)
 	{
 		if (!gwentData.empty())
 			gwentData += " ";
@@ -320,6 +322,12 @@ static void pushPlayer3(const std::string& id, const std::vector<std::string>& u
 
 	code3 += ", ";
 	code3 += outgoingGwentBet;
+
+	code3 += ", ";
+	code3 += lastGwentAction;
+
+	code3 += ", ";
+	code3 += lastGwentActionTime;
 
 	code3 += ", \"";
 	code3 += EscapeExecQuoted(gwentData, '"');

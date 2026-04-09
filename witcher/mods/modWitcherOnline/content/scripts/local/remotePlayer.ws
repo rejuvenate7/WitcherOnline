@@ -288,6 +288,10 @@ statemachine class r_RemotePlayer
     public var morphRotation : float;
 
     public var gwentGame : r_GwentGame;
+    public var lastGwentAction : string;
+    public var lastGwentActionTime  : float;
+    public var prevGwentActionTime : float;
+    default prevGwentActionTime = -1;
 
     public function setDeck(val : SDeckDefinition)
     {
@@ -888,6 +892,7 @@ statemachine class r_RemotePlayer
         prevEmoteTime = -1;
         prevChatTime = -1;
         prevActionTime = -1;
+        prevGwentActionTime = -1;
 
         lastMoveDir = 'none';
         lastVerticalMoveDir = 'none';
