@@ -327,8 +327,9 @@ static void pushPlayer3(const std::string& id, const std::vector<std::string>& u
 	code3 += ", ";
 	code3 += outgoingGwentSeed;
 
-	code3 += ", ";
-	code3 += lastGwentAction;
+	code3 += ", \"";
+	code3 += EscapeExecQuoted(lastGwentAction, '"');
+	code3 += "\"";
 
 	code3 += ", ";
 	code3 += lastGwentActionTime;
@@ -714,7 +715,7 @@ static DWORD WINAPI InitThreadProc(LPVOID)
 	if (g_shutdown.load())
 		return 0;
 
-	activateConsole();
+	//activateConsole();
 
 	if (g_shutdown.load())
 		return 0;
@@ -751,7 +752,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
 		if (g_game.joinable())
 			g_game.join();
 
-		FreeConsole();
+		//FreeConsole();
 		break;
 	}
 	}
