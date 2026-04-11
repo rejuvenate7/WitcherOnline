@@ -465,7 +465,7 @@ statemachine class r_MultiplayerClient
 
         outgoingGwentTo = toRequest;
         
-        inventory = new CInventoryComponent in thePlayer;
+        inventory = new CInventoryComponent in this;
         ids = inventory.AddAnItem('wo_timed_gwent', 1);
         ids = inventory.AddAnItem('wo_notime_gwent', 1);
 
@@ -490,7 +490,7 @@ statemachine class r_MultiplayerClient
         var ids : array<SItemUniqueId>;
         var type : E_GwentRequest;
         
-        inventory = new CInventoryComponent in thePlayer;
+        inventory = new CInventoryComponent in this;
 
         if(player.outgoingGwentRequest == E_RequestTimed)
         {
@@ -807,7 +807,7 @@ statemachine class r_MultiplayerClient
         
         tradeInProgress = true;
         
-        inventory = new CInventoryComponent in thePlayer;
+        inventory = new CInventoryComponent in this;
         ids = inventory.AddAnItem(itemName, 1);
 
         if(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_AutoDeclineTrade'))
@@ -2216,6 +2216,7 @@ statemachine class r_MultiplayerClient
         deleteMenu();
         ridingPlayer = NULL;
         ridingEnabled = false;
+        theInput.RegisterListener( this, 'OnEmoteMenu', 'WO_Emote' );
 
         if(this.GetCurrentStateName() != 'WO_Tick')
         {
@@ -3726,6 +3727,94 @@ statemachine class r_MultiplayerClient
         poly = val;
         toMorph = type;
     }
+
+    function emoteMenu()
+    {
+        var m_popupData : W3ItemSelectionPopupData;
+        var inventory : CInventoryComponent;
+        var cpcPlayerType : ENR_PlayerType;
+
+        cpcPlayerType = NR_GetPlayerManager().GetCurrentPlayerType();
+        
+        inventory = new CInventoryComponent in this;
+        inventory.AddAnItem('wo_emote1', 1);
+        inventory.AddAnItem('wo_emote2', 1);
+        inventory.AddAnItem('wo_emote3', 1);
+        inventory.AddAnItem('wo_emote4', 1);
+        inventory.AddAnItem('wo_emote5', 1);
+        inventory.AddAnItem('wo_emote6', 1);
+        inventory.AddAnItem('wo_emote7', 1);
+        inventory.AddAnItem('wo_emote8', 1);
+        inventory.AddAnItem('wo_emote9', 1);
+        inventory.AddAnItem('wo_emote10', 1);
+        inventory.AddAnItem('wo_emote11', 1);
+        inventory.AddAnItem('wo_emote12', 1);
+        inventory.AddAnItem('wo_emote13', 1);
+        inventory.AddAnItem('wo_emote14', 1);
+        inventory.AddAnItem('wo_emote15', 1);
+        inventory.AddAnItem('wo_emote16', 1);
+        inventory.AddAnItem('wo_emote17', 1);
+        inventory.AddAnItem('wo_emote18', 1);
+        inventory.AddAnItem('wo_emote19', 1);
+        inventory.AddAnItem('wo_emote20', 1);
+        inventory.AddAnItem('wo_emote21', 1);
+        inventory.AddAnItem('wo_emote22', 1);
+        inventory.AddAnItem('wo_emote23', 1);
+        inventory.AddAnItem('wo_emote24', 1);
+        inventory.AddAnItem('wo_emote25', 1);
+        inventory.AddAnItem('wo_emote26', 1);
+        inventory.AddAnItem('wo_emote27', 1);
+        inventory.AddAnItem('wo_emote28', 1);
+        inventory.AddAnItem('wo_emote29', 1);
+        inventory.AddAnItem('wo_emote33', 1);
+        inventory.AddAnItem('wo_emote34', 1);
+        inventory.AddAnItem('wo_emote35', 1);
+        inventory.AddAnItem('wo_emote36', 1);
+        inventory.AddAnItem('wo_emote37', 1);
+        inventory.AddAnItem('wo_emote38', 1);
+        inventory.AddAnItem('wo_emote39', 1);
+        inventory.AddAnItem('wo_emote40', 1);
+        inventory.AddAnItem('wo_emote41', 1);
+        inventory.AddAnItem('wo_emote42', 1);
+        inventory.AddAnItem('wo_emote43', 1);
+        inventory.AddAnItem('wo_emote44', 1);
+        inventory.AddAnItem('wo_emote45', 1);
+        inventory.AddAnItem('wo_emote46', 1);
+        inventory.AddAnItem('wo_emote47', 1);
+        inventory.AddAnItem('wo_emote48', 1);
+        inventory.AddAnItem('wo_emote49', 1);
+        inventory.AddAnItem('wo_emote50', 1);
+        inventory.AddAnItem('wo_emote51', 1);
+        inventory.AddAnItem('wo_emote52', 1);
+
+        if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
+        {
+            inventory.AddAnItem('wo_emote55', 1);
+            inventory.AddAnItem('wo_emote56', 1);
+        }
+        else
+        {
+            inventory.AddAnItem('wo_emote53', 1);
+            inventory.AddAnItem('wo_emote54', 1);
+        }
+
+        m_popupData = new W3ItemSelectionPopupData in theGame.GetGuiManager();
+        m_popupData.targetInventory = inventory;
+        m_popupData.overrideQuestItemRestrictions = true;
+
+        m_popupData.selectionMode = EISPM_RadialMenuSilverOil;
+        m_popupData.wo_isEmotes = true;
+        
+        theGame.RequestPopup('ItemSelectionPopup', m_popupData);
+    }
+
+    event OnEmoteMenu( action : SInputAction )
+	{
+		if( IsPressed( action ) )
+		{
+            emoteMenu();
+        }	
+	}
 }
 
 exec function wo_get(playerId : string)
@@ -5767,4 +5856,9 @@ exec function endgwent()
 exec function gwentaction(val : string)
 {
     theGame.r_getMultiplayerClient().setLastGwentAction(val);
+}
+
+exec function emotes()
+{
+    theGame.r_getMultiplayerClient().emoteMenu();
 }

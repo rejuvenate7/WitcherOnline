@@ -449,6 +449,7 @@ function OnCallSelectItem(itemId : SItemUniqueId)
 {
     var defMgr : CDefinitionsManagerAccessor = theGame.GetDefinitionsManager();
     var itemName : name;
+    var emoteId : int;
 
     if(m_DataObject.wo_isTrade)
     {
@@ -479,6 +480,17 @@ function OnCallSelectItem(itemId : SItemUniqueId)
         }
 
         theGame.r_getMultiplayerClient().openGwentBetWindow();
+        ClosePopup();
+    }
+    else if(m_DataObject.wo_isEmotes)
+    {
+        itemName = m_DataObject.targetInventory.GetItemName(itemId);
+        emoteId = StringToInt(StrReplace(itemName, "wo_emote", "")) - 1;
+
+        if(StrBeginsWith(itemName, "wo_emote"))
+        {
+            mpghosts_emote(emoteId);
+        }
         ClosePopup();
     }
     else
@@ -519,7 +531,7 @@ function OnConfigUI()
 
     m_DataObject = (W3ItemSelectionPopupData)GetPopupInitData();
 
-    if(m_DataObject.wo_isTrade || m_DataObject.wo_isReceivingTrade || m_DataObject.wo_isGwent || m_DataObject.wo_isReceivingGwent)
+    if(m_DataObject.wo_isTrade || m_DataObject.wo_isReceivingTrade || m_DataObject.wo_isGwent || m_DataObject.wo_isReceivingGwent || m_DataObject.wo_isEmotes)
     {
         super.OnConfigUI();
 		
@@ -583,7 +595,7 @@ function OnConfigUI()
             m_tradeInventory.ignorePosition = true;
             m_tradeInventory.SetFilterType( IFT_None );
 
-            m_fxSetCategory.InvokeSelfOneArg( FlashArgString("Select the Gwent match type to send to " + m_DataObject.wo_toGwent) );
+            m_fxSetCategory.InvokeSelfOneArg( FlashArgString("Gwent: Playing " + m_DataObject.wo_toGwent) );
 
             l_flashObject = m_flashValueStorage.CreateTempFlashObject();
             l_flashArray = m_flashValueStorage.CreateTempFlashArray();		
@@ -604,10 +616,48 @@ function OnConfigUI()
             m_tradeInventory.GetInventoryFlashArray(l_flashArray, l_flashObject);		
             m_flashValueStorage.SetFlashArray( "repair.grid.player", l_flashArray );
         }
+        else if(m_DataObject.wo_isEmotes)
+        {
+            m_tradeInventory = new W3GuiSelectItemComponent in theGame.GetGuiManager();
+            m_tradeInventory.Initialize( m_DataObject.targetInventory );
+            m_tradeInventory.ignorePosition = true;
+            m_tradeInventory.SetFilterType( IFT_None );
+
+            m_fxSetCategory.InvokeSelfOneArg( FlashArgString("Emotes") );
+
+            l_flashObject = m_flashValueStorage.CreateTempFlashObject();
+            l_flashArray = m_flashValueStorage.CreateTempFlashArray();		
+            m_tradeInventory.GetInventoryFlashArray(l_flashArray, l_flashObject);		
+            m_flashValueStorage.SetFlashArray( "repair.grid.player", l_flashArray );
+        }
     }
     else
     {
         return wrappedMethod();
+    }
+}
+
+@wrapMethod(CR4ItemSelectionPopup)
+function OnItemSelected( itemId : SItemUniqueId )
+{
+    if(m_DataObject.wo_isEmotes)
+    {
+        m_fxSetItemDescription.InvokeSelfOneArg( FlashArgString( GetLocStringById(2111114076) ) );
+    }
+    else if(m_DataObject.wo_isGwent)
+    {
+        if(m_DataObject.targetInventory.GetItemName(itemId) == 'wo_timed_gwent')
+        {
+            m_fxSetItemDescription.InvokeSelfOneArg( FlashArgString( GetLocStringById(2111114074) ) );
+        }
+        else if(m_DataObject.targetInventory.GetItemName(itemId) == 'wo_notime_gwent')
+        {
+            m_fxSetItemDescription.InvokeSelfOneArg( FlashArgString( GetLocStringById(2111114075) ) );
+        }
+    }
+    else
+    {
+        return wrappedMethod(itemId);
     }
 }
 
@@ -628,6 +678,9 @@ var wo_toGwent : string;
 
 @addField(W3ItemSelectionPopupData)
 var wo_isReceivingTrade : bool;
+
+@addField(W3ItemSelectionPopupData)
+var wo_isEmotes : bool;
 
 @addField(W3ItemSelectionPopupData)
 var wo_crownsAmount : int;
@@ -718,7 +771,6 @@ function StateWantsToEnter() : bool
 
     return wrappedMethod();
 }
-
 
 @wrapMethod(CExplorationStateJump)
 function StateWantsToEnter() : bool 
