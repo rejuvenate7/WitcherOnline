@@ -3815,6 +3815,42 @@ statemachine class r_MultiplayerClient
             emoteMenu();
         }	
 	}
+
+    function getChatInventory() : CInventoryComponent
+    {
+        var inventory : CInventoryComponent;
+        
+        inventory = new CInventoryComponent in this;
+        inventory.AddAnItem('wo_chat1', 1);
+        inventory.AddAnItem('wo_chat2', 1);
+        inventory.AddAnItem('wo_chat3', 1);
+        inventory.AddAnItem('wo_chat4', 1);
+        inventory.AddAnItem('wo_chat5', 1);
+        inventory.AddAnItem('wo_chat6', 1);
+        inventory.AddAnItem('wo_chat7', 1);
+        inventory.AddAnItem('wo_chat8', 1);
+        inventory.AddAnItem('wo_chat9', 1);
+        inventory.AddAnItem('wo_chat10', 1);
+        inventory.AddAnItem('wo_chat11', 1);
+        inventory.AddAnItem('wo_chat12', 1);
+        inventory.AddAnItem('wo_chat13', 1);
+
+        return inventory;
+    }
+    
+    function getMorphInventory() : CInventoryComponent
+    {
+        var inventory : CInventoryComponent;
+        
+        inventory = new CInventoryComponent in this;
+        inventory.AddAnItem('wo_morph1', 1);
+        inventory.AddAnItem('wo_morph2', 1);
+        inventory.AddAnItem('wo_morph3', 1);
+        inventory.AddAnItem('wo_morph4', 1);
+
+        return inventory;
+    }
+
 }
 
 exec function wo_get(playerId : string)
@@ -5759,6 +5795,13 @@ function mpghosts_morph(type : name)
     var morphMap : NR_Map;
     var morphActive : int;
     var cpcPlayerType : ENR_PlayerType;
+
+    if(theGame.r_getMultiplayerClient().isRiding() || thePlayer.IsUsingHorse(false))
+    {
+        mpghosts_playSound('gui_global_denied');
+        GetWitcherPlayer().DisplayHudMessage("To use morphs, first dismount.");
+        return;
+    }
 
     cpcPlayerType = NR_GetPlayerManager().GetCurrentPlayerType();  
     morphMap = NR_GetMagicManager().GetMap('none');

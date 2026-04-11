@@ -77,4 +77,26 @@
 2111114074||item_desc_wo_timed|A faster mode of Gwent, with limited time to make each move.
 2111114075||item_desc_wo_normal|A classic mode of Gwent, with no time limit.
 2111114076||item_desc_wo_emote|Perform emote.
-2111114077||wo_keybind_emote|Witcher Online Emotes
+2111114077||wo_keybind_emote|Witcher Online Menu
+2111114078||item_name_wo_chat1|Hello
+2111114079||item_name_wo_chat2|Bye
+2111114080||item_name_wo_chat3|Follow me
+2111114081||item_name_wo_chat4|Wait here
+2111114082||item_name_wo_chat5|Need a ride?
+2111114083||item_name_wo_chat6|Trade?
+2111114084||item_name_wo_chat7|Thanks
+2111114085||item_name_wo_chat8|Sorry
+2111114086||item_name_wo_chat9|Look here
+2111114087||item_name_wo_chat10|Help!
+2111114088||item_name_wo_chat11|Nice armor
+2111114089||item_name_wo_chat12|Nice sword
+2111114090||item_name_wo_chat13|Nice outfit
+2111114091||item_name_wo_morph1|Cat
+2111114092||item_name_wo_morph2|Fox
+2111114093||item_name_wo_morph3|Owl
+2111114094||item_name_wo_morph4|Crow
+2111114095||wo_morph_desc|Change morph.
+2111114096||wo_chat_desc|Send chat message.
+2111114097||wo_morph_title|Morphs
+2111114098||wo_chat_title|Chat
+2111114099||wo_emote_title|Emotes

@@ -484,10 +484,90 @@ function OnCallSelectItem(itemId : SItemUniqueId)
     }
     else if(m_DataObject.wo_isEmotes)
     {
-        itemName = m_DataObject.targetInventory.GetItemName(itemId);
+        if(m_selectedItemCategory == 0)
+        {
+            itemName = m_DataObject.targetInventory.GetItemName(itemId);
+        }
+        else if(m_selectedItemCategory == 1)
+        {
+            itemName = theGame.r_getMultiplayerClient().getChatInventory().GetItemName(itemId);
+        }
+        else if(m_selectedItemCategory == 2)
+        {
+            itemName = theGame.r_getMultiplayerClient().getMorphInventory().GetItemName(itemId);
+        }
+        
         emoteId = StringToInt(StrReplace(itemName, "wo_emote", "")) - 1;
 
-        if(StrBeginsWith(itemName, "wo_emote"))
+        if(itemName == 'wo_chat1')
+        {
+            mpghosts_chat("Hello");
+        }
+        else if(itemName == 'wo_chat2')
+        {
+            mpghosts_chat("Bye");
+        }
+        else if(itemName == 'wo_chat3')
+        {
+            mpghosts_chat("Follow me");
+        }
+        else if(itemName == 'wo_chat4')
+        {
+            mpghosts_chat("Wait here");
+        }
+        else if(itemName == 'wo_chat5')
+        {
+            mpghosts_chat("Need a ride?");
+        }
+        else if(itemName == 'wo_chat6')
+        {
+            mpghosts_chat("Trade?");
+        }
+        else if(itemName == 'wo_chat7')
+        {
+            mpghosts_chat("Thanks");
+        }
+        else if(itemName == 'wo_chat8')
+        {
+            mpghosts_chat("Sorry");
+        }
+        else if(itemName == 'wo_chat9')
+        {
+            mpghosts_chat("Look here");
+        }
+        else if(itemName == 'wo_chat10')
+        {
+            mpghosts_chat("Help!");
+        }
+        else if(itemName == 'wo_chat11')
+        {
+            mpghosts_chat("Nice armor");
+        }
+        else if(itemName == 'wo_chat12')
+        {
+            mpghosts_chat("Nice sword");
+        }
+        else if(itemName == 'wo_chat13')
+        {
+            mpghosts_chat("Nice outfit");
+        }
+        else if(itemName == 'wo_morph1')
+        {
+            mpghosts_morph('cat');
+        }
+        else if(itemName == 'wo_morph2')
+        {
+            mpghosts_morph('fox');
+        }
+        else if(itemName == 'wo_morph3')
+        {
+            mpghosts_morph('owl');
+        }
+        else if(itemName == 'wo_morph4')
+        {
+            mpghosts_morph('crow');
+        }
+        else if(StrBeginsWith(itemName, "wo_emote"))
         {
             mpghosts_emote(emoteId);
         }
@@ -527,8 +607,7 @@ function OnConfigUI()
 {
     var l_flashObject			: CScriptedFlashObject;
 	var l_flashArray			: CScriptedFlashArray;
-    var m_tradeInventory: W3GuiSelectItemComponent;
-
+    
     m_DataObject = (W3ItemSelectionPopupData)GetPopupInitData();
 
     if(m_DataObject.wo_isTrade || m_DataObject.wo_isReceivingTrade || m_DataObject.wo_isGwent || m_DataObject.wo_isReceivingGwent || m_DataObject.wo_isEmotes)
@@ -618,12 +697,14 @@ function OnConfigUI()
         }
         else if(m_DataObject.wo_isEmotes)
         {
+            m_fxShowCategoryButtons.InvokeSelfOneArg( FlashArgBool(true) );	
+
             m_tradeInventory = new W3GuiSelectItemComponent in theGame.GetGuiManager();
             m_tradeInventory.Initialize( m_DataObject.targetInventory );
             m_tradeInventory.ignorePosition = true;
             m_tradeInventory.SetFilterType( IFT_None );
 
-            m_fxSetCategory.InvokeSelfOneArg( FlashArgString("Emotes") );
+            m_fxSetCategory.InvokeSelfOneArg( FlashArgString(GetLocStringById(2111114099)) );
 
             l_flashObject = m_flashValueStorage.CreateTempFlashObject();
             l_flashArray = m_flashValueStorage.CreateTempFlashArray();		
@@ -642,7 +723,18 @@ function OnItemSelected( itemId : SItemUniqueId )
 {
     if(m_DataObject.wo_isEmotes)
     {
-        m_fxSetItemDescription.InvokeSelfOneArg( FlashArgString( GetLocStringById(2111114076) ) );
+        if(m_selectedItemCategory == 0)
+        {
+            m_fxSetItemDescription.InvokeSelfOneArg( FlashArgString( GetLocStringById(2111114076) ) );
+        }
+        else if(m_selectedItemCategory == 1)
+        {
+            m_fxSetItemDescription.InvokeSelfOneArg( FlashArgString( GetLocStringById(2111114096)) );
+        }
+        else if(m_selectedItemCategory == 2)
+        {
+            m_fxSetItemDescription.InvokeSelfOneArg( FlashArgString( GetLocStringById(2111114095)) );
+        }
     }
     else if(m_DataObject.wo_isGwent)
     {
@@ -660,6 +752,66 @@ function OnItemSelected( itemId : SItemUniqueId )
         return wrappedMethod(itemId);
     }
 }
+
+@wrapMethod(CR4ItemSelectionPopup)
+function OnChangeCategory( id : int )
+{
+    var locString : string;
+    var l_flashObject			: CScriptedFlashObject;
+    var l_flashArray			: CScriptedFlashArray;
+
+    if(m_DataObject.wo_isEmotes)
+    {
+        m_selectedItemCategory += id;
+
+        if (m_selectedItemCategory < 0)
+            m_selectedItemCategory = 2;
+        else if (m_selectedItemCategory > 2)
+            m_selectedItemCategory = 0;
+
+        switch(m_selectedItemCategory)
+        {
+            case 0:
+                locString = GetLocStringById(2111114099);
+                m_tradeInventory = new W3GuiSelectItemComponent in theGame.GetGuiManager();
+                m_tradeInventory.Initialize( m_DataObject.targetInventory );
+                m_tradeInventory.ignorePosition = true;
+                m_tradeInventory.SetFilterType( IFT_None );
+                break;
+            case 1:
+                locString = GetLocStringById(2111114098);
+                m_tradeInventory = new W3GuiSelectItemComponent in theGame.GetGuiManager();
+                m_tradeInventory.Initialize( theGame.r_getMultiplayerClient().getChatInventory() );
+                m_tradeInventory.ignorePosition = true;
+                m_tradeInventory.SetFilterType( IFT_None );
+                break;
+            case 2:
+                locString = GetLocStringById(2111114097);
+                m_tradeInventory = new W3GuiSelectItemComponent in theGame.GetGuiManager();
+                m_tradeInventory.Initialize( theGame.r_getMultiplayerClient().getMorphInventory() );
+                m_tradeInventory.ignorePosition = true;
+                m_tradeInventory.SetFilterType( IFT_None );
+                break;
+        }
+        
+        m_fxDeselectItem.InvokeSelf();
+        m_fxSetCategory.InvokeSelfOneArg( FlashArgString( locString ) );
+        
+        l_flashObject = m_flashValueStorage.CreateTempFlashObject();
+        l_flashArray = m_flashValueStorage.CreateTempFlashArray();		
+        m_tradeInventory.GetInventoryFlashArray(l_flashArray, l_flashObject);		
+        m_flashValueStorage.SetFlashArray( "repair.grid.player", l_flashArray );
+
+        return true;
+    }
+    else
+    {
+        return wrappedMethod(id);
+    }
+}
+
+@addField(CR4ItemSelectionPopup)
+var m_tradeInventory: W3GuiSelectItemComponent;
 
 @addField(W3ItemSelectionPopupData)
 var wo_toTrade : string;
