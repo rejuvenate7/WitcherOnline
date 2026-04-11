@@ -21,21 +21,28 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class WitcherServer
 {
     private static final Map<String, PlayerSession> players = new ConcurrentHashMap<>();
-    private static final Set<ClientEndpoint> clients = ConcurrentHashMap.newKeySet();
     private static final Set<String> bannedIps = ConcurrentHashMap.newKeySet();
     private static final Set<String> whitelistedIps = ConcurrentHashMap.newKeySet();
+    private static final Map<String, UsernameReservation> reservedUsernames = new ConcurrentHashMap<>();
 
     private static final AtomicBoolean running = new AtomicBoolean(true);
     private static final AtomicBoolean whitelistEnabled = new AtomicBoolean(false);
 
-    private static final Map<String, UsernameReservation> reservedUsernames = new ConcurrentHashMap<>();
+    private static final AtomicLong totalPacketsSent = new AtomicLong(0);
+    private static final AtomicLong totalSendFailures = new AtomicLong(0);
+    private static final AtomicLong totalBroadcastTicks = new AtomicLong(0);
 
-    private static final long PLAYER_TIMEOUT_MS = 5000;
-    private static final long USERNAME_HOLD_MS = 60_000;
+    private static volatile long lastBroadcastTickNanos = 0L;
+
+    private static final long PLAYER_TIMEOUT_NANOS = 5_000_000_000L;
+    private static final long USERNAME_HOLD_NANOS = 60_000_000_000L;
+    private static final long BROADCAST_HEARTBEAT_NANOS = 60_000_000_000L;
+
     private static final int DEFAULT_PORT = 40000;
     private static final DateTimeFormatter LOG_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
@@ -55,20 +62,27 @@ public class WitcherServer
         dbg("Starting Witcher Online server on *:%d\n", port);
         dbg("For help, type \"help\" or \"?\"\n");
 
-        Thread recvThread = new Thread(() -> receiveLoop(socket), "udp-recv");
-        Thread sendThread = new Thread(() -> broadcastLoop(socket), "udp-broadcast");
-        Thread cleanupThread = new Thread(() -> cleanupLoop(socket), "udp-cleanup");
-        Thread consoleThread = new Thread(() -> consoleLoop(socket), "console");
-
-        recvThread.start();
-        sendThread.start();
-        cleanupThread.start();
-        consoleThread.start();
+        Thread recvThread = startThread("udp-recv", () -> receiveLoop(socket));
+        Thread sendThread = startThread("udp-broadcast", () -> broadcastLoop(socket));
+        Thread cleanupThread = startThread("udp-cleanup", WitcherServer::cleanupLoop);
+        Thread consoleThread = startThread("console", () -> consoleLoop(socket));
 
         recvThread.join();
         sendThread.join();
         cleanupThread.join();
         consoleThread.join();
+    }
+
+    private static Thread startThread(String name, Runnable target)
+    {
+        Thread thread = new Thread(target, name);
+        thread.setUncaughtExceptionHandler((t, e) ->
+        {
+            dbg("Thread %s crashed: %s\n", t.getName(), e.toString());
+            e.printStackTrace();
+        });
+        thread.start();
+        return thread;
     }
 
     private static void receiveLoop(DatagramSocket socket)
@@ -92,24 +106,19 @@ public class WitcherServer
                         StandardCharsets.UTF_8
                 );
 
-                //dbg("Received packet len=%d from %s:%d val:%s\n", packet.getLength(), packet.getAddress().getHostAddress(), packet.getPort(), msg);
-
                 if (isIpBanned(senderIp))
                 {
-                    //dbg("Rejected packet from banned IP %s:%d\n", senderIp, sender.port);
                     safeSend(socket, sender, "ERROR\tBANNED");
                     continue;
                 }
 
                 if (whitelistEnabled.get() && !isIpWhitelisted(senderIp))
                 {
-                    //dbg("Rejected packet from non-whitelisted IP %s:%d\n", senderIp, sender.port);
                     safeSend(socket, sender, "ERROR\tNOT_WHITELISTED");
                     continue;
                 }
 
                 handleMessage(socket, sender, msg);
-
             }
             catch (SocketException e)
             {
@@ -160,7 +169,7 @@ public class WitcherServer
 
         String usernameKey = normalizeUsernameKey(username);
         String senderIp = normalizeIp(sender.address.getHostAddress());
-        long now = System.currentTimeMillis();
+        long now = System.nanoTime();
 
         PlayerSession current = players.get(usernameKey);
 
@@ -170,7 +179,7 @@ public class WitcherServer
 
             boolean sameEndpoint = current.endpoint.equals(sender);
             boolean sameIp = currentIp.equals(senderIp);
-            boolean expired = (now - current.lastSeen) > PLAYER_TIMEOUT_MS;
+            boolean expired = (now - current.lastSeen) > PLAYER_TIMEOUT_NANOS;
 
             if (sameEndpoint)
             {
@@ -184,7 +193,7 @@ public class WitcherServer
             }
             else if (expired)
             {
-                boolean reserved = reserveTimedOutPlayer(socket, usernameKey, current, now);
+                boolean reserved = reserveTimedOutPlayer(usernameKey, current, now);
                 if (reserved)
                 {
                     dbg("Rejected %s from %s because username is reserved for previous IP\n", username, sender);
@@ -210,18 +219,14 @@ public class WitcherServer
             }
         }
 
-        // No active player owns the name. Check whether the username is reserved.
         if (!players.containsKey(usernameKey))
         {
             UsernameReservation reservation = reservedUsernames.get(usernameKey);
 
-            if (reservation != null)
+            if (reservation != null && now >= reservation.expiresAt)
             {
-                if (now >= reservation.expiresAt)
-                {
-                    reservedUsernames.remove(usernameKey, reservation);
-                    reservation = null;
-                }
+                reservedUsernames.remove(usernameKey, reservation);
+                reservation = null;
             }
 
             if (reservation != null)
@@ -293,24 +298,22 @@ public class WitcherServer
         {
             current.update3Fields = frozenFields;
         }
-
-        clients.add(sender);
     }
 
-    private static void cleanupLoop(DatagramSocket socket)
+    private static void cleanupLoop()
     {
         while (running.get())
         {
             try
             {
-                long now = System.currentTimeMillis();
+                long now = System.nanoTime();
 
                 for (Map.Entry<String, PlayerSession> entry : players.entrySet())
                 {
                     PlayerSession session = entry.getValue();
-                    if ((now - session.lastSeen) > PLAYER_TIMEOUT_MS)
+                    if ((now - session.lastSeen) > PLAYER_TIMEOUT_NANOS)
                     {
-                        reserveTimedOutPlayer(socket, entry.getKey(), session, now);
+                        reserveTimedOutPlayer(entry.getKey(), session, now);
                     }
                 }
 
@@ -328,7 +331,6 @@ public class WitcherServer
                     }
                 }
 
-                cleanupClients();
                 Thread.sleep(1000);
             }
             catch (InterruptedException e)
@@ -345,33 +347,45 @@ public class WitcherServer
 
     private static void broadcastLoop(DatagramSocket socket)
     {
+        long lastHeartbeat = System.nanoTime();
+
         while (running.get())
         {
             try
             {
+                List<ClientEndpoint> recipients = snapshotRecipients();
+                int packetsSentThisTick = 0;
+
                 for (PlayerSession session : players.values())
                 {
-                    broadcastChunk(socket, session, "UPDATE1A", session.update1AFields);
-                    broadcastChunk(socket, session, "UPDATE1B", session.update1BFields);
-                    broadcastChunk(socket, session, "UPDATE2A", session.update2AFields);
-                    broadcastChunk(socket, session, "UPDATE2B", session.update2BFields);
-                    broadcastChunk(socket, session, "UPDATE3", session.update3Fields);
+                    packetsSentThisTick += broadcastChunk(socket, recipients, session, "UPDATE1A", session.update1AFields);
+                    packetsSentThisTick += broadcastChunk(socket, recipients, session, "UPDATE1B", session.update1BFields);
+                    packetsSentThisTick += broadcastChunk(socket, recipients, session, "UPDATE2A", session.update2AFields);
+                    packetsSentThisTick += broadcastChunk(socket, recipients, session, "UPDATE2B", session.update2BFields);
+                    packetsSentThisTick += broadcastChunk(socket, recipients, session, "UPDATE3", session.update3Fields);
+                }
+
+                totalPacketsSent.addAndGet(packetsSentThisTick);
+                totalBroadcastTicks.incrementAndGet();
+                lastBroadcastTickNanos = System.nanoTime();
+
+                long now = System.nanoTime();
+                if ((now - lastHeartbeat) >= BROADCAST_HEARTBEAT_NANOS)
+                {
+                    dbg("Broadcast heartbeat: players=%d recipients=%d packetsSent=%d totalPacketsSent=%d totalSendFailures=%d\n",
+                            players.size(),
+                            recipients.size(),
+                            packetsSentThisTick,
+                            totalPacketsSent.get(),
+                            totalSendFailures.get());
+                    lastHeartbeat = now;
                 }
 
                 Thread.sleep(100);
-
             }
             catch (InterruptedException e)
             {
                 Thread.currentThread().interrupt();
-                break;
-            }
-            catch (SocketException e)
-            {
-                if (running.get())
-                {
-                    e.printStackTrace();
-                }
                 break;
             }
             catch (Exception e)
@@ -381,26 +395,60 @@ public class WitcherServer
         }
     }
 
-    private static void broadcastChunk(DatagramSocket socket, PlayerSession session, String opcode, List<String> fields) throws Exception
+    private static List<ClientEndpoint> snapshotRecipients()
+    {
+        Set<ClientEndpoint> unique = new HashSet<>();
+        for (PlayerSession session : players.values())
+        {
+            unique.add(session.endpoint);
+        }
+        return new ArrayList<>(unique);
+    }
+
+    private static int broadcastChunk(
+            DatagramSocket socket,
+            List<ClientEndpoint> recipients,
+            PlayerSession session,
+            String opcode,
+            List<String> fields)
     {
         if (fields == null || fields.isEmpty())
         {
-            return;
+            return 0;
         }
 
         String packetText = buildTypedPacket(opcode, session.username, fields);
         byte[] data = packetText.getBytes(StandardCharsets.UTF_8);
 
-        for (ClientEndpoint client : clients)
+        if (data.length > 1200)
         {
-            DatagramPacket packet = new DatagramPacket(
-                    data,
-                    data.length,
-                    client.address,
-                    client.port
-            );
-            socket.send(packet);
+            dbg("Large packet: opcode=%s user=%s bytes=%d\n", opcode, session.username, data.length);
         }
+
+        int sent = 0;
+
+        for (ClientEndpoint client : recipients)
+        {
+            try
+            {
+                DatagramPacket packet = new DatagramPacket(
+                        data,
+                        data.length,
+                        client.address,
+                        client.port
+                );
+                socket.send(packet);
+                sent++;
+            }
+            catch (Exception e)
+            {
+                totalSendFailures.incrementAndGet();
+                dbg("Broadcast send failed to %s for %s/%s: %s\n",
+                        client, session.username, opcode, e.toString());
+            }
+        }
+
+        return sent;
     }
 
     private static String buildTypedPacket(String opcode, String playerId, List<String> fields)
@@ -442,19 +490,22 @@ public class WitcherServer
             return;
         }
 
-        if (line.equals("list")) {
+        if (line.equals("list"))
+        {
             dbg("---- Connected players (%d) ----\n", players.size());
-            long now = System.currentTimeMillis();
+            long now = System.nanoTime();
 
-            for (PlayerSession session : players.values()) {
-                long secsSinceSeen = Math.max(0L, (now - session.lastSeen) / 1000L);
+            for (PlayerSession session : players.values())
+            {
+                long secsSinceSeen = Math.max(0L, (now - session.lastSeen) / 1_000_000_000L);
 
                 String locationRaw = getLocation(session.update1AFields);
                 String region = getRegion(locationRaw);
 
                 List<String> coords = getCoords(session.update1AFields);
                 String coordsStr = "?";
-                if (coords.size() == 3) {
+                if (coords.size() == 3)
+                {
                     coordsStr = "(" + coords.get(0) + ", " + coords.get(1) + ", " + coords.get(2) + ")";
                 }
 
@@ -467,6 +518,23 @@ public class WitcherServer
             }
 
             dbgNotime("\n");
+            return;
+        }
+
+        if (line.equals("stats"))
+        {
+            long now = System.nanoTime();
+            long lastTickAgeMs = (lastBroadcastTickNanos == 0L)
+                    ? -1L
+                    : Math.max(0L, (now - lastBroadcastTickNanos) / 1_000_000L);
+
+            dbg("---- Server stats ----\n");
+            dbg("players=%d\n", players.size());
+            dbg("reservedUsernames=%d\n", reservedUsernames.size());
+            dbg("broadcastTicks=%d\n", totalBroadcastTicks.get());
+            dbg("totalPacketsSent=%d\n", totalPacketsSent.get());
+            dbg("totalSendFailures=%d\n", totalSendFailures.get());
+            dbg("lastBroadcastTickAgeMs=%d\n\n", lastTickAgeMs);
             return;
         }
 
@@ -621,7 +689,7 @@ public class WitcherServer
             }
             else
             {
-                dbg("IP '%s' is already in whitelist.\n\n", ip);
+                dbg("IP '%s' is already in whitelist.\n\n");
             }
             return;
         }
@@ -642,6 +710,7 @@ public class WitcherServer
             dbg("whitelist on|off|<ip>     - toggle whitelist or add IP to whitelist\n");
             dbg("whitelist remove <ip>     - remove IP from whitelist\n");
             dbg("list                      - list connected players\n");
+            dbg("stats                     - show broadcast/server health counters\n");
             dbg("about                     - info about Witcher Online\n");
             dbg("stop                      - stop server\n");
             dbg("help                      - show this help\n\n");
@@ -672,8 +741,6 @@ public class WitcherServer
         {
             safeSend(socket, removed.endpoint, kickText);
         }
-
-        cleanupClients();
     }
 
     private static void kickAllPlayersByIp(DatagramSocket socket, String ip, String kickText)
@@ -693,16 +760,6 @@ public class WitcherServer
             dbg("Removing %s (%s) after ban\n", victim.username, victim.endpoint);
             kickPlayer(socket, victim, kickText);
         }
-    }
-
-    private static void cleanupClients()
-    {
-        Set<ClientEndpoint> activeEndpoints = new HashSet<>();
-        for (PlayerSession session : players.values())
-        {
-            activeEndpoints.add(session.endpoint);
-        }
-        clients.removeIf(endpoint -> !activeEndpoints.contains(endpoint));
     }
 
     private static PlayerSession findPlayer(String arg)
@@ -1234,7 +1291,7 @@ public class WitcherServer
         return username == null ? "" : username.trim().toLowerCase(Locale.ROOT);
     }
 
-    private static boolean reserveTimedOutPlayer(DatagramSocket socket, String usernameKey, PlayerSession session, long now)
+    private static boolean reserveTimedOutPlayer(String usernameKey, PlayerSession session, long now)
     {
         if (!players.remove(usernameKey, session))
         {
@@ -1245,15 +1302,14 @@ public class WitcherServer
         reservedUsernames.put(usernameKey, new UsernameReservation(
                 session.username,
                 ip,
-                now + USERNAME_HOLD_MS
+                now + USERNAME_HOLD_NANOS
         ));
 
         dbg("Timed out player %s; reserving username for %d seconds to IP %s\n",
                 session.username,
-                USERNAME_HOLD_MS / 1000,
+                USERNAME_HOLD_NANOS / 1_000_000_000L,
                 ip);
 
-        cleanupClients();
         return true;
     }
 }
