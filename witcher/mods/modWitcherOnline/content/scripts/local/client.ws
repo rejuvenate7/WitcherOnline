@@ -225,7 +225,7 @@ statemachine class r_MultiplayerClient
                     LogChannel('GWENTMATCH', players[i].username + " has accepted your request!");
 
                     gwentOpponent = players[i];
-                    startGwentGame(gwentOpponent, requestedGwentGameType, outgoingGwentBet, outgoingGwentSeed);
+                    startGwentGame(gwentOpponent, requestedGwentGameType, outgoingGwentBet, outgoingGwentSeed, true);
 
                     outgoingGwentRequest = E_Ack;
                     gwentLastCompleted = theGame.GetEngineTimeAsSeconds();
@@ -289,7 +289,7 @@ statemachine class r_MultiplayerClient
 
         LogChannel('GWENTMATCH', "Accepted gwent duel request!");
 
-        startGwentGame(gwentOpponent, gameType, gwentOpponent.outgoingGwentBet, gwentOpponent.outgoingGwentSeed);
+        startGwentGame(gwentOpponent, gameType, gwentOpponent.outgoingGwentBet, gwentOpponent.outgoingGwentSeed, false);
     }
 
     public function declineGwentRequest()
@@ -306,53 +306,55 @@ statemachine class r_MultiplayerClient
         mpghosts_playSound('gui_global_panel_close');
     }
 
-    public function startGwentGame(opponent : r_RemotePlayer, type : E_GwentGameType, bet : int, seed : int)
+    public function startGwentGame(opponent : r_RemotePlayer, type : E_GwentGameType, bet : int, seed : int, host : bool)
     {
+        var gwintManager : CR4GwintManager;
         var gwentGame : r_GwentGame;
         var deck : SDeckDefinition;
-        var cards : array<int>;
-        var faction : eGwintFaction;
-        var i : int;
-        var leaderCard : int;
+
+        // Clear any leftover action state from previous games
+        lastGwentAction = "";
+        lastGwentActionTime = 0.0;
+        opponent.lastGwentAction = "";
+        opponent.lastGwentActionTime = 0.0;
+        opponent.prevGwentActionTime = -1;
 
         inGwentGame = true;
         gwentOpponent = opponent;
         activeGwentBet = bet;
         activeGwentSeed = seed;
 
-        LogChannel('GWENTMATCH', "Started game of gwent against " + opponent.username + " with type " + type + " and seed " + seed);
-        GetWitcherPlayer().DisplayHudMessage("Started game of gwent against " + opponent.username + " with type " + type + " and seed " + seed);
+        LogChannel('GWENTMATCH', "Starting gwent vs " + opponent.username + " seed:" + seed + " bet:" + bet + " host:" + host);
 
         gwentGame = opponent.getGwentGame();
-
         deck = gwentGame.deck;
-        faction = gwentGame.faction;
-        
-        cards = deck.cardIndices;
-        leaderCard = deck.leaderIndex;
 
-        LogChannel('WO_Deck', "Faction: " + faction);
-        LogChannel('WO_Deck', "Leader: " + leaderCard);
+        gwintManager = theGame.GetGwintManager();
+        gwintManager.SetEnemyDeckFromMultiplayer(deck);
+        gwintManager.multiplayerSeed = seed;
+        gwintManager.multiplayerIsHost = host;
+        gwintManager.multiplayerIsTimed = (type == GG_Timed);
+        gwintManager.gameRequested = true;
+        gwintManager.testMatch = true;
 
-        for(i = 0; i < cards.Size(); i+=1)
-        {
-            LogChannel('WO_Deck', "Card " +i+ ": " +cards[i]);
-        }
+        theGame.RequestMenu('GwintGame');
     }
 
-    // this function is called repeatedly and acts as the game loop that we can stream gwent actions from the opponent player
     public function gwentGameLoop()
     {
         var action : string;
+        var menu : CR4GwintGameMenu;
 
         if(checkForGwentAction(action))
         {
-            // opponent just made a new action
-            LogChannel('GWENTMATCH', "Player " + gwentOpponent.id + " just made a new action: " + action);
-            GetWitcherPlayer().DisplayHudMessage("Player " + gwentOpponent.id + " just made a new action: " + action);
+            LogChannel('GWENTMATCH', "Remote action: " + action);
+
+            menu = (CR4GwintGameMenu)theGame.GetGuiManager().GetRootMenu();
+            if(menu)
+            {
+                menu.ReceiveRemoteGwentAction(action);
+            }
         }
-        
-        // game loop, you can set the outgoing action the client just did by calling like setLastGwentAction("PLAY_CARD")
     }
 
     public function checkForGwentAction(out action : string) : bool
@@ -375,7 +377,7 @@ statemachine class r_MultiplayerClient
     public function setLastGwentAction(val : string)
     {
         lastGwentAction = val;
-        lastGwentActionTime = theGame.GetEngineTimeAsSeconds();
+        lastGwentActionTime = lastGwentActionTime + 1.0f;
     }
 
     public function getLastGwentAction() : string
@@ -386,6 +388,11 @@ statemachine class r_MultiplayerClient
     public function getLastGwentActionTime() : float
     {
         return lastGwentActionTime;
+    }
+
+    public function getInGwentGame() : bool
+    {
+        return inGwentGame;
     }
 
     public function onGwentGameEnd(localPlayerWon : bool)
@@ -406,6 +413,7 @@ statemachine class r_MultiplayerClient
         gwentLastCompleted = theGame.GetEngineTimeAsSeconds();
         activeGwentBet = 0;
         activeGwentSeed = 0;
+        theGame.GetGwintManager().ClearMultiplayerState();
     }
 
     public function settleGwentBet(localPlayerWon : bool)
