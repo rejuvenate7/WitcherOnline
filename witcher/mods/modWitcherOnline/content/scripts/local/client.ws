@@ -39,6 +39,8 @@ statemachine class r_MultiplayerClient
 {
     private var chillDefs : array<r_ChillDef>;
     private var id, username : string;
+    public var multiplayerLocalName : string;
+    public var multiplayerOpponentName : string;
     private var players : array<r_RemotePlayer>;
     private var globalPlayers : array<r_RemotePlayer>;
     private var inGame : bool;
@@ -323,6 +325,9 @@ statemachine class r_MultiplayerClient
         gwentOpponent = opponent;
         activeGwentBet = bet;
         activeGwentSeed = seed;
+
+        multiplayerLocalName = username;
+        multiplayerOpponentName = opponent.username;
 
         LogChannel('GWENTMATCH', "Starting gwent vs " + opponent.username + " seed:" + seed + " bet:" + bet + " host:" + host);
 
