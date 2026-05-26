@@ -290,15 +290,15 @@ void pushPlayer(const std::string& id, const std::vector<std::string>& update1A,
 
 static void pushPlayer3(const std::string& id, const std::vector<std::string>& update3)
 {
-	if (id.empty() || update3.size() < 2)
+	if (id.empty() || update3.size() < 6)
 		return;
 
-	const std::string& outgoingGwentTo = update3[0];
-	const std::string& outgoingGwentRequest = update3[1];
-	const std::string& outgoingGwentBet = update3[2];
-	const std::string& outgoingGwentSeed = update3[3];
-	const std::string& lastGwentAction = update3[4];
-	const std::string& lastGwentActionTime = update3[5];
+	const std::string& outgoingGwentTo = update3.at(0);
+	const std::string& outgoingGwentRequest = update3.at(1);
+	const std::string& outgoingGwentBet = update3.at(2);
+	const std::string& outgoingGwentSeed = update3.at(3);
+	const std::string& lastGwentAction = update3.at(4);
+	const std::string& lastGwentActionTime = update3.at(5);
 
 	std::string gwentData;
 	for (size_t i = 6; i < update3.size(); ++i)
