@@ -592,7 +592,7 @@ function OnCloseSelectionPopup()
     else if(m_DataObject.wo_isReceivingGwent)
     {
         GetWitcherPlayer().DisplayHudMessage("The Gwent duel was declined.");
-        theGame.r_getMultiplayerClient().declineGwentRequest();
+        theGame.r_getMultiplayerClient().declineGwentRequest(false);
         mpghosts_playSound('gui_enchanting_runeword_remove');
         ClosePopup();
     }

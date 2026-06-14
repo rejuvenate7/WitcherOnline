@@ -165,6 +165,8 @@ statemachine class r_MultiplayerClient
 
     private var lastGwentAction : string;
     private var lastGwentActionTime  : float;
+    private var gwentActionBuffer : array<string>;
+    private var lastGwentActionWasQuit : bool;
 
     private var activeGwentBet : int;
     private var activeGwentSeed : int;
@@ -194,15 +196,6 @@ statemachine class r_MultiplayerClient
                         return;
                     }
 
-                    if(players[i].outgoingGwentRequest == E_RequestTimed)
-                    {
-                        LogChannel('GWENTMATCH', players[i].username + " wants to play TIMED gwent!");
-                    }
-                    else
-                    {
-                        LogChannel('GWENTMATCH', players[i].username + " wants to play NORMAL gwent!");
-                    }
-
                     if(openIncomingGwentRequest(players[i]))
                     {
                         outgoingGwentTo = players[i].id;
@@ -224,8 +217,6 @@ statemachine class r_MultiplayerClient
                 }
                 else if(players[i].outgoingGwentRequest == E_Accept && outgoingGwentRequest != E_Ack && !inGwentGame)
                 {
-                    LogChannel('GWENTMATCH', players[i].username + " has accepted your request!");
-
                     gwentOpponent = players[i];
                     startGwentGame(gwentOpponent, requestedGwentGameType, outgoingGwentBet, outgoingGwentSeed, true);
 
@@ -237,7 +228,6 @@ statemachine class r_MultiplayerClient
                 }
                 else if(players[i].outgoingGwentRequest == E_Decline && outgoingGwentRequest != E_Ack && !inGwentGame)
                 {
-                    LogChannel('GWENTMATCH', players[i].username + " has declined your request!");
                     GetWitcherPlayer().DisplayHudMessage("The gwent request was declined.");
                     mpghosts_playSound('gui_enchanting_runeword_remove');
 
@@ -289,23 +279,23 @@ statemachine class r_MultiplayerClient
         outgoingGwentTo = gwentOpponent.id;
         shownGwentRequestWindow = false;
 
-        LogChannel('GWENTMATCH', "Accepted gwent duel request!");
-
         startGwentGame(gwentOpponent, gameType, gwentOpponent.outgoingGwentBet, gwentOpponent.outgoingGwentSeed, false);
     }
 
-    public function declineGwentRequest()
+    public function declineGwentRequest(override : bool)
     {
-        if(!shownGwentRequestWindow || !gwentOpponent)
+        if((!shownGwentRequestWindow || !gwentOpponent) && !override)
             return;
 
         outgoingGwentRequest = E_Decline;
         outgoingGwentTo = gwentOpponent.id;
         shownGwentRequestWindow = false;
 
-        LogChannel('GWENTMATCH', "Declined gwent duel request!");
-        GetWitcherPlayer().DisplayHudMessage("Declined gwent duel request!");
-        mpghosts_playSound('gui_global_panel_close');
+        if(!override)
+        {
+            GetWitcherPlayer().DisplayHudMessage("Declined gwent duel request!");
+            mpghosts_playSound('gui_global_panel_close');
+        }
     }
 
     public function startGwentGame(opponent : r_RemotePlayer, type : E_GwentGameType, bet : int, seed : int, host : bool)
@@ -314,9 +304,10 @@ statemachine class r_MultiplayerClient
         var gwentGame : r_GwentGame;
         var deck : SDeckDefinition;
 
-        // Clear any leftover action state from previous games
         lastGwentAction = "";
         lastGwentActionTime = 0.0;
+        gwentActionBuffer.Clear();
+        lastGwentActionWasQuit = false;
         opponent.lastGwentAction = "";
         opponent.lastGwentActionTime = 0.0;
         opponent.prevGwentActionTime = -1;
@@ -328,8 +319,6 @@ statemachine class r_MultiplayerClient
 
         multiplayerLocalName = username;
         multiplayerOpponentName = opponent.username;
-
-        LogChannel('GWENTMATCH', "Starting gwent vs " + opponent.username + " seed:" + seed + " bet:" + bet + " host:" + host);
 
         gwentGame = opponent.getGwentGame();
         deck = gwentGame.deck;
@@ -352,8 +341,6 @@ statemachine class r_MultiplayerClient
 
         if(checkForGwentAction(action))
         {
-            LogChannel('GWENTMATCH', "Remote action: " + action);
-
             menu = (CR4GwintGameMenu)theGame.GetGuiManager().GetRootMenu();
             if(menu)
             {
@@ -381,7 +368,30 @@ statemachine class r_MultiplayerClient
 
     public function setLastGwentAction(val : string)
     {
-        lastGwentAction = val;
+        var joined : string;
+        var i : int;
+
+        gwentActionBuffer.PushBack(val);
+        if (StrContains(val, "QUITGAME"))
+        {
+            lastGwentActionWasQuit = true;
+        }
+        while (gwentActionBuffer.Size() > 20)
+        {
+            gwentActionBuffer.Erase(0);
+        }
+
+        joined = "";
+        for (i = 0; i < gwentActionBuffer.Size(); i += 1)
+        {
+            if (i > 0)
+            {
+                joined += "~";
+            }
+            joined += gwentActionBuffer[i];
+        }
+
+        lastGwentAction = joined;
         lastGwentActionTime = lastGwentActionTime + 1.0f;
     }
 
@@ -414,6 +424,12 @@ statemachine class r_MultiplayerClient
         settleGwentBet(localPlayerWon);
         clearGwentRequestState();
         inGwentGame = false;
+        if (!lastGwentActionWasQuit)
+        {
+            lastGwentAction = "";
+            lastGwentActionTime = 0.0;
+            gwentActionBuffer.Clear();
+        }
         gwentOpponent = NULL;
         gwentLastCompleted = theGame.GetEngineTimeAsSeconds();
         activeGwentBet = 0;
@@ -434,7 +450,15 @@ statemachine class r_MultiplayerClient
         else
         {
             GetWitcherPlayer().DisplayHudMessage("You lost " + activeGwentBet + " crowns.");
-            thePlayer.RemoveMoney(activeGwentBet);
+
+            if(activeGwentBet > thePlayer.GetMoney())
+            {
+                thePlayer.RemoveMoney(thePlayer.GetMoney());
+            }
+            else
+            {
+                thePlayer.RemoveMoney(activeGwentBet);
+            }
         }
     }
 
@@ -476,8 +500,9 @@ statemachine class r_MultiplayerClient
             return false;
         }
 
+        clearGwentRequestState();
         outgoingGwentTo = toRequest;
-        
+
         inventory = new CInventoryComponent in this;
         ids = inventory.AddAnItem('wo_timed_gwent', 1);
         ids = inventory.AddAnItem('wo_notime_gwent', 1);
@@ -514,11 +539,11 @@ statemachine class r_MultiplayerClient
             ids = inventory.AddAnItem('wo_notime_gwent', 1);
         }
 
-        /*if(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_AutoDeclineTrade'))
+        if(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_AutoDeclineGwent'))
         {
-            declineTrade(false);
+            declineGwentRequest(true);
             return false;
-        }*/
+        }
 
         m_popupData = new W3ItemSelectionPopupData in theGame.GetGuiManager();
         m_popupData.targetInventory = inventory;
@@ -543,6 +568,14 @@ statemachine class r_MultiplayerClient
 
     public function setGwentBetAmount(amount : int)
     {
+        if(amount > thePlayer.GetMoney())
+        {
+            GetWitcherPlayer().DisplayHudMessage("You don't have enough crowns for that bet.");
+            clearGwentRequestState();
+            inGwentGame = false;
+            return;
+        }
+
         outgoingGwentBet = amount;
         setGwentSeed();
 
@@ -1185,6 +1218,7 @@ statemachine class r_MultiplayerClient
             addMainMenuItem("Morphs >", "locked");
         }
 
+        addMainMenuItem("Play Gwent", "gwent");
         addMainMenuItem(ridePrompt, "ride");
         addMainMenuItem("Trade", "trade");
         addMainMenuItem("Close", "close");
@@ -1401,7 +1435,7 @@ statemachine class r_MultiplayerClient
         deleteMenu();
 
         menuSelectedPlayer = player;
-        maxVisibleOptions = 6;
+        maxVisibleOptions = 7;
 
         buildMenus(player);
 
@@ -1449,6 +1483,7 @@ statemachine class r_MultiplayerClient
     public function useMenu(actor : CActor)
     {
         var action : string;
+        var player : r_RemotePlayer;
 
         if(!menuOpen)
             return;
@@ -1467,6 +1502,12 @@ statemachine class r_MultiplayerClient
         else if(action == "trade")
         {
             tradeWithPlayer(actor);
+        }
+        else if(action == "gwent")
+        {
+            player = mpghosts_getPlayerFromActor(actor);
+            gwentRequest(player.username);
+            deleteMenu();
         }
         else if(action == "emotes_menu")
         {
@@ -1919,7 +1960,7 @@ statemachine class r_MultiplayerClient
         var forwardOffset : float = 0.15;
 
         var sideOffset : float = 0.55;
-        var height     : float = 1.15; //1.3
+        var height     : float = 1.1; //1.15
         var spacing    : float;
 
         var myPos      : Vector;
@@ -4664,28 +4705,11 @@ exec function wo_get3(playerId : string)
     list += deck.leaderIndex;
     list += " ";
 
-    //LogChannel('GwentTest', "Faction: " +selectedFaction + " DeckDef:");
-
     for(i = 0; i < deck.cardIndices.Size(); i+=1)
     {
-        //LogChannel('cardIndices', i + ": " + deck.cardIndices[i]);
         list += deck.cardIndices[i];
         list += " ";
     }
-    
-    //LogChannel('leaderIndex', deck.leaderIndex);
-    //LogChannel('unlocked', deck.unlocked);
-    //LogChannel('specialCard', deck.specialCard);
-
-    /*for(i = 0; i < deck.dynamicCardRequirements.Size(); i+=1)
-    {
-        LogChannel('dynamicCardRequirements', i + ": " + deck.dynamicCardRequirements[i]);
-    }
-
-    for(i = 0; i < deck.dynamicCards.Size(); i+=1)
-    {
-        LogChannel('dynamicCards', i + ": " + deck.dynamicCards[i]);
-    }*/
 
     Log("wo3 "+list);
 }
@@ -5861,42 +5885,6 @@ exec function crow()
 function mpghosts_playSound(sound : name)
 {
     theSound.SoundEvent(sound);
-}
-
-exec function checkdeck(player : string)
-{
-    var remotePlayer : r_RemotePlayer;
-    var gwentGame : r_GwentGame;
-    var deck : SDeckDefinition;
-    var cards : array<int>;
-    var faction : eGwintFaction;
-    var i : int;
-    var leaderCard : int;
-
-    remotePlayer = mpghosts_getPlayer(player);
-
-    if(remotePlayer)
-    {
-        gwentGame = remotePlayer.getGwentGame();
-
-        deck = gwentGame.deck;
-        faction = gwentGame.faction;
-        
-        cards = deck.cardIndices;
-        leaderCard = deck.leaderIndex;
-
-        LogChannel('WO_Deck', "Faction: " + faction);
-        LogChannel('WO_Deck', "Leader: " + leaderCard);
-
-        for(i = 0; i < cards.Size(); i+=1)
-        {
-            LogChannel('WO_Deck', "Card " +i+ ": " +cards[i]);
-        }
-    }
-    else
-    {
-        GetWitcherPlayer().DisplayHudMessage("No player found by that name.");
-    }
 }
 
 exec function duel(val : string)

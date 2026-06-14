@@ -1306,9 +1306,11 @@ statemachine class r_RemotePlayer
 
         if (chillOutAnim != '')
         {
+            ghost.GetMovingAgentComponent().SetEnabledFeetIK(false, 0.0);
+
             chillDur = theGame.r_getMultiplayerClient().findChillDuration(chillOutAnim);
 
-            if (!lastChillOut || currentType != 'chillout')
+            if (!lastChillOut)
             {
                 queueAnim(chillOutAnim, chillDur, 0.3, 0, 'chillout', true);
                 lastChillOutAnim = chillOutAnim;
@@ -1323,9 +1325,9 @@ statemachine class r_RemotePlayer
                 return;
             }
 
-            if (chillDur != -1 && isAnimPlaying && currentType == 'chillout' && animQueue.Size() == 0 && now >= (currentAnimEndTime - chillRequeueLead))
+            if(chillDur != 1)
             {
-                queueAnim(chillOutAnim, chillDur, 0, 0, 'chillout');
+                queueAnim(chillOutAnim, chillDur, 0.0001, 0, 'chillout');
             }
         }
         else
@@ -1337,6 +1339,11 @@ statemachine class r_RemotePlayer
                 lastJumpTime = 99;
                 lastChillOut = false;
                 smoothNext = true;
+            }
+
+            if(!ghost.GetMovingAgentComponent().GetEnabledFeetIK())
+            {
+                ghost.GetMovingAgentComponent().SetEnabledFeetIK(true, 0.0);
             }
         }
     }
