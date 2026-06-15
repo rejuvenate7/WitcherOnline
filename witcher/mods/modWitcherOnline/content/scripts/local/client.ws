@@ -18,6 +18,13 @@ struct r_RemoteMenuItem
     var action : string;
 }
 
+struct r_RiderHorseAnchor
+{
+    var rider  : CActor;
+    var target : CActor;
+    var anchor : CEntity;
+}
+
 enum E_GwentRequest
 {
     E_None,
@@ -140,6 +147,8 @@ statemachine class r_MultiplayerClient
 
     private var nextPlayerNum : int;
     default nextPlayerNum = 1000;
+
+    private var riderHorseAnchors : array<r_RiderHorseAnchor>;
 
     // gwent request
     private var outgoingGwentTo : string;
@@ -927,9 +936,16 @@ statemachine class r_MultiplayerClient
         }
         else if(player.isMounted && player.horse)
         {
-            mpghosts_emote(31);
-            attachRiderHorse(thePlayer, player.horse);
-            lastRidingType = "horse";
+            if(attachRiderHorse(thePlayer, player.horse))
+            {
+                mpghosts_emote(31);
+                lastRidingType = "horse";
+            }
+            else
+            {
+                stopRiding();
+                return;
+            }
         }
         else
         {
@@ -956,32 +972,45 @@ statemachine class r_MultiplayerClient
             return;
         }
 
+        if(ridingPlayer.isMounted && !ridingPlayer.horse)
+        {
+            return;
+        }
+
+        if(!ridingPlayer.isMounted && !ridingPlayer.ghost)
+        {
+            stopRiding();
+            return;
+        }
+
         if(thePlayer.HasAttachment())
         {
             if(ridingPlayer.isSailing && !ridingPlayer.isMounted && lastRidingType != "boat")
             {
-                thePlayer.BreakAttachment();
+                detachRiderSafe(thePlayer, false);
                 attachRiderBoat(thePlayer, ridingPlayer.ghost);
                 lastRidingType = "boat";
                 mpghosts_emote(30);
             }
             else if(ridingPlayer.isMounted && !ridingPlayer.isSailing && lastRidingType != "horse" && ridingPlayer.horse)
             {
-                thePlayer.BreakAttachment();
-                attachRiderHorse(thePlayer, ridingPlayer.horse);
-                lastRidingType = "horse";
-                mpghosts_emote(31);
+                detachRiderSafe(thePlayer, false);
+                if(attachRiderHorse(thePlayer, ridingPlayer.horse))
+                {
+                    lastRidingType = "horse";
+                    mpghosts_emote(31);
+                }
             }
             else if(!ridingPlayer.isSailing && !ridingPlayer.isMounted && ridingPlayer.lastMountType == "horse" && lastRidingType != "playerhorse")
             {
-                thePlayer.BreakAttachment();
+                detachRiderSafe(thePlayer, false);
                 attachRider(thePlayer, ridingPlayer.ghost, true);
                 lastRidingType = "playerhorse";
                 mpghosts_emote(29);
             }
             else if(!ridingPlayer.isSailing && !ridingPlayer.isMounted && ridingPlayer.lastMountType != "horse" && lastRidingType != "player")
             {
-                thePlayer.BreakAttachment();
+                detachRiderSafe(thePlayer, false);
                 attachRider(thePlayer, ridingPlayer.ghost);
                 lastRidingType = "player";
                 mpghosts_emote(29);
@@ -994,6 +1023,11 @@ statemachine class r_MultiplayerClient
     {
         var attach_rot : EulerAngles;
         var attach_vec : Vector;
+
+        if(!rider || !toAttach)
+            return;
+
+        destroyRiderHorseAnchor(rider, true);
         
         attach_rot.Roll = 0.0f;
 		attach_rot.Pitch = 0.0f;
@@ -1010,25 +1044,51 @@ statemachine class r_MultiplayerClient
         rider.CreateAttachment(toAttach, , attach_vec, attach_rot);
     }
 
-    public function attachRiderHorse(rider : CActor, toAttach : CActor)
+    public function attachRiderHorse(rider : CActor, toAttach : CActor) : bool
     {
         var boneRotation, attach_rot : EulerAngles;
-        var bonePosition, attach_vec: Vector;
+        var bonePosition, attach_vec : Vector;
         var anchor : CEntity;
+        var entryAnchor : r_RiderHorseAnchor;
+
+        if(!rider || !toAttach)
+            return false;
 
         attach_rot.Roll = 90.0f;
-		attach_rot.Pitch = -10.0f;
-		attach_rot.Yaw = -100.0f;
-		attach_vec.X = 0.20f; // forward back
-		attach_vec.Y = 1.45f; // up down
-		attach_vec.Z = 0.05f; // left right
+        attach_rot.Pitch = -10.0f;
+        attach_rot.Yaw = -100.0f;
 
-        anchor = (CEntity)theGame.CreateEntity((CEntityTemplate)LoadResource("dlc\dlc_mpmod\data\entities\fx_ent.w2ent", true), toAttach.GetWorldPosition());
-    
-        toAttach.GetBoneWorldPositionAndRotationByIndex(toAttach.GetBoneIndex('spine1'), bonePosition, boneRotation);
+        attach_vec.X = 0.20f; // forward back
+        attach_vec.Y = 1.45f; // up down
+        attach_vec.Z = 0.05f; // left right
+
+        anchor = (CEntity)theGame.CreateEntity(
+            (CEntityTemplate)LoadResource("dlc\dlc_mpmod\data\entities\fx_ent.w2ent", true),
+            toAttach.GetWorldPosition()
+        );
+
+        if(!anchor)
+            return false;
+
+        toAttach.GetBoneWorldPositionAndRotationByIndex(
+            toAttach.GetBoneIndex('spine1'),
+            bonePosition,
+            boneRotation
+        );
 
         anchor.CreateAttachmentAtBoneWS(toAttach, 'spine1', bonePosition, boneRotation);
+
+        destroyRiderHorseAnchor(rider, true);
+
         rider.CreateAttachment(anchor, , attach_vec, attach_rot);
+
+        entryAnchor.rider = rider;
+        entryAnchor.target = toAttach;
+        entryAnchor.anchor = anchor;
+
+        riderHorseAnchors.PushBack(entryAnchor);
+
+        return true;
     }
 
     public function fixAttachRotation(rider : CActor)
@@ -1036,6 +1096,9 @@ statemachine class r_MultiplayerClient
         var attach_rot : EulerAngles;
         var attach_vec : Vector;
         var anchor : CEntity;
+
+        if(!rider)
+            return;
 
         attach_rot.Roll = 0.0f;
 		attach_rot.Pitch = 0.0f;
@@ -1045,8 +1108,14 @@ statemachine class r_MultiplayerClient
 		attach_vec.Z = 0.0f;
 
         anchor = (CEntity)theGame.CreateEntity((CEntityTemplate)LoadResource("dlc\dlc_mpmod\data\entities\fx_ent.w2ent", true), rider.GetWorldPosition());
+
+        if(!anchor)
+            return;
+
         rider.CreateAttachment(anchor, , attach_vec, attach_rot);
         rider.BreakAttachment();
+
+        anchor.Destroy();
     }
 
     public function attachRiderBoat(rider : CActor, toAttach : CActor)
@@ -1054,6 +1123,11 @@ statemachine class r_MultiplayerClient
         var attach_rot : EulerAngles;
         var attach_vec : Vector;
         var player : r_RemotePlayer;
+
+        if(!rider || !toAttach)
+            return;
+
+        destroyRiderHorseAnchor(rider, true);
 
         player = mpghosts_getPlayerFromActor(toAttach);
 
@@ -1167,7 +1241,7 @@ statemachine class r_MultiplayerClient
 
         ridingEnabled = false;
         thePlayer.EnableCollisions(true);
-        thePlayer.BreakAttachment();
+        detachRiderSafe(thePlayer, true);
         theInput.IgnoreGameInput( 'GI_AxisLeftX', false );
         theInput.IgnoreGameInput( 'GI_AxisLeftY', false );
         lastRidingType = "none";
@@ -3489,8 +3563,20 @@ statemachine class r_MultiplayerClient
     public function renderPlayers()
     {
         var i : int;
-        for(i = 0; i < players.Size(); i+=1)
+
+        for(i = players.Size() - 1; i >= 0; i -= 1)
         {
+            if(!players[i])
+                continue;
+
+            players[i].updateGhost();
+
+            if(i >= players.Size())
+                continue;
+
+            if(!players[i] || !players[i].ghost)
+                continue;
+
             if((theGame.IsDialogOrCutscenePlaying() && !theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_ShowInCutscene')))
             {
                 if(players[i].ghost.GetVisibility())
@@ -3505,7 +3591,7 @@ statemachine class r_MultiplayerClient
                     players[i].ghost.SetVisibility(true);
                 }
             }
-            
+
             if(!theGame.IsDialogOrCutscenePlaying() && (players[i].menuStatusActive || theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_GhostEffect')))
             {
                 if(!players[i].ghost.IsEffectActive('invisible'))
@@ -3520,8 +3606,6 @@ statemachine class r_MultiplayerClient
                     players[i].ghost.StopEffect('invisible');
                 }
             }
-            
-            players[i].updateGhost();
         }
     }
 
@@ -3574,16 +3658,7 @@ statemachine class r_MultiplayerClient
             players[i].despawn();
         }
 
-        players.Clear();
-    }
-
-    public function setVisibilityAll(val : bool)
-    {
-        var i : int;
-        for(i = 0; i < players.Size(); i+=1)
-        {
-            players[i].ghost.SetVisibility(val);
-        }
+        destroyAllRiderHorseAnchors();
 
         players.Clear();
     }
@@ -3612,7 +3687,7 @@ statemachine class r_MultiplayerClient
         {
             for(i = 0; i < players.Size(); i+=1)
             {
-                if(players[i].isMounted)
+                if(players[i] && players[i].ghost && players[i].isMounted)
                 {
                     ((CActor)players[i].ghost).SignalGameplayEventParamInt( 'RidingManagerDismountHorse', DT_instant | DT_fromScript );
                 }
@@ -3905,6 +3980,139 @@ statemachine class r_MultiplayerClient
         return inventory;
     }
 
+    private function findRiderHorseAnchor(rider : CActor) : int
+    {
+        var i : int;
+
+        if(!rider)
+            return -1;
+
+        for(i = 0; i < riderHorseAnchors.Size(); i += 1)
+        {
+            if(riderHorseAnchors[i].rider == rider)
+                return i;
+        }
+
+        return -1;
+    }
+
+    public function destroyRiderHorseAnchor(rider : CActor, optional breakRiderAttachment : bool)
+    {
+        var i : int;
+        var anchor : CEntity;
+
+        if(!rider)
+            return;
+
+        if(breakRiderAttachment && rider.HasAttachment())
+        {
+            rider.BreakAttachment();
+        }
+
+        for(i = riderHorseAnchors.Size() - 1; i >= 0; i -= 1)
+        {
+            if(riderHorseAnchors[i].rider == rider)
+            {
+                anchor = riderHorseAnchors[i].anchor;
+
+                if(anchor)
+                {
+                    if(anchor.HasAttachment())
+                    {
+                        anchor.BreakAttachment();
+                    }
+
+                    anchor.Destroy();
+                }
+
+                riderHorseAnchors.Erase(i);
+            }
+        }
+    }
+
+    public function destroyHorseAnchorsForTarget(target : CActor, optional breakRiders : bool)
+    {
+        var i : int;
+        var rider : CActor;
+        var anchor : CEntity;
+
+        if(!target)
+            return;
+
+        for(i = riderHorseAnchors.Size() - 1; i >= 0; i -= 1)
+        {
+            if(riderHorseAnchors[i].target == target)
+            {
+                rider = riderHorseAnchors[i].rider;
+                anchor = riderHorseAnchors[i].anchor;
+
+                if(breakRiders && rider && rider.HasAttachment())
+                {
+                    rider.BreakAttachment();
+                }
+
+                if(anchor)
+                {
+                    if(anchor.HasAttachment())
+                    {
+                        anchor.BreakAttachment();
+                    }
+
+                    anchor.Destroy();
+                }
+
+                riderHorseAnchors.Erase(i);
+            }
+        }
+    }
+
+    public function detachRiderSafe(rider : CActor, optional fixRotation : bool)
+    {
+        if(!rider)
+            return;
+
+        destroyRiderHorseAnchor(rider, true);
+
+        if(rider.HasAttachment())
+        {
+            rider.BreakAttachment();
+        }
+
+        if(fixRotation)
+        {
+            fixAttachRotation(rider);
+        }
+    }
+
+    public function destroyAllRiderHorseAnchors()
+    {
+        var i : int;
+        var rider : CActor;
+        var anchor : CEntity;
+
+        for(i = riderHorseAnchors.Size() - 1; i >= 0; i -= 1)
+        {
+            rider = riderHorseAnchors[i].rider;
+            anchor = riderHorseAnchors[i].anchor;
+
+            if(rider && rider.HasAttachment())
+            {
+                rider.BreakAttachment();
+            }
+
+            if(anchor)
+            {
+                if(anchor.HasAttachment())
+                {
+                    anchor.BreakAttachment();
+                }
+
+                anchor.Destroy();
+            }
+
+            riderHorseAnchors.Erase(i);
+        }
+    }
 }
 
 exec function wo_get(playerId : string)

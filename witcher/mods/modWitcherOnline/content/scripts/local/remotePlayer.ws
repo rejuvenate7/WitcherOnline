@@ -987,6 +987,11 @@ statemachine class r_RemotePlayer
             ghost = (CActor)theGame.CreateEntity(theGame.r_getMultiplayerClient().getFemaleTemp(), pos, rot, true, true, false, PM_DontPersist );
         }
 
+        if(!ghost)
+        {
+            return;
+        }
+
         ghost.AddTag('MPEntity');
         ghost.EnableCollisions(false);
         ghost.EnableCharacterCollisions(false); 
@@ -1077,9 +1082,9 @@ statemachine class r_RemotePlayer
 
         for(i = 0; i < players.Size(); i+=1)
         {
-            if(players[i].ghost.HasAttachment() && players[i].isRiding && players[i].ridingPlayerId == id)
+            if(players[i] && players[i].ghost && players[i].ghost.HasAttachment() && players[i].isRiding && players[i].ridingPlayerId == id)
             {
-                players[i].ghost.BreakAttachment();
+                theGame.r_getMultiplayerClient().detachRiderSafe(players[i].ghost, true);
                 theGame.r_getMultiplayerClient().fixAttachRotation(players[i].ghost);
             }
         }
@@ -1088,7 +1093,7 @@ statemachine class r_RemotePlayer
         {
             if(thePlayer.HasAttachment() && ridingPlayer == this)
             {
-                thePlayer.BreakAttachment();
+                theGame.r_getMultiplayerClient().detachRiderSafe(thePlayer, true);
                 mpghosts_stopeemote();
             }
         }
@@ -1098,22 +1103,26 @@ statemachine class r_RemotePlayer
             theGame.r_getMultiplayerClient().deleteMenu();
         }
 
-        if(ghost)
-        {
-            destroyPin();
-            ghost.Destroy();
-            ghost = NULL;
-        }
-
         if(horse)
         {
-            if(isMounted)
+            theGame.r_getMultiplayerClient().destroyHorseAnchorsForTarget(horse, true);
+
+            if(isMounted && ghost)
             {
-                ghost.SignalGameplayEventParamInt( 'RidingManagerDismountHorse', DT_instant | DT_fromScript );
+                ghost.SignalGameplayEventParamInt('RidingManagerDismountHorse', DT_instant | DT_fromScript);
             }
 
             horse.Destroy();
             horse = NULL;
+        }
+
+        if(ghost)
+        {
+            theGame.r_getMultiplayerClient().detachRiderSafe(ghost, false);
+
+            destroyPin();
+            ghost.Destroy();
+            ghost = NULL;
         }
 
         if(boat)
@@ -1127,6 +1136,9 @@ statemachine class r_RemotePlayer
             morph.Destroy();
             morph = NULL;
         }
+
+        lastMounted = false;
+        lastMountType = "none";
     }
 
     var lastMountType : string;
@@ -1135,59 +1147,72 @@ statemachine class r_RemotePlayer
     {
         var ridingPlayer : r_RemotePlayer;
         var toRide : CActor;
-        var isPlayer : bool;
+        var targetHorse : CActor;
+        var targetSailing : bool;
+        var targetMounted : bool;
+        var targetLastHorse : bool;
+        var targetIsLocalPlayer : bool;
+
+        if(!ghost)
+            return;
 
         if(isMounted)
-        {
             return;
-        }
 
         if(isRiding)
         {
-            ridingPlayer = mpghosts_getPlayerById(ridingPlayerId);
+            targetIsLocalPlayer = ridingPlayerId == theGame.r_getMultiplayerClient().getId();
 
-            if(!ridingPlayer)
-            {
-                if(ridingPlayerId == theGame.r_getMultiplayerClient().getId())
-                {
-                    isPlayer = true;
-                }
-                else
-                {
-                    return;
-                }
-            }
-
-            toRide = ridingPlayer.ghost;
-
-            if(isPlayer || (ridingPlayerId == theGame.r_getMultiplayerClient().getId()))
+            if(targetIsLocalPlayer)
             {
                 toRide = thePlayer;
+                targetSailing = thePlayer.IsSailing();
+                targetMounted = thePlayer.IsUsingHorse(true);
+                targetLastHorse = theGame.r_getMultiplayerClient().getLastRidingType() == "horse";
+
+                if(targetMounted)
+                {
+                    targetHorse = thePlayer.GetHorseCurrentlyMounted();
+                }
             }
+            else
+            {
+                ridingPlayer = mpghosts_getPlayerById(ridingPlayerId);
+
+                if(!ridingPlayer || !ridingPlayer.ghost)
+                    return;
+
+                toRide = ridingPlayer.ghost;
+                targetSailing = ridingPlayer.isSailing;
+                targetMounted = ridingPlayer.isMounted;
+                targetLastHorse = ridingPlayer.lastMountType == "horse";
+
+                if(ridingPlayer.horse)
+                {
+                    targetHorse = ridingPlayer.horse;
+                }
+            }
+
+            if(!toRide)
+                return;
 
             if(!ghost.HasAttachment())
             {
-                // attach
-                if(ridingPlayer.isSailing || (toRide == thePlayer && thePlayer.IsSailing()))
+                if(targetSailing)
                 {
                     theGame.r_getMultiplayerClient().attachRiderBoat(ghost, toRide);
                     lastMountType = "boat";
                 }
-                else if((ridingPlayer.isMounted && ridingPlayer.horse) || (toRide == thePlayer && thePlayer.IsUsingHorse(true)))
+                else if(targetMounted && targetHorse)
                 {
-                    if(toRide == thePlayer)
+                    if(theGame.r_getMultiplayerClient().attachRiderHorse(ghost, targetHorse))
                     {
-                        theGame.r_getMultiplayerClient().attachRiderHorse(ghost, thePlayer.GetHorseCurrentlyMounted());
+                        lastMountType = "horse";
                     }
-                    else
-                    {
-                        theGame.r_getMultiplayerClient().attachRiderHorse(ghost, ridingPlayer.horse);
-                    }
-                    lastMountType = "horse";
                 }
                 else
                 {
-                    if(ridingPlayer.lastMountType == "horse" || theGame.r_getMultiplayerClient().getLastRidingType() == "horse")
+                    if(targetLastHorse)
                     {
                         theGame.r_getMultiplayerClient().attachRider(ghost, toRide, true);
                         lastMountType = "playerhorse";
@@ -1201,34 +1226,29 @@ statemachine class r_RemotePlayer
             }
             else
             {
-                if((ridingPlayer.isSailing || (toRide == thePlayer && thePlayer.IsSailing())) && !ridingPlayer.isMounted && lastMountType != "boat")
+                if(targetSailing && lastMountType != "boat")
                 {
-                    ghost.BreakAttachment();
+                    theGame.r_getMultiplayerClient().detachRiderSafe(ghost, false);
                     theGame.r_getMultiplayerClient().attachRiderBoat(ghost, toRide);
                     lastMountType = "boat";
                 }
-                else if(((ridingPlayer.isMounted && ridingPlayer.horse) || (toRide == thePlayer && thePlayer.IsUsingHorse(true))) && !ridingPlayer.isSailing && lastMountType != "horse")
+                else if(targetMounted && targetHorse && lastMountType != "horse")
                 {
-                    ghost.BreakAttachment();
-                    if(toRide == thePlayer)
+                    theGame.r_getMultiplayerClient().detachRiderSafe(ghost, false);
+                    if(theGame.r_getMultiplayerClient().attachRiderHorse(ghost, targetHorse))
                     {
-                        theGame.r_getMultiplayerClient().attachRiderHorse(ghost, thePlayer.GetHorseCurrentlyMounted());
+                        lastMountType = "horse";
                     }
-                    else
-                    {
-                        theGame.r_getMultiplayerClient().attachRiderHorse(ghost, ridingPlayer.horse);
-                    }
-                    lastMountType = "horse";
                 }
-                else if(!ridingPlayer.isSailing && !ridingPlayer.isMounted && !(toRide == thePlayer && thePlayer.IsSailing()) && !(toRide == thePlayer && thePlayer.IsUsingHorse(true)) && (ridingPlayer.lastMountType == "horse" || theGame.r_getMultiplayerClient().getLastRidingType() == "horse") && lastMountType != "playerhorse")
+                else if(!targetSailing && !targetMounted && targetLastHorse && lastMountType != "playerhorse")
                 {
-                    ghost.BreakAttachment();
+                    theGame.r_getMultiplayerClient().detachRiderSafe(ghost, false);
                     theGame.r_getMultiplayerClient().attachRider(ghost, toRide, true);
                     lastMountType = "playerhorse";
                 }
-                else if(!ridingPlayer.isSailing && !ridingPlayer.isMounted && !(toRide == thePlayer && thePlayer.IsSailing()) && !(toRide == thePlayer && thePlayer.IsUsingHorse(true)) && !(ridingPlayer.lastMountType == "horse" || theGame.r_getMultiplayerClient().getLastRidingType() == "horse") && lastMountType != "player")
+                else if(!targetSailing && !targetMounted && !targetLastHorse && lastMountType != "player")
                 {
-                    ghost.BreakAttachment();
+                    theGame.r_getMultiplayerClient().detachRiderSafe(ghost, false);
                     theGame.r_getMultiplayerClient().attachRider(ghost, toRide);
                     lastMountType = "player";
                 }
@@ -1238,9 +1258,7 @@ statemachine class r_RemotePlayer
         {
             if(ghost.HasAttachment())
             {
-                // detach
-                ghost.BreakAttachment();
-                theGame.r_getMultiplayerClient().fixAttachRotation(ghost);
+                theGame.r_getMultiplayerClient().detachRiderSafe(ghost, true);
                 lastMountType = "none";
             }
         }
@@ -1267,6 +1285,14 @@ statemachine class r_RemotePlayer
         }
 
         repairGhost();
+
+        if(!ghost)
+        {
+            updatePin();
+            prune();
+            return;
+        }
+
         updateAnimState();
         updateChillOut();
         updateGeraltAnims();
@@ -5433,6 +5459,11 @@ state WO_UpdateCPC in r_RemotePlayer
 
     function updateHorseAppearance()
     {
+        if(!parent.horse)
+        {
+            return;
+        }
+
         if(parent.horseAppearance == "0")
         {
             if(((CActor)parent.horse).GetAppearance() != 'horse_draft_vehicle_02')
@@ -5502,6 +5533,9 @@ state WO_UpdateCPC in r_RemotePlayer
 
             parent.horse = (CActor)theGame.CreateEntity(temp_2, parent.ghost.GetWorldPosition(), parent.ghost.GetWorldRotation(), true,false,false,PM_DontPersist,horseTag);
 
+            if(!parent.horse || !temp_2)
+                return;
+
             ((CActor)parent.horse).EnableCollisions(false);
             ((CActor)parent.horse).EnableCharacterCollisions(false); 
             ((CActor)parent.horse).SetGameplayVisibility( false );
@@ -5545,6 +5579,7 @@ state WO_UpdateCPC in r_RemotePlayer
         if(parent.boat)
         {
             parent.boat.Destroy();
+            parent.boat = NULL;
         }
 
         temp_2 = (CEntityTemplate)LoadResourceAsync("dlc\dlc_mpmod\data\entities\online_boat.w2ent", true);
@@ -5554,6 +5589,9 @@ state WO_UpdateCPC in r_RemotePlayer
 
         parent.boat = (CActor)theGame.CreateEntity(temp_2, parent.ghost.GetWorldPosition(), parent.ghost.GetWorldRotation(), true,false,false,PM_DontPersist,horseTag);
 
+        if(!parent.boat || !temp_2)
+            return;
+
         ((CActor)parent.boat).EnableCollisions(false);
         ((CActor)parent.boat).EnableCharacterCollisions(false); 
         ((CActor)parent.boat).SetGameplayVisibility( false );
@@ -5561,8 +5599,11 @@ state WO_UpdateCPC in r_RemotePlayer
 
     latent function destroyBoat()
     {
-        parent.boat.Destroy();
-        parent.boat = NULL;
+        if(parent.boat)
+        {
+            parent.boat.Destroy();
+            parent.boat = NULL;
+        }
     }
 
     function moveHorse()
@@ -5571,6 +5612,11 @@ state WO_UpdateCPC in r_RemotePlayer
         var ticket : SMovementAdjustmentRequestTicket; 
         var targpos, entpos: Vector;
         var toRide : CActor;
+
+        if(!parent.horse || !parent.ghost)
+        {
+            return;
+        }
 
         toRide = parent.horse;
 
@@ -5635,6 +5681,9 @@ state WO_UpdateCPC in r_RemotePlayer
         var right : Vector;
         var rot : EulerAngles;
         var velo : float;
+        
+        if(!parent.boat)
+            return;
 
         if(parent.cpcPlayerType != ENR_PlayerGeralt && parent.cpcPlayerType != ENR_PlayerWitcher && parent.cpcPlayerType != ENR_PlayerUnknown)
         {
@@ -5712,6 +5761,9 @@ state WO_UpdateCPC in r_RemotePlayer
 
         parent.morph = (CActor)theGame.CreateEntity(temp_2, parent.ghost.GetWorldPosition(), parent.ghost.GetWorldRotation(), true,false,false,PM_DontPersist,horseTag);
 
+        if(!parent.morph || !temp_2)
+            return;
+
         if(parent.morphType == 'owl')
         {
             ((CActor)parent.morph).EnableCollisions(true);
@@ -5723,13 +5775,16 @@ state WO_UpdateCPC in r_RemotePlayer
         }
 
         ((CActor)parent.morph).EnableCharacterCollisions(false); 
-        ((CActor)parent.horse).SetGameplayVisibility( false );
+        ((CActor)parent.morph).SetGameplayVisibility( false );
 
         updateMorphAppearance();
     }
 
     function updateMorphAppearance()
     {
+        if(!parent.morph)
+            return;
+
         if(((CActor)parent.morph).GetAppearance() != parent.morphAppearance)
         {
             ((CActor)parent.morph).ApplyAppearance(parent.morphAppearance);
@@ -5738,8 +5793,11 @@ state WO_UpdateCPC in r_RemotePlayer
 
     latent function destroyMorph()
     {
-        parent.morph.Destroy();
-        parent.morph = NULL;
+        if(parent.morph)
+        {
+            parent.morph.Destroy();
+            parent.morph = NULL;
+        }
     }
 
     var cooldown : float;
@@ -5753,7 +5811,10 @@ state WO_UpdateCPC in r_RemotePlayer
         var velo : float;
         var now : float = theGame.GetEngineTimeAsSeconds();
         var ghostPos : Vector;
-    
+        
+        if(!parent.morph || !parent.ghost)
+            return;
+
         targpos = parent.pos;
 
         adjustor = ((CActor)parent.morph).GetMovingAgentComponent().GetMovementAdjustor();
@@ -5826,7 +5887,7 @@ state WO_UpdateCPC in r_RemotePlayer
 	{
         while(true)
         {
-            if(theGame.IsPaused() || theGame.GetPhotomodeEnabled())
+            if(theGame.IsPaused() || theGame.GetPhotomodeEnabled() || !parent.ghost)
             {
                 SleepOneFrame();
                 continue;
@@ -5837,6 +5898,12 @@ state WO_UpdateCPC in r_RemotePlayer
                 if(!lastMorph || !parent.morph)
                 {
                     spawnMorph();
+
+                    if(!parent.morph)
+                    {
+                        SleepOneFrame();
+                        continue;
+                    }
 
                     lastMorph = true;
                 }
@@ -5866,7 +5933,7 @@ state WO_UpdateCPC in r_RemotePlayer
                         parent.ghost.SetVisibility(true);
                     }
 
-                    if ((((CAnimatedComponent)parent.horse.GetComponentByClassName('CAnimatedComponent')).HasFrozenPose()))
+                    if (parent.horse && (((CAnimatedComponent)parent.horse.GetComponentByClassName('CAnimatedComponent')).HasFrozenPose()))
                     {
                         ((CAnimatedComponent)parent.horse.GetComponentByClassName('CAnimatedComponent')).UnfreezePose();
                     }
@@ -5882,12 +5949,25 @@ state WO_UpdateCPC in r_RemotePlayer
                 {                
                     // mount horse
                     spawnHorse();
+
+                    if(!parent.horse)
+                    {
+                        SleepOneFrame();
+                        continue;
+                    }
+
                     parent.horse.SetVisibility(true);
                 }
 
                 if(parent.horse && !parent.ghost.IsUsingHorse(true))
                 {
                     spawnHorse();
+
+                    if(!parent.horse)
+                    {
+                        SleepOneFrame();
+                        continue;
+                    }
                 }
 
                 if(!parent.horse.GetVisibility())
@@ -5895,7 +5975,7 @@ state WO_UpdateCPC in r_RemotePlayer
                     parent.horse.SetVisibility(true);
                 }
 
-                if ((((CAnimatedComponent)parent.horse.GetComponentByClassName('CAnimatedComponent')).HasFrozenPose()))
+                if (parent.horse && (((CAnimatedComponent)parent.horse.GetComponentByClassName('CAnimatedComponent')).HasFrozenPose()))
                 {
                     ((CAnimatedComponent)parent.horse.GetComponentByClassName('CAnimatedComponent')).UnfreezePose();
                 }
@@ -5907,7 +5987,7 @@ state WO_UpdateCPC in r_RemotePlayer
             }
             else
             {
-                if(parent.lastMounted)
+                if(parent.lastMounted && parent.horse)
                 {  
                     // dismount
                     dismountHorse();
@@ -5918,12 +5998,12 @@ state WO_UpdateCPC in r_RemotePlayer
                 }
                 else
                 {
-                    if(parent.horse.GetVisibility())
+                    if(parent.horse && parent.horse.GetVisibility())
                     {
                         parent.horse.SetVisibility(false);
                     }
 
-                    if (!(((CAnimatedComponent)parent.horse.GetComponentByClassName('CAnimatedComponent')).HasFrozenPose()))
+                    if (parent.horse && !(((CAnimatedComponent)parent.horse.GetComponentByClassName('CAnimatedComponent')).HasFrozenPose()))
                     {
                         ((CAnimatedComponent)parent.horse.GetComponentByClassName('CAnimatedComponent')).FreezePose();
                     }
@@ -5980,6 +6060,12 @@ state WO_UpdateCPC in r_RemotePlayer
             {
                 removeTemplates();
                 parent.spawnGhost();
+
+                if(!parent.ghost)
+                {
+                    SleepOneFrame();
+                    continue;
+                }
 
                 if(parent.cpcPlayerType == ENR_PlayerCiri)
                 {
