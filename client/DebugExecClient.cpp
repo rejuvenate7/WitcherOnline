@@ -2,6 +2,8 @@
 #include <ws2tcpip.h>
 #include <windows.h>
 #include <iostream>
+#include <sstream>
+#include <algorithm>
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -170,9 +172,9 @@ namespace w3mp {
 			int r = send(sock_, (const char*)p, (int)n, 0);
 			if (r <= 0) return false;
 			p += r; n -= r;
-	}
+		}
 		return true;
-}
+	}
 
 	bool DebugExecClient::SendPacket(const std::vector<uint8_t>& pkt) {
 		return SendAll(pkt.data(), pkt.size());
@@ -191,25 +193,153 @@ namespace w3mp {
 		static_cast<DebugExecClient*>(user)->OnUtf8(s);
 	}
 
-	void DebugExecClient::OnUtf8(const std::string& raw) {
-		std::string s = raw;
-		while (!s.empty() && (s.back() == '\r' || s.back() == '\n' || s.back() == '\0')) {
-			s.pop_back();
+	static std::string TrimLocal(const std::string& s)
+	{
+		const char* ws = " \t\r\n\0";
+		size_t start = s.find_first_not_of(ws);
+
+		if (start == std::string::npos)
+			return "";
+
+		size_t end = s.find_last_not_of(ws);
+		return s.substr(start, end - start + 1);
+	}
+
+	static bool TryExtractTaggedLine(
+		const std::string& line,
+		const std::string& tag,
+		std::string& reply)
+	{
+		std::string s = TrimLocal(line);
+
+		if (s.empty())
+			return false;
+
+		if (tag.empty())
+		{
+			reply = s;
+			return true;
 		}
 
+		const std::string plainPrefix = tag + " ";
+		const std::string plainColonPrefix = tag + ":";
+		const std::string scriptPrefix = "[Script] " + tag + " ";
+		const std::string scriptColonPrefix = "[Script] " + tag + ":";
+		const std::string outPrefix = "OUT: " + tag + " ";
+		const std::string outNoSpacePrefix = "OUT:" + tag + " ";
+		const std::string outColonPrefix = "OUT: " + tag + ":";
+		const std::string outNoSpaceColonPrefix = "OUT:" + tag + ":";
+
+		if (s.rfind(plainPrefix, 0) == 0)
+		{
+			reply = s;
+			return true;
+		}
+
+		if (s.rfind(plainColonPrefix, 0) == 0)
+		{
+			reply = s;
+			return true;
+		}
+
+		if (s.rfind(scriptPrefix, 0) == 0)
+		{
+			reply = s.substr(9); // strip "[Script] "
+			return true;
+		}
+
+		if (s.rfind(scriptColonPrefix, 0) == 0)
+		{
+			reply = s.substr(9); // strip "[Script] "
+			return true;
+		}
+
+		if (s.rfind(outPrefix, 0) == 0)
+		{
+			reply = s.substr(5); // strip "OUT: "
+			return true;
+		}
+
+		if (s.rfind(outNoSpacePrefix, 0) == 0)
+		{
+			reply = s.substr(4); // strip "OUT:"
+			return true;
+		}
+
+		if (s.rfind(outColonPrefix, 0) == 0)
+		{
+			reply = s.substr(5); // strip "OUT: "
+			return true;
+		}
+
+		if (s.rfind(outNoSpaceColonPrefix, 0) == 0)
+		{
+			reply = s.substr(4); // strip "OUT:"
+			return true;
+		}
+
+		return false;
+	}
+
+	static bool TryExtractTaggedReply(
+		const std::string& raw,
+		const std::string& tag,
+		std::string& reply)
+	{
+		std::string blob = raw;
+
+		while (!blob.empty() && (blob.back() == '\r' || blob.back() == '\n' || blob.back() == '\0'))
+			blob.pop_back();
+
+		std::replace(blob.begin(), blob.end(), '\r', '\n');
+
+		std::istringstream lines(blob);
+		std::string line;
+		std::string latestMatch;
+		bool found = false;
+
+		while (std::getline(lines, line))
+		{
+			std::string candidate;
+
+			if (TryExtractTaggedLine(line, tag, candidate))
+			{
+				latestMatch = candidate;
+				found = true;
+			}
+		}
+
+		if (found)
+		{
+			reply = latestMatch;
+			return true;
+		}
+
+		return TryExtractTaggedLine(blob, tag, reply);
+	}
+
+	void DebugExecClient::OnUtf8(const std::string& raw)
+	{
+		std::string matchedReply;
 		bool matched = false;
+
 		{
 			std::lock_guard<std::mutex> lk(req_mu_);
-			if (has_req_) {
-				if (req_tag_.empty() || s.rfind(req_tag_, 0) == 0) {
-					req_reply_ = s;
+
+			if (has_req_)
+			{
+				if (TryExtractTaggedReply(raw, req_tag_, matchedReply))
+				{
+					req_reply_ = matchedReply;
 					has_req_ = false;
 					req_sent_ = false;
 					matched = true;
 				}
 			}
 		}
-		if (matched) {
+
+		if (matched)
+		{
 			rep_cv_.notify_all();
 		}
 	}
