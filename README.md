@@ -34,6 +34,12 @@ Join the public server to wander the world with lots of other players.
 
 ![MMO Experience](assets/mmo.gif)
 
+### Gwent Duels
+
+Play Gwent with other players, using your own decks.
+
+![Gwent Duels](assets/gwent.gif)
+
 ### Player Riding
 
 Sit back and relax while other players drive you to your destination.
