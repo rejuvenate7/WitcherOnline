@@ -126,7 +126,6 @@ statemachine class r_MultiplayerClient
 
     private var menuOpen : bool;
     private var menuSelectedPlayer : r_RemotePlayer;
-    private var menuOptions : array<MP_SU_OnelinerEntity>;
     private var menuSelected : int;
 
     private var menuScroll : int;
@@ -179,6 +178,130 @@ statemachine class r_MultiplayerClient
 
     private var activeGwentBet : int;
     private var activeGwentSeed : int;
+
+    // party
+    private var inParty : bool;
+    private var joinedParty : string;
+    private var nextWeatherSyncAt : float;
+    default nextWeatherSyncAt = -999;
+
+    private var lastRequestedWeather : name;
+    default lastRequestedWeather = '';
+
+    public function updateWorldSync()
+    {
+        var newTime : GameTime;
+        var remotePlayer : r_RemotePlayer;
+
+        remotePlayer = mpghosts_getPlayer(joinedParty);
+
+        if(!inParty || !remotePlayer)
+        {
+            return;
+        }
+
+        newTime = GameTimeCreate(remotePlayer.day, remotePlayer.hour, remotePlayer.minute, remotePlayer.second);
+
+        if(!isGameTimeCloseEnough(newTime, 90))
+        {
+            theGame.SetGameTime( newTime, true );
+        }
+
+        if(theGame.GetEngineTimeAsSeconds() >= nextWeatherSyncAt)
+        {
+            if(remotePlayer.weather != '' && remotePlayer.weather != 'none')
+            {
+                if(GetWeatherConditionName() != remotePlayer.weather && lastRequestedWeather != remotePlayer.weather)
+                {
+                    RequestWeatherChangeTo(remotePlayer.weather, 5, false);
+
+                    lastRequestedWeather = remotePlayer.weather;
+                    nextWeatherSyncAt = theGame.GetEngineTimeAsSeconds() + 6;
+                }
+                else if(GetWeatherConditionName() == remotePlayer.weather)
+                {
+                    lastRequestedWeather = '';
+                }
+            }
+        }
+    }
+
+    private function isGameTimeCloseEnough(targetTime : GameTime, maxDiffSeconds : int) : bool
+    {
+        var currentTime : GameTime;
+        var currentSeconds : int;
+        var targetSeconds : int;
+        var diff : int;
+
+        currentTime = theGame.GetGameTime();
+
+        currentSeconds = GameTimeToSeconds(currentTime);
+        targetSeconds = GameTimeToSeconds(targetTime);
+
+        diff = currentSeconds - targetSeconds;
+
+        if(diff < 0)
+        {
+            diff = -diff;
+        }
+
+        return diff <= maxDiffSeconds;
+    }
+
+    public function joinParty(player : r_RemotePlayer)
+    {
+        var val : string;
+        val = player.username;
+
+        if(val == "" || val == "none")
+        {
+            return;
+        }
+
+        if(inParty && joinedParty == val)
+        {
+            GetWitcherPlayer().DisplayHudMessage("You are already syncing to " + val + ".");
+            return;
+        }
+        else if(player.inParty)
+        {
+            GetWitcherPlayer().DisplayHudMessage(val + " is already syncing to someone.");
+            return;
+        }
+
+        inParty = true;
+        joinedParty = val;
+
+        GetWitcherPlayer().DisplayHudMessage("Synced to " + val + "'s world.");
+        mpghosts_playSound('gui_global_panel_open');
+    }
+
+    public function leaveParty()
+    {
+        var oldParty : string;
+
+        if(!inParty)
+        {
+            GetWitcherPlayer().DisplayHudMessage("You are not syncing to anyone.");
+            return;
+        }
+
+        oldParty = joinedParty;
+
+        inParty = false;
+        joinedParty = "";
+
+        if(oldParty != "")
+        {
+            GetWitcherPlayer().DisplayHudMessage("You stopped syncing to " + oldParty + ".");
+        }
+        else
+        {
+            GetWitcherPlayer().DisplayHudMessage("You stopped syncing.");
+        }
+
+        mpghosts_playSound('gui_global_panel_close');
+    }
 
     public function checkIncomingGwentRequests()
     {
@@ -1293,6 +1416,14 @@ statemachine class r_MultiplayerClient
         }
 
         addMainMenuItem("Play Gwent", "gwent");
+        if(inParty)
+        {
+            addMainMenuItem("Stop Syncing", "stopsync");
+        }
+        else
+        {
+            addMainMenuItem("Sync World", "party");
+        }
         addMainMenuItem(ridePrompt, "ride");
         addMainMenuItem("Trade", "trade");
         addMainMenuItem("Close", "close");
@@ -1509,7 +1640,7 @@ statemachine class r_MultiplayerClient
         deleteMenu();
 
         menuSelectedPlayer = player;
-        maxVisibleOptions = 7;
+        maxVisibleOptions = 8;
 
         buildMenus(player);
 
@@ -1581,6 +1712,17 @@ statemachine class r_MultiplayerClient
         {
             player = mpghosts_getPlayerFromActor(actor);
             gwentRequest(player.username);
+            deleteMenu();
+        }
+        else if(action == "party")
+        {
+            player = mpghosts_getPlayerFromActor(actor);
+            joinParty(player);
+            deleteMenu();
+        }
+        else if(action == "stopsync")
+        {
+            theGame.r_getMultiplayerClient().leaveParty();
             deleteMenu();
         }
         else if(action == "emotes_menu")
@@ -2714,6 +2856,21 @@ statemachine class r_MultiplayerClient
         }
     }
 
+    public function getJoinedParty() : string
+    {
+        return joinedParty;
+    }
+    
+    public function setInParty(val : bool)
+    {
+        inParty = val;
+    }
+
+    public function getInParty() : bool
+    {
+        return inParty;
+    }
+
     public function setReceived()
     {
         execReceived = true;
@@ -3555,6 +3712,79 @@ statemachine class r_MultiplayerClient
 
                 players[i].setDeck(deck);
                 players[i].setFaction(leaderIndex);
+                return;
+            }
+        }
+    }
+
+    public function updatePlayerData4(idName : name, inParty : bool, joinedParty : string, weather : name, day : int, hour : int, minute : int, second : int)
+    {
+        var i : int;
+        var foundGlobal : bool;
+        var id : string;
+
+        setServerReceived();
+
+        id = NameToString(idName);
+
+        if(joinedParty == "none")
+        {
+            joinedParty = "";
+        }
+
+        foundGlobal = false;
+
+        for (i = 0; i < globalPlayers.Size(); i += 1)
+        {
+            if (globalPlayers[i].id == id)
+            {
+                globalPlayers[i].lastUpdate = theGame.GetEngineTimeAsSeconds();
+
+                if(globalPlayers[i].inParty != inParty || globalPlayers[i].joinedParty != joinedParty)
+                {
+                    if(inParty && joinedParty == username && (!globalPlayers[i].lastInParty || globalPlayers[i].lastJoinedParty != username))
+                    {
+                        GetWitcherPlayer().DisplayHudMessage(globalPlayers[i].username + " started syncing to your world.");
+                        mpghosts_playSound('gui_global_panel_open');
+                    }
+                    else if(globalPlayers[i].lastInParty && globalPlayers[i].lastJoinedParty == username && (!inParty || joinedParty != username))
+                    {
+                        GetWitcherPlayer().DisplayHudMessage(globalPlayers[i].username + " stopped syncing to your world.");
+                        mpghosts_playSound('gui_global_panel_close');
+                    }
+                }
+
+                globalPlayers[i].inParty = inParty;
+                globalPlayers[i].joinedParty = joinedParty;
+                globalPlayers[i].lastInParty = inParty;
+                globalPlayers[i].lastJoinedParty = joinedParty;
+
+                foundGlobal = true;
+                break;
+            }
+        }
+
+        if (!foundGlobal)
+        {
+            return;
+        }
+
+        for(i = 0; i < players.Size(); i += 1)
+        {
+            if(players[i].id == id)
+            {
+                players[i].lastUpdate = theGame.GetEngineTimeAsSeconds();
+
+                players[i].inParty = inParty;
+                players[i].joinedParty = joinedParty;
+                players[i].lastInParty = inParty;
+                players[i].lastJoinedParty = joinedParty;
+                players[i].weather = weather;
+                players[i].day = day;
+                players[i].hour = hour;
+                players[i].minute = minute;
+                players[i].second = second;
+
                 return;
             }
         }
@@ -4922,6 +5152,69 @@ exec function wo_get3(playerId : string)
     Log("wo3 "+list);
 }
 
+exec function wo_get4(playerId : string)
+{
+    var list : string;
+    var joinedParty : string;
+    var weather : name;
+    var day : int;
+    var hour : int;
+    var minute : int;
+    var second : int;
+    
+    theGame.r_getMultiplayerClient().setUserId(playerId);
+    theGame.r_getMultiplayerClient().setReceived();
+
+    // weather, time, dialogue choices buffer, outgoing party invite, the party you are currently in (username) none if not in a party - your own username if its your party
+    // can loop through global players to see if their location has changed, to follow them to new map
+
+    list += theGame.r_getMultiplayerClient().getInParty();
+    list += " ";
+
+    joinedParty = theGame.r_getMultiplayerClient().getJoinedParty();
+    if(joinedParty != "")
+    {
+        list += joinedParty;
+    }
+    else
+    {
+        list += "none";
+    }
+
+    list += " ";
+
+    weather = GetWeatherConditionName();
+
+    if(weather != '' && weather != ' ')
+    {
+        list += weather;
+    }
+    else
+    {
+        list += "none";
+    }
+    list += " ";
+    
+    day = GameTimeDays(theGame.GetGameTime());
+    hour = GameTimeHours(theGame.GetGameTime());
+    minute = GameTimeMinutes(theGame.GetGameTime());
+    second = GameTimeSeconds(theGame.GetGameTime());
+
+    list += day;
+    list += " ";
+
+    list += hour;
+    list += " ";
+    
+    list += minute;
+    list += " ";
+
+    list += second;
+    list += " ";
+
+    Log("wo4 "+list);
+}
+
 exec function wo_update(id : name, x : float, y : float, z : float, w : float, heading : float, speed : float, area : int, 
                                         inGame : bool, heldItem : string, offhandItem : string, inCombat : bool, isSwimming : bool, curState : name, 
                                         lastJumpTime : float, lastJumpType : EJumpType, lastClimbType : EClimbHeightType, isDiving : bool, isFalling : bool,
@@ -4956,6 +5249,11 @@ exec function wo_update2(id : name, cpcPlayerType : ENR_PlayerType, cpcHead : na
 exec function wo_update3(id : name, outgoingGwentTo : string, outgoingGwentRequest : E_GwentRequest, outgoingGwentBet : int, outgoingGwentSeed : int, lastGwentAction : string, lastGwentActionTime : float, gwentData : string)
 {
     theGame.r_getMultiplayerClient().updatePlayerData3(id, outgoingGwentTo, outgoingGwentRequest, outgoingGwentBet, outgoingGwentSeed, lastGwentAction, lastGwentActionTime, gwentData);
+}
+
+exec function wo_update4(id : name, inParty : bool, joinedParty : string, weather : name, day : int, hour : int, minute : int, second : int)
+{
+    theGame.r_getMultiplayerClient().updatePlayerData4(id, inParty, joinedParty, weather, day, hour, minute, second);
 }
 
 exec function mpghosts_disconnect(id :string)
@@ -5974,6 +6272,7 @@ state WO_Tick in r_MultiplayerClient
             parent.checkIncomingGwentRequests();
             parent.checkRidingAttachment();
             parent.checkPlayerChange();
+            parent.updateWorldSync();
             MP_SU_moveMinimapPins();
 
             SleepOneFrame();
@@ -6113,4 +6412,20 @@ exec function gwentaction(val : string)
 exec function emotes()
 {
     theGame.r_getMultiplayerClient().emoteMenu();
+}
+
+exec function sync(val : string)
+{
+    var remotePlayer : r_RemotePlayer;
+    remotePlayer = mpghosts_getPlayer(val);
+
+    if(remotePlayer)
+    {
+        theGame.r_getMultiplayerClient().joinParty(remotePlayer);
+    }
+}
+
+exec function leave()
+{
+    theGame.r_getMultiplayerClient().leaveParty();
 }

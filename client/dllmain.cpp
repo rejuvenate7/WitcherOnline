@@ -341,6 +341,53 @@ static void pushPlayer3(const std::string& id, const std::vector<std::string>& u
 	g_client.ExecNoWaitLatest("wo3:" + id, code3);
 }
 
+static void pushPlayer4(const std::string& id, const std::vector<std::string>& update4)
+{
+	if (id.empty() || update4.size() < 7)
+		return;
+
+	const std::string& inParty = update4[0];
+	const std::string& joinedParty = update4[1];
+	const std::string& weather = update4[2];
+	const std::string& day = update4[3];
+	const std::string& hour = update4[4];
+	const std::string& minute = update4[5];
+	const std::string& second = update4[6];
+
+	std::string code4 = "wo_update4(";
+
+	code4 += "\"";
+	code4 += EscapeExecQuoted(id, '"');
+	code4 += "\"";
+
+	code4 += ", ";
+	code4 += inParty;
+
+	code4 += ", \"";
+	code4 += EscapeExecQuoted(joinedParty, '"');
+	code4 += "\"";
+
+	code4 += ", \"";
+	code4 += EscapeExecQuoted(weather, '"');
+	code4 += "\"";
+
+	code4 += ", ";
+	code4 += day;
+
+	code4 += ", ";
+	code4 += hour;
+
+	code4 += ", ";
+	code4 += minute;
+
+	code4 += ", ";
+	code4 += second;
+
+	code4 += ")";
+
+	g_client.ExecNoWaitLatest("wo4:" + id, code4);
+}
+
 static void CloseOnlineSession()
 {
 	try
@@ -406,7 +453,8 @@ static void HandleServerPacket(const std::string& msg)
 		parts[0] == "UPDATE1B" ||
 		parts[0] == "UPDATE2A" ||
 		parts[0] == "UPDATE2B" ||
-		parts[0] == "UPDATE3")
+		parts[0] == "UPDATE3" ||
+		parts[0] == "UPDATE4")
 	{
 		if (parts.size() < 2)
 			return;
@@ -418,6 +466,12 @@ static void HandleServerPacket(const std::string& msg)
 		if (opcode == "UPDATE3")
 		{
 			pushPlayer3(id, fields);
+			return;
+		}
+
+		if (opcode == "UPDATE4")
+		{
+			pushPlayer4(id, fields);
 			return;
 		}
 
@@ -610,6 +664,33 @@ static void PollPoseThread() {
 				else
 				{
 					std::cout << "Failed to get Data 3 " << out3 << std::endl;
+				}
+
+				std::string out4;
+				bool ok4 = g_client.ExecTagged("wo_get4(\"" + username + "\")", "wo4", out4, 500);
+
+				if (ok4)
+				{
+					ParsedHalves halves4 = ParseValuesSplitHalf(out4);
+
+					std::vector<std::string> fields4;
+					fields4.reserve(halves4.first.size() + halves4.second.size());
+					fields4.insert(fields4.end(), halves4.first.begin(), halves4.first.end());
+					fields4.insert(fields4.end(), halves4.second.begin(), halves4.second.end());
+
+					std::string packet4 = BuildPacket("UPDATE4", username, fields4);
+
+					try {
+						if (!fields4.empty())
+							theSocket.send(asio::buffer(packet4));
+					}
+					catch (const std::exception& e) {
+						std::cout << "Send error (wo_get4): " << e.what() << "\n";
+					}
+				}
+				else
+				{
+					std::cout << "Failed to get Data 4 " << out4 << std::endl;
 				}
 			}
 			else

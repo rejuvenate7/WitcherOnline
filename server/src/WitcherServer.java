@@ -141,7 +141,8 @@ public class WitcherServer
                 || "UPDATE1B".equals(opcode)
                 || "UPDATE2A".equals(opcode)
                 || "UPDATE2B".equals(opcode)
-                || "UPDATE3".equals(opcode);
+                || "UPDATE3".equals(opcode)
+                || "UPDATE4".equals(opcode);
     }
 
     private static void handleMessage(DatagramSocket socket, ClientEndpoint sender, String msg) throws Exception
@@ -298,6 +299,10 @@ public class WitcherServer
         {
             current.update3Fields = frozenFields;
         }
+        else if ("UPDATE4".equals(opcode))
+        {
+            current.update4Fields = frozenFields;
+        }
     }
 
     private static void cleanupLoop()
@@ -363,6 +368,7 @@ public class WitcherServer
                     packetsSentThisTick += broadcastChunk(socket, recipients, session, "UPDATE2A", session.update2AFields);
                     packetsSentThisTick += broadcastChunk(socket, recipients, session, "UPDATE2B", session.update2BFields);
                     packetsSentThisTick += broadcastChunk(socket, recipients, session, "UPDATE3", session.update3Fields);
+                    packetsSentThisTick += broadcastChunk(socket, recipients, session, "UPDATE4", session.update4Fields);
                 }
 
                 totalPacketsSent.addAndGet(packetsSentThisTick);

@@ -294,6 +294,15 @@ statemachine class r_RemotePlayer
     public var prevGwentActionTime : float;
     default prevGwentActionTime = -1;
 
+    // party
+    public var inParty : bool;
+    public var joinedParty : string;
+    public var lastJoinedParty : string;
+    public var lastInParty : bool;
+
+    public var weather : name;
+    public var day, hour, minute, second : int;
+
     public function setDeck(val : SDeckDefinition)
     {
         gwentGame.deck = val;
