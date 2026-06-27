@@ -343,7 +343,7 @@ static void pushPlayer3(const std::string& id, const std::vector<std::string>& u
 
 static void pushPlayer4(const std::string& id, const std::vector<std::string>& update4)
 {
-	if (id.empty() || update4.size() < 7)
+	if (id.empty() || update4.size() < 9)
 		return;
 
 	const std::string& inParty = update4[0];
@@ -353,6 +353,14 @@ static void pushPlayer4(const std::string& id, const std::vector<std::string>& u
 	const std::string& hour = update4[4];
 	const std::string& minute = update4[5];
 	const std::string& second = update4[6];
+	const std::string& lastDialogIndex = update4[7];
+	const std::string& lastDialogCount = update4[8];
+
+	std::string dialogChoices;
+	if (update4.size() >= 10)
+		dialogChoices = update4[9];
+	else
+		dialogChoices = "";
 
 	std::string code4 = "wo_update4(";
 
@@ -361,7 +369,7 @@ static void pushPlayer4(const std::string& id, const std::vector<std::string>& u
 	code4 += "\"";
 
 	code4 += ", ";
-	code4 += inParty;
+	code4 += inParty; // bool, unquoted
 
 	code4 += ", \"";
 	code4 += EscapeExecQuoted(joinedParty, '"');
@@ -382,6 +390,16 @@ static void pushPlayer4(const std::string& id, const std::vector<std::string>& u
 
 	code4 += ", ";
 	code4 += second;
+
+	code4 += ", ";
+	code4 += lastDialogIndex;
+
+	code4 += ", ";
+	code4 += lastDialogCount;
+
+	code4 += ", \"";
+	code4 += EscapeExecQuoted(dialogChoices, '"');
+	code4 += "\"";
 
 	code4 += ")";
 

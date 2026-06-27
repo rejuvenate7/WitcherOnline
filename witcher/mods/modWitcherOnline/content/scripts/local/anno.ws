@@ -951,3 +951,140 @@ function NotifyGwentMatchEnded( wonMatch : bool )
         theGame.r_getMultiplayerClient().onGwentGameEnd( wonMatch );
     }
 }
+
+@wrapMethod(CR4HudModuleDialog)
+function OnDialogChoicesSet(choices : array<SSceneChoice>, alternativeUI : bool)
+{
+    theGame.r_getMultiplayerClient().setDialogChoices(choices);
+
+    wrappedMethod(choices, alternativeUI);
+}
+
+@wrapMethod(CR4HudModuleDialog)
+function OnDialogOptionAccepted(index : int)
+{
+    if(!theGame.r_getMultiplayerClient().isApplyingSyncedDialogChoice())
+    {
+        theGame.r_getMultiplayerClient().setLastDialog(index);
+    }
+
+    wrappedMethod(index);
+
+    theGame.r_getMultiplayerClient().clearActiveDialogChoices();
+}
+
+@wrapMethod(CR4HudModuleDialog)
+function OnDialogSkipped(value : int)
+{
+    theGame.r_getMultiplayerClient().clearActiveDialogChoices();
+
+    wrappedMethod(value);
+}
+
+@addMethod(CR4HudModuleDialog)
+public function WO_ShowOnlySelectedDialogChoice(index : int) : bool
+{
+    var flashValueStorage : CScriptedFlashValueStorage;
+    var choiceFlashArray : CScriptedFlashArray;
+    var choiceFlashObject : CScriptedFlashObject;
+    var selectedChoice : SSceneChoice;
+    var prefix : string;
+    var i : int;
+
+    if(index < 0 || index >= lastSetChoices.Size())
+    {
+        return false;
+    }
+
+    flashValueStorage = GetModuleFlashValueStorage();
+
+    if(!flashValueStorage)
+    {
+        return false;
+    }
+
+    choiceFlashArray = flashValueStorage.CreateTempFlashArray();
+
+    for(i = 0; i < lastSetChoices.Size(); i += 1)
+    {
+        choiceFlashObject = flashValueStorage.CreateTempFlashObject();
+
+        if(i == index)
+        {
+            selectedChoice = lastSetChoices[i];
+
+            prefix = "<font size = '" + IntToString(23 + choiceScale) + "' >" + IntToString(i + 1) + ". " + "</font>";
+
+            if(selectedChoice.disabled)
+            {
+                prefix = "<FONT COLOR='#CC0000'>" + prefix + "</FONT>";
+            }
+            else if(selectedChoice.previouslyChoosen)
+            {
+                prefix = "<FONT COLOR='#a7a7a7'>" + prefix + "</FONT>";
+            }
+            else if(selectedChoice.emphasised)
+            {
+                prefix = "<FONT COLOR='#d9b215'>" + prefix + "</FONT>";
+            }
+            else
+            {
+                prefix = "<FONT COLOR='#F2D6B7'>" + prefix + "</FONT>";
+            }
+
+            choiceFlashObject.SetMemberFlashString("prefix", prefix);
+            choiceFlashObject.SetMemberFlashString("name", selectedChoice.description);
+            choiceFlashObject.SetMemberFlashInt("icon", selectedChoice.dialogAction);
+            choiceFlashObject.SetMemberFlashBool("read", selectedChoice.previouslyChoosen == false);
+            choiceFlashObject.SetMemberFlashBool("emphasis", selectedChoice.emphasised && !selectedChoice.previouslyChoosen);
+
+            if(selectedChoice.disabled && selectedChoice.dialogAction == DialogAction_CONTENT_MISSING)
+            {
+                if(theGame.IsContentAvailable(selectedChoice.playGoChunk))
+                {
+                    choiceFlashObject.SetMemberFlashBool("locked", false);
+                }
+                else
+                {
+                    choiceFlashObject.SetMemberFlashBool("locked", true);
+                }
+            }
+            else
+            {
+                choiceFlashObject.SetMemberFlashBool("locked", selectedChoice.disabled);
+            }
+        }
+        else
+        {
+            choiceFlashObject.SetMemberFlashString("prefix", "");
+            choiceFlashObject.SetMemberFlashString("name", "");
+            choiceFlashObject.SetMemberFlashInt("icon", DialogAction_NONE);
+            choiceFlashObject.SetMemberFlashBool("read", false);
+            choiceFlashObject.SetMemberFlashBool("emphasis", false);
+            choiceFlashObject.SetMemberFlashBool("locked", true);
+        }
+
+        choiceFlashArray.SetElementFlashObject(i, choiceFlashObject);
+    }
+
+    flashValueStorage.SetFlashArray("hud.dialog.choices", choiceFlashArray);
+
+    return true;
+}
+
+@addMethod(CR4HudModuleDialog)
+public function WO_ClearDialogChoicesUI()
+{
+    var flashValueStorage : CScriptedFlashValueStorage;
+    var choiceFlashArray : CScriptedFlashArray;
+
+    flashValueStorage = GetModuleFlashValueStorage();
+
+    if(!flashValueStorage)
+    {
+        return;
+    }
+
+    choiceFlashArray = flashValueStorage.CreateTempFlashArray();
+    flashValueStorage.SetFlashArray("hud.dialog.choices", choiceFlashArray);
+}

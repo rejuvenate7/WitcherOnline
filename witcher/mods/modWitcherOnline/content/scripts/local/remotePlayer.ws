@@ -303,6 +303,11 @@ statemachine class r_RemotePlayer
     public var weather : name;
     public var day, hour, minute, second : int;
 
+    public var dialogChoices : array<wo_SSceneChoice>;
+    public var lastDialogIndex : int;
+    public var lastDialogCount : int;
+    public var prevDialogCount : int;
+
     public function setDeck(val : SDeckDefinition)
     {
         gwentGame.deck = val;

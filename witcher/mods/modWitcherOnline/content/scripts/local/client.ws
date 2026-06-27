@@ -42,6 +42,15 @@ enum E_GwentGameType
     GG_Normal
 }
 
+struct wo_SSceneChoice
+{
+	var emphasised : bool;
+	var previouslyChoosen : bool;
+	var disabled : bool;
+	var dialogAction : EDialogActionIcon;
+	var playGoChunk : string;
+}
+
 statemachine class r_MultiplayerClient
 {
     private var chillDefs : array<r_ChillDef>;
@@ -188,6 +197,183 @@ statemachine class r_MultiplayerClient
     private var lastRequestedWeather : name;
     default lastRequestedWeather = '';
 
+    private var dialogChoices : array<SSceneChoice>;
+    private var dialogChoicesActive : bool;
+    private var lastSelectedDialogIndex : int;
+    private var lastSelectedDialogCount : int;
+
+    private var applyingSyncedDialogChoice : bool;
+
+    private var pendingSyncedDialogChoice : bool;
+    private var pendingSyncedDialogIndex : int;
+    private var pendingSyncedDialogCount : int;
+    private var pendingSyncedDialogAcceptAt : float;
+
+    private var currentDialogChoiceSetId : int;
+    private var lastSelectedDialogChoiceSetId : int;
+    private var lastSelectedDialogValid : bool;
+
+    default lastSelectedDialogIndex = -1;
+    default lastSelectedDialogChoiceSetId = -1;
+    default lastSelectedDialogValid = false;
+
+    private var lastSelectedDialogChoices : array<SSceneChoice>;
+    private var lastSelectedDialogAt : float;
+    default lastSelectedDialogAt = -999;
+
+    public function setDialogChoices(val : array<SSceneChoice>)
+    {
+        dialogChoices = val;
+        dialogChoicesActive = val.Size() > 0;
+
+        currentDialogChoiceSetId += 1;
+    }
+
+    public function clearActiveDialogChoices()
+    {
+        dialogChoicesActive = false;
+    }
+
+    public function hasActiveDialogChoices() : bool
+    {
+        return dialogChoicesActive && dialogChoices.Size() > 0;
+    }
+
+    public function getDialogChoices() : array<SSceneChoice>
+    {
+        return dialogChoices;
+    }
+
+    public function setLastDialog(index : int)
+    {
+        var i : int;
+
+        if(index < 0 || index >= dialogChoices.Size())
+        {
+            return;
+        }
+
+        if(dialogChoices[index].disabled)
+        {
+            return;
+        }
+
+        lastSelectedDialogIndex = index;
+        lastSelectedDialogCount = lastSelectedDialogCount + 1;
+        lastSelectedDialogChoiceSetId = currentDialogChoiceSetId;
+        lastSelectedDialogValid = true;
+        lastSelectedDialogAt = theGame.GetEngineTimeAsSeconds();
+
+        lastSelectedDialogChoices.Clear();
+
+        for(i = 0; i < dialogChoices.Size(); i += 1)
+        {
+            lastSelectedDialogChoices.PushBack(dialogChoices[i]);
+        }
+
+        LogChannel('DialogSync', "local selected dialog index=" + index + " count=" + lastSelectedDialogCount + " choices=" + lastSelectedDialogChoices.Size());
+    }
+
+    public function getLastDialogIndex() : int
+    {
+        if(lastSelectedDialogCount <= 0)
+        {
+            return -1;
+        }
+
+        if(!lastSelectedDialogValid)
+        {
+            return -1;
+        }
+
+        return lastSelectedDialogIndex;
+    }
+
+    public function getLastSelectedDialogChoices() : array<SSceneChoice>
+    {
+        return lastSelectedDialogChoices;
+    }
+
+    public function getLastDialogCount() : int
+    {
+        return lastSelectedDialogCount;
+    }
+
+    public function isApplyingSyncedDialogChoice() : bool
+    {
+        return applyingSyncedDialogChoice;
+    }
+
+    public function dialogActionToString(action : EDialogActionIcon) : string
+    {
+        if(action == DialogAction_NONE)              return "DialogAction_NONE";
+        if(action == DialogAction_AXII)              return "DialogAction_AXII";
+        if(action == DialogAction_CONTENT_MISSING)   return "DialogAction_CONTENT_MISSING";
+        if(action == DialogAction_BRIBE)             return "DialogAction_BRIBE";
+        if(action == DialogAction_HOUSE)             return "DialogAction_HOUSE";
+        if(action == DialogAction_PERSUASION)        return "DialogAction_PERSUASION";
+        if(action == DialogAction_GETBACK)           return "DialogAction_GETBACK";
+        if(action == DialogAction_GAME_DICES)        return "DialogAction_GAME_DICES";
+        if(action == DialogAction_GAME_FIGHT)        return "DialogAction_GAME_FIGHT";
+        if(action == DialogAction_GAME_WRESTLE)      return "DialogAction_GAME_WRESTLE";
+        if(action == DialogAction_CRAFTING)          return "DialogAction_CRAFTING";
+        if(action == DialogAction_SHOPPING)          return "DialogAction_SHOPPING";
+        if(action == DialogAction_EXIT)              return "DialogAction_EXIT";
+        if(action == DialogAction_HAIRCUT)           return "DialogAction_HAIRCUT";
+        if(action == DialogAction_MONSTERCONTRACT)   return "DialogAction_MONSTERCONTRACT";
+        if(action == DialogAction_BET)               return "DialogAction_BET";
+        if(action == DialogAction_STORAGE)           return "DialogAction_STORAGE";
+        if(action == DialogAction_GIFT)              return "DialogAction_GIFT";
+        if(action == DialogAction_GAME_DRINK)        return "DialogAction_GAME_DRINK";
+        if(action == DialogAction_GAME_DAGGER)       return "DialogAction_GAME_DAGGER";
+        if(action == DialogAction_SMITH)             return "DialogAction_SMITH";
+        if(action == DialogAction_ARMORER)           return "DialogAction_ARMORER";
+        if(action == DialogAction_RUNESMITH)         return "DialogAction_RUNESMITH";
+        if(action == DialogAction_TEACHER)           return "DialogAction_TEACHER";
+        if(action == DialogAction_FAST_TRAVEL)       return "DialogAction_FAST_TRAVEL";
+        if(action == DialogAction_GAME_CARDS)        return "DialogAction_GAME_CARDS";
+        if(action == DialogAction_SHAVING)           return "DialogAction_SHAVING";
+        if(action == DialogAction_AUCTION)           return "DialogAction_AUCTION";
+
+        return "DialogAction_NONE";
+    }
+
+    public function stringToDialogAction(val : string) : EDialogActionIcon
+    {
+        if(val == "DialogAction_NONE")               return DialogAction_NONE;
+        if(val == "DialogAction_AXII")               return DialogAction_AXII;
+        if(val == "DialogAction_CONTENT_MISSING")    return DialogAction_CONTENT_MISSING;
+        if(val == "DialogAction_BRIBE")              return DialogAction_BRIBE;
+        if(val == "DialogAction_HOUSE")              return DialogAction_HOUSE;
+        if(val == "DialogAction_PERSUASION")         return DialogAction_PERSUASION;
+        if(val == "DialogAction_GETBACK")            return DialogAction_GETBACK;
+        if(val == "DialogAction_GAME_DICES")         return DialogAction_GAME_DICES;
+        if(val == "DialogAction_GAME_FIGHT")         return DialogAction_GAME_FIGHT;
+        if(val == "DialogAction_GAME_WRESTLE")       return DialogAction_GAME_WRESTLE;
+        if(val == "DialogAction_CRAFTING")           return DialogAction_CRAFTING;
+        if(val == "DialogAction_SHOPPING")           return DialogAction_SHOPPING;
+        if(val == "DialogAction_EXIT")               return DialogAction_EXIT;
+        if(val == "DialogAction_HAIRCUT")            return DialogAction_HAIRCUT;
+        if(val == "DialogAction_MONSTERCONTRACT")    return DialogAction_MONSTERCONTRACT;
+        if(val == "DialogAction_BET")                return DialogAction_BET;
+        if(val == "DialogAction_STORAGE")            return DialogAction_STORAGE;
+        if(val == "DialogAction_GIFT")               return DialogAction_GIFT;
+        if(val == "DialogAction_GAME_DRINK")         return DialogAction_GAME_DRINK;
+        if(val == "DialogAction_GAME_DAGGER")        return DialogAction_GAME_DAGGER;
+        if(val == "DialogAction_SMITH")              return DialogAction_SMITH;
+        if(val == "DialogAction_ARMORER")            return DialogAction_ARMORER;
+        if(val == "DialogAction_RUNESMITH")          return DialogAction_RUNESMITH;
+        if(val == "DialogAction_TEACHER")            return DialogAction_TEACHER;
+        if(val == "DialogAction_FAST_TRAVEL")        return DialogAction_FAST_TRAVEL;
+        if(val == "DialogAction_GAME_CARDS")         return DialogAction_GAME_CARDS;
+        if(val == "DialogAction_SHAVING")            return DialogAction_SHAVING;
+        if(val == "DialogAction_AUCTION")            return DialogAction_AUCTION;
+
+        LogChannel('DialogSync', "unknown dialogAction token: " + val);
+
+        return DialogAction_NONE;
+    }
+
     public function updateWorldSync()
     {
         var newTime : GameTime;
@@ -222,6 +408,409 @@ statemachine class r_MultiplayerClient
                 {
                     lastRequestedWeather = '';
                 }
+            }
+        }
+
+        if(pendingSyncedDialogChoice)
+        {
+            applyRemoteDialogChoice(remotePlayer);
+        }
+        else if(remotePlayer.lastDialogIndex >= 0 && remotePlayer.lastDialogCount > 0 && remotePlayer.lastDialogCount != remotePlayer.prevDialogCount)
+        {
+            applyRemoteDialogChoice(remotePlayer);
+        }
+        else if(hasActiveDialogChoices() && (theGame.IsDialogOrCutscenePlaying() || theGame.IsCurrentlyPlayingNonGameplayScene()))
+        {
+            applyRemoteDialogChoice(remotePlayer);
+        }
+        else
+        {
+            cancelPendingSyncedDialogChoice();
+        }
+    }
+
+    private function consumeRemoteDialogChoice(remotePlayer : r_RemotePlayer, reason : string)
+    {
+        if(!remotePlayer)
+        {
+            return;
+        }
+
+        LogChannel('DialogSync', "consume remote dialog choice: " + reason + " index=" + remotePlayer.lastDialogIndex + " count=" + remotePlayer.lastDialogCount);
+
+        remotePlayer.prevDialogCount = remotePlayer.lastDialogCount;
+        cancelPendingSyncedDialogChoice();
+    }
+
+    private function getDialogModule() : CR4HudModuleDialog
+    {
+        var hud : CR4ScriptedHud;
+        var module : CR4HudModuleDialog;
+
+        hud = (CR4ScriptedHud)theGame.GetHud();
+
+        if(!hud)
+        {
+            return NULL;
+        }
+
+        module = (CR4HudModuleDialog)hud.GetHudModule("DialogModule");
+
+        return module;
+    }
+
+    private function canApplyRemoteDialogChoice(remotePlayer : r_RemotePlayer) : bool
+    {
+        var index : int;
+
+        if(!remotePlayer)
+        {
+            return false;
+        }
+
+        index = remotePlayer.lastDialogIndex;
+
+        if(index < 0)
+        {
+            return false;
+        }
+
+        if(remotePlayer.lastDialogCount <= 0)
+        {
+            return false;
+        }
+
+        if(remotePlayer.lastDialogCount == remotePlayer.prevDialogCount)
+        {
+            return false;
+        }
+
+        if(!hasActiveDialogChoices())
+        {
+            return false;
+        }
+
+        if(index >= dialogChoices.Size())
+        {
+            return false;
+        }
+
+        if(index >= remotePlayer.dialogChoices.Size())
+        {
+            return false;
+        }
+
+        if(dialogChoices[index].disabled)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function cancelPendingSyncedDialogChoice()
+    {
+        pendingSyncedDialogChoice = false;
+        pendingSyncedDialogIndex = -1;
+        pendingSyncedDialogCount = -1;
+        pendingSyncedDialogAcceptAt = -999;
+    }
+
+    private function updatePendingSyncedDialogChoice(remotePlayer : r_RemotePlayer)
+    {
+        var module : CR4HudModuleDialog;
+
+        if(!pendingSyncedDialogChoice)
+        {
+            return;
+        }
+
+        if(theGame.GetEngineTimeAsSeconds() < pendingSyncedDialogAcceptAt)
+        {
+            return;
+        }
+
+        if(!remotePlayer)
+        {
+            cancelPendingSyncedDialogChoice();
+            return;
+        }
+
+        if(remotePlayer.lastDialogCount != pendingSyncedDialogCount)
+        {
+            cancelPendingSyncedDialogChoice();
+            return;
+        }
+
+        if(remotePlayer.prevDialogCount == pendingSyncedDialogCount)
+        {
+            cancelPendingSyncedDialogChoice();
+            return;
+        }
+
+        if(pendingSyncedDialogIndex < 0 || pendingSyncedDialogIndex >= dialogChoices.Size())
+        {
+            cancelPendingSyncedDialogChoice();
+            return;
+        }
+
+        module = getDialogModule();
+
+        if(!module)
+        {
+            return;
+        }
+
+        applyingSyncedDialogChoice = true;
+
+        module.OnDialogOptionAccepted(pendingSyncedDialogIndex);
+
+        applyingSyncedDialogChoice = false;
+
+        remotePlayer.prevDialogCount = pendingSyncedDialogCount;
+
+        clearActiveDialogChoices();
+        cancelPendingSyncedDialogChoice();
+    }
+
+    private function startPendingSyncedDialogChoice(remotePlayer : r_RemotePlayer)
+    {
+        var module : CR4HudModuleDialog;
+        var index : int;
+
+        if(pendingSyncedDialogChoice)
+        {
+            return;
+        }
+
+        if(!canApplyRemoteDialogChoice(remotePlayer))
+        {
+            return;
+        }
+
+        module = getDialogModule();
+
+        if(!module)
+        {
+            return;
+        }
+
+        index = remotePlayer.lastDialogIndex;
+
+        module.OnDialogOptionSelected(index);
+        module.WO_ShowOnlySelectedDialogChoice(index);
+
+        pendingSyncedDialogChoice = true;
+        pendingSyncedDialogIndex = index;
+        pendingSyncedDialogCount = remotePlayer.lastDialogCount;
+        pendingSyncedDialogAcceptAt = theGame.GetEngineTimeAsSeconds() + 1.0;
+    }
+
+    private function applyRemoteDialogChoice(remotePlayer : r_RemotePlayer)
+    {
+        if(!remotePlayer)
+        {
+            return;
+        }
+
+        updatePendingSyncedDialogChoice(remotePlayer);
+
+        if(pendingSyncedDialogChoice)
+        {
+            return;
+        }
+
+        if(remotePlayer.lastDialogIndex < 0)
+        {
+            return;
+        }
+
+        if(remotePlayer.lastDialogCount <= 0)
+        {
+            return;
+        }
+
+        if(remotePlayer.lastDialogCount == remotePlayer.prevDialogCount)
+        {
+            return;
+        }
+
+        if(!hasActiveDialogChoices())
+        {
+            consumeRemoteDialogChoice(remotePlayer, "local not in dialog choices menu");
+            return;
+        }
+
+        if(!dialogChoicesMatch(dialogChoices, remotePlayer.dialogChoices))
+        {
+            consumeRemoteDialogChoice(remotePlayer, "local choices do not match remote live choices");
+            return;
+        }
+
+        startPendingSyncedDialogChoice(remotePlayer);
+    }
+
+    private function sceneChoiceMatches(localChoice : SSceneChoice, remoteChoice : wo_SSceneChoice) : bool
+    {
+        var localPlayGoChunk : string;
+        var remotePlayGoChunk : string;
+
+        if(localChoice.emphasised != remoteChoice.emphasised)
+        {
+            return false;
+        }
+
+        if(localChoice.disabled != remoteChoice.disabled)
+        {
+            return false;
+        }
+
+        if(localChoice.dialogAction != remoteChoice.dialogAction)
+        {
+            return false;
+        }
+
+        if(localChoice.playGoChunk != '')
+        {
+            localPlayGoChunk = NameToString(localChoice.playGoChunk);
+        }
+        else
+        {
+            localPlayGoChunk = "none";
+        }
+
+        if(remoteChoice.playGoChunk != "")
+        {
+            remotePlayGoChunk = remoteChoice.playGoChunk;
+        }
+        else
+        {
+            remotePlayGoChunk = "none";
+        }
+
+        return localPlayGoChunk == remotePlayGoChunk;
+    }
+
+    private function dialogChoicesMatch(localChoices : array<SSceneChoice>, remoteChoices : array<wo_SSceneChoice>) : bool
+    {
+        var i : int;
+
+        if(localChoices.Size() <= 0)
+        {
+            return false;
+        }
+
+        if(localChoices.Size() != remoteChoices.Size())
+        {
+            return false;
+        }
+
+        for(i = 0; i < localChoices.Size(); i += 1)
+        {
+            if(!sceneChoiceMatches(localChoices[i], remoteChoices[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public function boolToString(val : bool) : string
+    {
+        if(val)
+        {
+            return "1";
+        }
+
+        return "0";
+    }
+
+    public function stringToBool(val : string) : bool
+    {
+        return val == "1" || val == "true";
+    }
+
+    private function parseDialogChoiceData(choiceData : string, out choice : wo_SSceneChoice) : bool
+    {
+        var remaining : string;
+        var token : string;
+        var fieldIndex : int;
+        var actionValue : int;
+
+        if(choiceData == "")
+        {
+            return false;
+        }
+
+        remaining = choiceData;
+        fieldIndex = 0;
+
+        while(StrSplitFirst(remaining, "%", token, remaining))
+        {
+            if(fieldIndex == 0)
+            {
+                choice.emphasised = stringToBool(token);
+            }
+            else if(fieldIndex == 1)
+            {
+                choice.previouslyChoosen = stringToBool(token);
+            }
+            else if(fieldIndex == 2)
+            {
+                choice.disabled = stringToBool(token);
+            }
+            else if(fieldIndex == 3)
+            {
+                choice.dialogAction = stringToDialogAction(token);
+            }
+
+            fieldIndex += 1;
+        }
+
+        if(fieldIndex == 4)
+        {
+            if(remaining != "" && remaining != "none")
+            {
+                choice.playGoChunk = remaining;
+            }
+            else
+            {
+                choice.playGoChunk = '';
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private function parseDialogChoicesData(dialogChoicesData : string, out parsedChoices : array<wo_SSceneChoice>)
+    {
+        var remaining : string;
+        var token : string;
+        var choice : wo_SSceneChoice;
+
+        parsedChoices.Clear();
+
+        remaining = dialogChoicesData;
+
+        while(StrSplitFirst(remaining, "|", token, remaining))
+        {
+            if(token != "")
+            {
+                if(parseDialogChoiceData(token, choice))
+                {
+                    parsedChoices.PushBack(choice);
+                }
+            }
+        }
+
+        if(remaining != "")
+        {
+            if(parseDialogChoiceData(remaining, choice))
+            {
+                parsedChoices.PushBack(choice);
             }
         }
     }
@@ -3717,11 +4306,13 @@ statemachine class r_MultiplayerClient
         }
     }
 
-    public function updatePlayerData4(idName : name, inParty : bool, joinedParty : string, weather : name, day : int, hour : int, minute : int, second : int)
+    public function updatePlayerData4(idName : name, inParty : bool, joinedParty : string, weather : name, day : int, hour : int, minute : int, second : int, lastDialogIndex : int, lastDialogCount : int, dialogChoices : string)
     {
         var i : int;
+        var j : int;
         var foundGlobal : bool;
         var id : string;
+        var parsedDialogChoices : array<wo_SSceneChoice>;
 
         setServerReceived();
 
@@ -3784,6 +4375,20 @@ statemachine class r_MultiplayerClient
                 players[i].hour = hour;
                 players[i].minute = minute;
                 players[i].second = second;
+                players[i].lastDialogIndex = lastDialogIndex;
+                players[i].lastDialogCount = lastDialogCount;
+
+                players[i].dialogChoices.Clear();
+
+                if(dialogChoices != "" && dialogChoices != "none")
+                {
+                    parseDialogChoicesData(dialogChoices, parsedDialogChoices);
+
+                    for(j = 0; j < parsedDialogChoices.Size(); j += 1)
+                    {
+                        players[i].dialogChoices.PushBack(parsedDialogChoices[j]);
+                    }
+                }
 
                 return;
             }
@@ -5161,6 +5766,8 @@ exec function wo_get4(playerId : string)
     var hour : int;
     var minute : int;
     var second : int;
+    var dialogChoices : array<SSceneChoice>;
+    var i : int;
     
     theGame.r_getMultiplayerClient().setUserId(playerId);
     theGame.r_getMultiplayerClient().setReceived();
@@ -5212,6 +5819,54 @@ exec function wo_get4(playerId : string)
     list += second;
     list += " ";
 
+    list += theGame.r_getMultiplayerClient().getLastDialogIndex();
+    list += " ";
+
+    list += theGame.r_getMultiplayerClient().getLastDialogCount();
+    list += " ";
+
+    if(theGame.r_getMultiplayerClient().getLastDialogIndex() >= 0)
+    {
+        dialogChoices = theGame.r_getMultiplayerClient().getLastSelectedDialogChoices();
+    }
+    else
+    {
+        dialogChoices = theGame.r_getMultiplayerClient().getDialogChoices();
+    }
+
+    if(dialogChoices.Size() > 0)
+    {
+        for(i = 0; i < dialogChoices.Size(); i += 1)
+        {
+            list += "|";
+
+            list += theGame.r_getMultiplayerClient().boolToString(dialogChoices[i].emphasised);
+            list += "%";
+
+            list += theGame.r_getMultiplayerClient().boolToString(dialogChoices[i].previouslyChoosen);
+            list += "%";
+
+            list += theGame.r_getMultiplayerClient().boolToString(dialogChoices[i].disabled);
+            list += "%";
+
+            list += theGame.r_getMultiplayerClient().dialogActionToString(dialogChoices[i].dialogAction);
+            list += "%";
+
+            if(dialogChoices[i].playGoChunk != '')
+            {
+                list += dialogChoices[i].playGoChunk;
+            }
+            else
+            {
+                list += "none";
+            }
+        }
+    }
+    else
+    {
+        list += "none";
+    }
+
     Log("wo4 "+list);
 }
 
@@ -5251,9 +5906,9 @@ exec function wo_update3(id : name, outgoingGwentTo : string, outgoingGwentReque
     theGame.r_getMultiplayerClient().updatePlayerData3(id, outgoingGwentTo, outgoingGwentRequest, outgoingGwentBet, outgoingGwentSeed, lastGwentAction, lastGwentActionTime, gwentData);
 }
 
-exec function wo_update4(id : name, inParty : bool, joinedParty : string, weather : name, day : int, hour : int, minute : int, second : int)
+exec function wo_update4(id : name, inParty : bool, joinedParty : string, weather : name, day : int, hour : int, minute : int, second : int, lastDialogIndex : int, lastDialogCount : int, dialogChoices : string)
 {
-    theGame.r_getMultiplayerClient().updatePlayerData4(id, inParty, joinedParty, weather, day, hour, minute, second);
+    theGame.r_getMultiplayerClient().updatePlayerData4(id, inParty, joinedParty, weather, day, hour, minute, second, lastDialogIndex , lastDialogCount, dialogChoices);
 }
 
 exec function mpghosts_disconnect(id :string)
@@ -6428,4 +7083,9 @@ exec function sync(val : string)
 exec function leave()
 {
     theGame.r_getMultiplayerClient().leaveParty();
+}
+
+exec function testprint(val : string)
+{
+    LogChannel('TestPrint', val);
 }
