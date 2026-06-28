@@ -20,7 +20,7 @@ function OnSpawned(spawnData: SEntitySpawnData)
     theGame.r_getMultiplayerClient().setInGame(true);
     theGame.r_getMultiplayerClient().setSpawnTime(theGame.GetEngineTimeAsSeconds());
     theGame.r_getMultiplayerClient().startTick();
-    
+
     wrappedMethod(spawnData);
 }
 
@@ -200,6 +200,12 @@ timer function r_showWelcome(dt : float, id : int)
     }
 }
 
+@addMethod(CR4Player) 
+timer function r_showWarp(dt : float, id : int)
+{
+    theGame.GetGuiManager().ShowNotification("Warped to " + theGame.r_getMultiplayerClient().getJoinedParty() + "'s location.");
+}
+
 @wrapMethod(CR4GuiManager)
 function OnEnteredMainMenu()
 {
@@ -244,6 +250,12 @@ function OnAfterLoadingScreenGameStart()
         thePlayer.AddTimer('r_showWelcome', 1, false);
         thePlayer.AddTimer('r_showJoinMessage', 1.5, false);
         theGame.r_getMultiplayerClient().setJoinMessage();
+    }
+
+    if(theGame.r_getMultiplayerClient().getInParty() && theGame.r_getMultiplayerClient().getPartyWarpScheduled())
+    {
+        thePlayer.AddTimer('r_showWarp', 1, false);
+        theGame.r_getMultiplayerClient().setPartyWarpScheduled(false);
     }
 }
 
@@ -1087,4 +1099,34 @@ public function WO_ClearDialogChoicesUI()
 
     choiceFlashArray = flashValueStorage.CreateTempFlashArray();
     flashValueStorage.SetFlashArray("hud.dialog.choices", choiceFlashArray);
+}
+
+@addMethod(CR4HudModuleDialog)
+public function WO_ShowDialogAssistText(text : string, emphasise : bool)
+{
+    var msg : string;
+
+    if(text == "")
+    {
+        return;
+    }
+
+    //msg = "<font size='26'><FONT COLOR='#F2D6B7'>" + text + "</FONT></font>";
+    if(!emphasise)
+    {
+        msg = "<font size = '"+ IntToString( 27 + subtitleScale ) + "' ><FONT COLOR='#F2D6B7'>" + text + "</FONT></font>";
+    }
+    else
+    {
+        msg = "<font size = '"+ IntToString( 27 + subtitleScale ) + "' ><FONT COLOR='#a7a7a7'>" + text + "</FONT></font>";
+    }
+
+    //m_fxSentenceSetSFF.InvokeSelfOneArg(FlashArgString(msg));
+    m_fxPreviousSentenceSetSFF.InvokeSelfOneArg(FlashArgString(msg));
+}
+
+@addMethod(CR4HudModuleDialog)
+public function WO_ClearDialogAssistText()
+{
+    m_fxPreviousSentenceHideSFF.InvokeSelf();
 }

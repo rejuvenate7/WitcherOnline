@@ -55,6 +55,7 @@ statemachine class r_RemotePlayer
     public var menuStatusActive : bool;
     public var lastStatus : string;
     public var lastUsername : string;
+    public var lastDummyUsername : string;
 
     public var isSwimming : bool;
     public var isDiving : bool;
@@ -594,12 +595,37 @@ statemachine class r_RemotePlayer
         createStatusOneliner();
     }
 
+    private var lastEntityUsernameColor : string;
+    private var lastDummyUsernameColor : string;
+
     private function getUsernameColor() : string
     {
         var colors : array<r_NameColor>;
         var i : int;
+        var myJoinedParty : string;
 
         colors = theGame.r_getMultiplayerClient().getNameColors();
+
+        if(theGame.r_getMultiplayerClient().getInParty())
+        {
+            myJoinedParty = theGame.r_getMultiplayerClient().getJoinedParty();
+
+            if(myJoinedParty == username)
+            {
+                return "#5ACCF6";
+            }
+            else if(inParty && joinedParty == myJoinedParty)
+            {
+                return "#5ACCF6";
+            }
+        }
+        else
+        {
+            if(inParty && joinedParty == theGame.r_getMultiplayerClient().getUsername())
+            {
+                return "#5ACCF6";
+            }
+        }
 
         for(i = 0; i < colors.Size(); i += 1)
         {
@@ -692,12 +718,16 @@ statemachine class r_RemotePlayer
     {
         var oneliner     : MP_SU_OnelinerEntity;
         var tag : string;
+        var color : string;
+        
+        color = getUsernameColor();
 
         tag = "MPGhost" + id;
 
-        if(lastUsername != username)
+        if(lastUsername != username || lastEntityUsernameColor != color)
         {
             lastUsername = username;
+            lastEntityUsernameColor = color;
 
             oneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag(tag);
         
@@ -707,7 +737,7 @@ statemachine class r_RemotePlayer
             oneliner.text = (new MP_SUOL_TagBuilder in theInput)
             .tag("font")
             .attr("size", "20")
-            .attr("color", getUsernameColor())
+            .attr("color", color)
             .text(username);
 
             oneliner.visible = true;
@@ -719,6 +749,9 @@ statemachine class r_RemotePlayer
     {
         var oneliner     : MP_SU_Oneliner;
         var tag : string;
+        var color : string;
+        
+        color = getUsernameColor();
 
         tag = "MPGhostDummy" + id;
 
@@ -730,14 +763,15 @@ statemachine class r_RemotePlayer
             return;
         }
         
-        if(lastUsername != username)
+        if(lastDummyUsername != username || lastDummyUsernameColor != color)
         {
-            lastUsername = username;
-
+            lastDummyUsername = username;
+            lastDummyUsernameColor = color;
+            
             oneliner.text = (new MP_SUOL_TagBuilder in theInput)
             .tag("font")
-            .attr("size", "30")
-            .attr("color", getUsernameColor())
+            .attr("size", "20")
+            .attr("color", color)
             .text(username);
         }
         
@@ -752,6 +786,7 @@ statemachine class r_RemotePlayer
 
         oneliner.render_distance = StringToInt(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_RenderDistance'));
         oneliner.position = pos;
+        MP_SUOL_getManager().updateOneliner(oneliner);
     }
 
     private function updateStatus(msg : string)
