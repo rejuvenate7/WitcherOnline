@@ -985,6 +985,14 @@ function OnDialogOptionAccepted(index : int)
     theGame.r_getMultiplayerClient().clearActiveDialogChoices();
 }
 
+@wrapMethod(CStoryScenePlayer)
+function OnBlockingSceneEnded( output : CStorySceneOutput )
+{
+    theGame.r_getMultiplayerClient().clearActiveDialogChoices();
+
+    wrappedMethod(output);
+}
+
 @wrapMethod(CR4HudModuleDialog)
 function OnDialogSkipped(value : int)
 {
@@ -1111,7 +1119,6 @@ public function WO_ShowDialogAssistText(text : string, emphasise : bool)
         return;
     }
 
-    //msg = "<font size='26'><FONT COLOR='#F2D6B7'>" + text + "</FONT></font>";
     if(!emphasise)
     {
         msg = "<font size = '"+ IntToString( 27 + subtitleScale ) + "' ><FONT COLOR='#F2D6B7'>" + text + "</FONT></font>";
@@ -1121,7 +1128,6 @@ public function WO_ShowDialogAssistText(text : string, emphasise : bool)
         msg = "<font size = '"+ IntToString( 27 + subtitleScale ) + "' ><FONT COLOR='#a7a7a7'>" + text + "</FONT></font>";
     }
 
-    //m_fxSentenceSetSFF.InvokeSelfOneArg(FlashArgString(msg));
     m_fxPreviousSentenceSetSFF.InvokeSelfOneArg(FlashArgString(msg));
 }
 

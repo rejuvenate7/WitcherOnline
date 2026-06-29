@@ -250,6 +250,38 @@ statemachine class r_MultiplayerClient
 
     private var seenPartyPlayers : array<string>;
 
+    function colorToId(val : name) : int
+    {
+        if (val == 'Dye Default')
+            return 1;
+        if (val == 'Dye Black')
+            return 2;
+        if (val == 'Dye Blue')
+            return 3;
+        if (val == 'Dye Brown')
+            return 4;
+        if (val == 'Dye Gray')
+            return 5;
+        if (val == 'Dye Green')
+            return 6;
+        if (val == 'Dye Orange')
+            return 7;
+        if (val == 'Dye Pink')
+            return 8;
+        if (val == 'Dye Purple')
+            return 9;
+        if (val == 'Dye Red')
+            return 10;
+        if (val == 'Dye Turquoise')
+            return 11;
+        if (val == 'Dye White')
+            return 12;
+        if (val == 'Dye Yellow')
+            return 13;
+
+        return 0;
+    }
+
     public function clearDialogPickAlert()
     {
         var hud : CR4ScriptedHud;
@@ -284,6 +316,11 @@ statemachine class r_MultiplayerClient
         var allPlayersInRange : bool;
 
         now = theGame.GetEngineTimeAsSeconds();
+
+        if(inParty)
+        {
+            return;
+        }
 
         if(!hasActiveDialogChoices())
         {
@@ -360,7 +397,7 @@ statemachine class r_MultiplayerClient
             leaderDialogAllReadyShown = false;
             leaderDialogAllReadyClearAt = -999;
 
-            text = "(" + IntToString(ready) + "/" + IntToString(total) + ") Party not ready";
+            text = "(" + IntToString(ready+1) + "/" + IntToString(total+1) + ") " + GetLocStringById(2111114103);
 
             if(leaderDialogReadyText != text)
             {
@@ -376,7 +413,7 @@ statemachine class r_MultiplayerClient
             leaderDialogAllReadyShown = true;
             leaderDialogAllReadyClearAt = now + 2.0;
 
-            leaderDialogReadyText = "(" + IntToString(ready) + "/" + IntToString(total) + ") Party ready";
+            leaderDialogReadyText = "(" + IntToString(ready+1) + "/" + IntToString(total+1) + ") " + GetLocStringById(2111114104);
             showDialogPickAlert(leaderDialogReadyText, true);
 
             return;
@@ -399,6 +436,11 @@ statemachine class r_MultiplayerClient
         }
 
         if(remotePlayer.menuName != "InCutscene")
+        {
+            return false;
+        }
+
+        if(!remotePlayer.dialogChoicesActive)
         {
             return false;
         }
@@ -608,6 +650,7 @@ statemachine class r_MultiplayerClient
         var remotePlayer : r_RemotePlayer;
         var globalPlayer : r_RemotePlayer;
         var now : float;
+        var text : string;
 
         if(!inParty)
         {
@@ -677,6 +720,23 @@ statemachine class r_MultiplayerClient
             }
         }
 
+        if(hasActiveDialogChoices() && remotePlayer.menuName == "InCutscene" && remotePlayer.dialogChoices.Size() > 0 && isRemotePlayerCloseForDialogSync(remotePlayer)
+            && dialogChoicesMatch(dialogChoices, remotePlayer.dialogChoices) && !pendingSyncedDialogChoice && !(remotePlayer.lastDialogIndex >= 0 && remotePlayer.lastDialogCount > 0 && remotePlayer.lastDialogCount != remotePlayer.prevDialogCount))
+        {
+            text = GetLocStringById(2111114102) + " " + joinedParty;
+
+            if(leaderDialogReadyText != text)
+            {
+                leaderDialogReadyText = text;
+                showDialogPickAlert(text, false);
+            }
+        }
+        else if(leaderDialogReadyText != "")
+        {
+            leaderDialogReadyText = "";
+            clearDialogPickAlert();
+        }
+
         if(pendingSyncedDialogChoice)
         {
             applyRemoteDialogChoice(remotePlayer);
@@ -693,6 +753,16 @@ statemachine class r_MultiplayerClient
         {
             cancelPendingSyncedDialogChoice();
         }
+    }
+
+    private function enterCutscene(val : string)
+    {
+        var scene : CStoryScene;
+
+        scene = (CStoryScene)LoadResource(val, true);
+        theGame.GetStorySceneSystem().PlayScene(scene, "Input");
+
+        LogChannel('Entering Scene', val);
     }
 
     private function consumeRemoteDialogChoice(remotePlayer : r_RemotePlayer)
@@ -861,6 +931,12 @@ statemachine class r_MultiplayerClient
 
         index = remotePlayer.lastDialogIndex;
 
+        if(leaderDialogReadyText != "")
+        {
+            leaderDialogReadyText = "";
+            clearDialogPickAlert();
+        }
+
         module.OnDialogOptionSelected(index);
         module.WO_ShowOnlySelectedDialogChoice(index);
 
@@ -908,6 +984,7 @@ statemachine class r_MultiplayerClient
 
         if(!hasActiveDialogChoices())
         {
+            // auto consume
             consumeRemoteDialogChoice(remotePlayer);
             return;
         }
@@ -1187,6 +1264,12 @@ statemachine class r_MultiplayerClient
         if(finalTarget == "" || finalTarget == "none")
         {
             theGame.GetGuiManager().ShowNotification("Could not join party.");
+            return;
+        }
+
+        if(finalTarget == username)
+        {
+            theGame.GetGuiManager().ShowNotification("That player is already in your party.");
             return;
         }
 
@@ -3521,12 +3604,27 @@ statemachine class r_MultiplayerClient
 
         initChillDefs();
 
-        nameColors.PushBack(r_NameColor("rejuvenate", "#5f90c6"));
-        nameColors.PushBack(r_NameColor("mapledraws", "#5f90c6"));
-        nameColors.PushBack(r_NameColor("imclumsy", "#5f90c6"));
-        nameColors.PushBack(r_NameColor("x4lva", "#5f90c6"));
+        nameColors.PushBack(r_NameColor("rejuvenate", "#88b2ff"));
+        nameColors.PushBack(r_NameColor("mapledraws", "#88b2ff"));
+        nameColors.PushBack(r_NameColor("imclumsy", "#88b2ff"));
+        nameColors.PushBack(r_NameColor("x4lva", "#88b2ff"));
 
         this.GotoState('WO_ClientIdle');
+    }
+
+    public function isDev(val : string) : bool
+    {
+        var i : int;
+
+        for(i = 0; i < nameColors.Size(); i+=1)
+        {
+            if(nameColors[i].playerName == val)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function startTick()
@@ -4757,7 +4855,8 @@ statemachine class r_MultiplayerClient
         }
     }
 
-    public function updatePlayerData4(idName : name, inParty : bool, joinedParty : string, weather : name, day : int, hour : int, minute : int, second : int, lastDialogIndex : int, lastDialogCount : int, dialogChoices : string)
+    public function updatePlayerData4(idName : name, inParty : bool, joinedParty : string, weather : name, day : int, hour : int, minute : int, second : int, lastDialogIndex : int, lastDialogCount : int, dialogChoices : string, 
+                                        dialogChoicesActive : bool, armorDye : int, gloveDye : int, pantDye : int, bootDye : int)
     {
         var i : int;
         var j : int;
@@ -4841,6 +4940,11 @@ statemachine class r_MultiplayerClient
                 players[i].second = second;
                 players[i].lastDialogIndex = lastDialogIndex;
                 players[i].lastDialogCount = lastDialogCount;
+                players[i].dialogChoicesActive = dialogChoicesActive;
+                players[i].armorDye = armorDye;
+                players[i].gloveDye = gloveDye;
+                players[i].pantDye = pantDye;
+                players[i].bootDye = bootDye;
 
                 players[i].dialogChoices.Clear();
 
@@ -6232,6 +6336,9 @@ exec function wo_get4(playerId : string)
     var second : int;
     var dialogChoices : array<SSceneChoice>;
     var i : int;
+    var id : SItemUniqueId;
+    var inv : CInventoryComponent;
+    var color : name;
     
     theGame.r_getMultiplayerClient().setUserId(playerId);
     theGame.r_getMultiplayerClient().setReceived();
@@ -6328,6 +6435,68 @@ exec function wo_get4(playerId : string)
         list += "none";
     }
 
+    list += " ";
+
+    list += theGame.r_getMultiplayerClient().hasActiveDialogChoices();
+    list += " ";
+
+    inv = thePlayer.GetInventory();
+    inv.GetItemEquippedOnSlot(EES_Armor, id);
+
+    if(inv.IsIdValid(id))
+    {
+        color = inv.GetItemColor(id);
+
+        list += theGame.r_getMultiplayerClient().colorToId(color);
+    }
+    else
+    {
+        list += "0";
+    }
+    list += " ";
+
+    inv.GetItemEquippedOnSlot(EES_Gloves, id);
+
+    if(inv.IsIdValid(id))
+    {
+        color = inv.GetItemColor(id);
+
+        list += theGame.r_getMultiplayerClient().colorToId(color);
+    }
+    else
+    {
+        list += "0";
+    }
+    list += " ";
+
+    inv.GetItemEquippedOnSlot(EES_Pants, id);
+
+    if(inv.IsIdValid(id))
+    {
+        color = inv.GetItemColor(id);
+
+        list += theGame.r_getMultiplayerClient().colorToId(color);
+    }
+    else
+    {
+        list += "0";
+    }
+    list += " ";
+
+    inv.GetItemEquippedOnSlot(EES_Boots, id);
+
+    if(inv.IsIdValid(id))
+    {
+        color = inv.GetItemColor(id);
+
+        list += theGame.r_getMultiplayerClient().colorToId(color);
+    }
+    else
+    {
+        list += "0";
+    }
+    list += " ";
+
     Log("wo4 "+list);
 }
 
@@ -6367,9 +6536,10 @@ exec function wo_update3(id : name, outgoingGwentTo : string, outgoingGwentReque
     theGame.r_getMultiplayerClient().updatePlayerData3(id, outgoingGwentTo, outgoingGwentRequest, outgoingGwentBet, outgoingGwentSeed, lastGwentAction, lastGwentActionTime, gwentData);
 }
 
-exec function wo_update4(id : name, inParty : bool, joinedParty : string, weather : name, day : int, hour : int, minute : int, second : int, lastDialogIndex : int, lastDialogCount : int, dialogChoices : string)
+exec function wo_update4(id : name, inParty : bool, joinedParty : string, weather : name, day : int, hour : int, minute : int, second : int, lastDialogIndex : int, lastDialogCount : int, dialogChoices : string, 
+                         dialogChoicesActive : bool, armorDye : int, gloveDye : int, pantDye : int, bootDye : int)
 {
-    theGame.r_getMultiplayerClient().updatePlayerData4(id, inParty, joinedParty, weather, day, hour, minute, second, lastDialogIndex , lastDialogCount, dialogChoices);
+    theGame.r_getMultiplayerClient().updatePlayerData4(id, inParty, joinedParty, weather, day, hour, minute, second, lastDialogIndex , lastDialogCount, dialogChoices, dialogChoicesActive, armorDye, gloveDye, pantDye, bootDye);
 }
 
 exec function mpghosts_disconnect(id :string)

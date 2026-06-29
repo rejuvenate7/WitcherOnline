@@ -21,7 +21,9 @@ static DebugExecClient g_client;
 static std::thread g_poll;
 static std::thread g_game;
 
-std::string username = "Player";
+static std::string username = "Player";
+static std::string ip = "46.62.255.79";
+static std::string port = "40000";
 
 static HANDLE g_initThread = NULL;
 
@@ -343,7 +345,7 @@ static void pushPlayer3(const std::string& id, const std::vector<std::string>& u
 
 static void pushPlayer4(const std::string& id, const std::vector<std::string>& update4)
 {
-	if (id.empty() || update4.size() < 9)
+	if (id.empty() || update4.size() < 15)
 		return;
 
 	const std::string& inParty = update4[0];
@@ -355,12 +357,14 @@ static void pushPlayer4(const std::string& id, const std::vector<std::string>& u
 	const std::string& second = update4[6];
 	const std::string& lastDialogIndex = update4[7];
 	const std::string& lastDialogCount = update4[8];
+	const std::string& dialogChoices = update4[9];
 
-	std::string dialogChoices;
-	if (update4.size() >= 10)
-		dialogChoices = update4[9];
-	else
-		dialogChoices = "";
+	const std::string& dialogChoicesActive = update4[10];
+
+	const std::string& armorDye = update4[11];
+	const std::string& gloveDye = update4[12];
+	const std::string& pantDye = update4[13];
+	const std::string& bootDye = update4[14];
 
 	std::string code4 = "wo_update4(";
 
@@ -369,7 +373,7 @@ static void pushPlayer4(const std::string& id, const std::vector<std::string>& u
 	code4 += "\"";
 
 	code4 += ", ";
-	code4 += inParty; // bool, unquoted
+	code4 += inParty;
 
 	code4 += ", \"";
 	code4 += EscapeExecQuoted(joinedParty, '"');
@@ -400,6 +404,21 @@ static void pushPlayer4(const std::string& id, const std::vector<std::string>& u
 	code4 += ", \"";
 	code4 += EscapeExecQuoted(dialogChoices, '"');
 	code4 += "\"";
+
+	code4 += ", ";
+	code4 += dialogChoicesActive;
+
+	code4 += ", ";
+	code4 += armorDye;
+
+	code4 += ", ";
+	code4 += gloveDye;
+
+	code4 += ", ";
+	code4 += pantDye;
+
+	code4 += ", ";
+	code4 += bootDye;
 
 	code4 += ")";
 
@@ -751,48 +770,8 @@ static void SendToGameThread()
 	}
 }
 
-void initScript()
+void connectServer()
 {
-	fs::path baseDir = getExecutablePath();
-	fs::path fullPath = baseDir / "WitcherOnline" / "config.xml";
-
-	pugi::xml_document doc;
-	pugi::xml_parse_result result = doc.load_file(fullPath.c_str());
-
-	if (!result) {
-		std::cout << "Failed to load config file: " << fullPath << std::endl;
-		return;
-	}
-
-	pugi::xml_node xml = doc.child("Config");
-
-	if (!xml)
-	{
-		return;
-	}
-
-	std::string user = xml.child("Username").text().as_string();
-
-	username = std::regex_replace(user, std::regex("[^A-Za-z0-9_]"), "");
-
-	if (username.length() > 16)
-	{
-		username.resize(16);
-	}
-
-	std::string ip = xml.child("ServerIP").text().as_string();
-	std::string port = xml.child("Port").text().as_string();
-
-	if (ip.empty() || username.empty() || username.length() < 2)
-	{
-		return;
-	}
-
-	std::cout << "Username: " << username << std::endl;
-	std::cout << "IP: " << ip << std::endl;
-	std::cout << "Port: " << port << std::endl;
-	std::cout << fullPath << std::endl;
-
 	if (g_shutdown.load())
 		return;
 
@@ -807,6 +786,42 @@ void initScript()
 
 	g_poll = std::thread(PollPoseThread);
 	g_game = std::thread(SendToGameThread);
+}
+
+void initScript()
+{
+	fs::path baseDir = getExecutablePath();
+	fs::path fullPath = baseDir / "WitcherOnline" / "config.xml";
+
+	pugi::xml_document doc;
+	pugi::xml_parse_result result = doc.load_file(fullPath.c_str());
+
+	if (result)
+	{
+		pugi::xml_node xml = doc.child("Config");
+
+		if (xml)
+		{
+			std::string user = xml.child("Username").text().as_string();
+
+			username = std::regex_replace(user, std::regex("[^A-Za-z0-9_]"), "");
+
+			if (username.length() > 16)
+			{
+				username.resize(16);
+			}
+
+			ip = xml.child("ServerIP").text().as_string();
+			port = xml.child("Port").text().as_string();
+
+			if (username.length() < 2)
+			{
+				username = "Player";
+			}
+		}
+	}
+
+	connectServer();
 }
 
 static DWORD WINAPI InitThreadProc(LPVOID)

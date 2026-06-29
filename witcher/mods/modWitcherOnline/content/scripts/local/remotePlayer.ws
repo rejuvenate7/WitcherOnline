@@ -308,6 +308,24 @@ statemachine class r_RemotePlayer
     public var lastDialogIndex : int;
     public var lastDialogCount : int;
     public var prevDialogCount : int;
+    public var dialogChoicesActive : bool;
+
+    public var armorDye : int;
+    public var gloveDye : int;
+    public var pantDye : int;
+    public var bootDye : int;
+
+    public var lastArmorDye : int;
+    default lastArmorDye = 1;
+
+    public var lastGloveDye : int;
+    default lastGloveDye = 1;
+
+    public var lastPantDye : int;
+    default lastPantDye = 1;
+
+    public var lastBootDye : int;
+    default lastBootDye = 1;
 
     public function setDeck(val : SDeckDefinition)
     {
@@ -642,8 +660,21 @@ statemachine class r_RemotePlayer
     {
         var tag : string;
         var oneliner     : MP_SU_OnelinerEntity;
+        var finalUsername : string;
+        var color : string;
 
         tag = "MPGhost" + id;
+
+        color = getUsernameColor();
+
+        if(theGame.r_getMultiplayerClient().isDev(username))
+        {
+            finalUsername = "[DEV] " + username;
+        }
+        else
+        {
+            finalUsername = username;
+        }
 
         oneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag(tag);
 
@@ -658,8 +689,8 @@ statemachine class r_RemotePlayer
         oneliner.text = (new MP_SUOL_TagBuilder in theInput)
         .tag("font")
         .attr("size", "20")
-        .attr("color", getUsernameColor())
-        .text(username);
+        .attr("color", color)
+        .text(finalUsername);
         oneliner.visible = true;
         oneliner.entity = ghost;
         oneliner.tag = tag;
@@ -671,15 +702,28 @@ statemachine class r_RemotePlayer
     {
         var oneliner: MP_SU_Oneliner;
         var tag : string;
+        var finalUsername : string;
+        var color : string;
 
         tag = "MPGhostDummy" + id;
+
+        color = getUsernameColor();
+
+        if(theGame.r_getMultiplayerClient().isDev(username))
+        {
+            finalUsername = "[DEV] " + username;
+        }
+        else
+        {
+            finalUsername = username;
+        }
 
         oneliner = new MP_SU_Oneliner in theInput;
         oneliner.text = (new MP_SUOL_TagBuilder in theInput)
         .tag("font")
         .attr("size", "20")
-        .attr("color", getUsernameColor())
-        .text(username);
+        .attr("color", color)
+        .text(finalUsername);
         oneliner.position = pos;
         oneliner.tag = tag;
         oneliner.visible = true;
@@ -719,10 +763,20 @@ statemachine class r_RemotePlayer
         var oneliner     : MP_SU_OnelinerEntity;
         var tag : string;
         var color : string;
+        var finalUsername : string;
         
         color = getUsernameColor();
 
         tag = "MPGhost" + id;
+
+        if(theGame.r_getMultiplayerClient().isDev(username))
+        {
+            finalUsername = "[DEV] " + username;
+        }
+        else
+        {
+            finalUsername = username;
+        }
 
         if(lastUsername != username || lastEntityUsernameColor != color)
         {
@@ -738,7 +792,7 @@ statemachine class r_RemotePlayer
             .tag("font")
             .attr("size", "20")
             .attr("color", color)
-            .text(username);
+            .text(finalUsername);
 
             oneliner.visible = true;
             MP_SUOL_getManager().updateOneliner(oneliner);
@@ -750,6 +804,7 @@ statemachine class r_RemotePlayer
         var oneliner     : MP_SU_Oneliner;
         var tag : string;
         var color : string;
+        var finalUsername : string;
         
         color = getUsernameColor();
 
@@ -762,6 +817,15 @@ statemachine class r_RemotePlayer
             createDummyOneliner();
             return;
         }
+
+        if(theGame.r_getMultiplayerClient().isDev(username))
+        {
+            finalUsername = "[DEV] " + username;
+        }
+        else
+        {
+            finalUsername = username;
+        }
         
         if(lastDummyUsername != username || lastDummyUsernameColor != color)
         {
@@ -772,7 +836,7 @@ statemachine class r_RemotePlayer
             .tag("font")
             .attr("size", "20")
             .attr("color", color)
-            .text(username);
+            .text(finalUsername);
         }
         
         if(!isInRange())
@@ -1977,7 +2041,7 @@ statemachine class r_RemotePlayer
     {
         var ids : array<SItemUniqueId>;
         var ent : CEntity;
-
+        
         if (lastItem != '' && lastItem != newItem)
         {
             ids = inv.GetItemsByName(lastItem);
@@ -2019,14 +2083,34 @@ statemachine class r_RemotePlayer
         lastItem = newItem;
     }
 
+    private function updateDye(inv : CInventoryComponent, val : name, dye : string)
+    {
+        var itemEnt : CItemEntity;
+        var ids : array<SItemUniqueId>;
+
+        if(dye == "none")
+        {
+            return;
+        }
+
+        ids = inv.GetItemsByName(val);
+        
+        if(ids.Size() > 0)
+        {
+            itemEnt = inv.GetItemEntityUnsafe(ids[0]);
+            if(itemEnt)
+            {
+                itemEnt.ApplyAppearance( dye );
+            }
+        }
+        
+    }
+
     private function updateEquippedItems()
     {
-        var ids : array<SItemUniqueId>;
-        var id : SItemUniqueId;
         var inv : CInventoryComponent;
         var acs : array< CComponent >;
         var head : name;
-        var hair : name;
 
         acs = ghost.GetComponentsByClassName( 'CHeadManagerComponent' );
 	    head = ( ( CHeadManagerComponent ) acs[0] ).GetCurHeadName();
@@ -2043,6 +2127,11 @@ statemachine class r_RemotePlayer
         EquipNewItem(inv, last_eq_silverScab, eq_silverScab);
         EquipNewItem(inv, last_eq_crossbow, eq_crossbow);
 
+        updateDye(inv, eq_armor, idToColor(armorDye));
+        updateDye(inv, eq_gloves, idToColor(gloveDye));
+        updateDye(inv, eq_pants, idToColor(pantDye));
+        updateDye(inv, eq_boots, idToColor(bootDye));
+
         if(!hideHair)
         {
             EquipNewItem(inv, last_eq_hair, eq_hair, true);
@@ -2054,6 +2143,38 @@ statemachine class r_RemotePlayer
         }
 
         EquipNewItem(inv, last_eq_mask, eq_mask);
+    }
+
+    private function idToColor(id : int) : string
+    {
+        if (id == 1)
+            return "dye_default";
+        if (id == 2)
+            return "dye_black";
+        if (id == 3)
+            return "dye_blue";
+        if (id == 4)
+            return "dye_brown";
+        if (id == 5)
+            return "dye_gray";
+        if (id == 6)
+            return "dye_green";
+        if (id == 7)
+            return "dye_orange";
+        if (id == 8)
+            return "dye_pink";
+        if (id == 9)
+            return "dye_purple";
+        if (id == 10)
+            return "dye_red";
+        if (id == 11)
+            return "dye_turquoise";
+        if (id == 12)
+            return "dye_white";
+        if (id == 13)
+            return "dye_yellow";
+
+        return "none";
     }
 
     private function isLastSwordMovement() : bool

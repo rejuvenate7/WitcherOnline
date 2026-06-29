@@ -102,3 +102,6 @@
 2111114099||wo_emote_title|Emotes
 2111114100||gwint_opponent_forfeited|Your opponent forfeited the match.
 2111114101||option_MPGhosts_AutoDeclineGwent|Auto Decline Gwent Duels
+2111114102||wo_dialog_wait|Waiting for
+2111114103||wo_dialog_not_ready|Party not ready
+2111114104||wo_dialog_ready|Party ready
