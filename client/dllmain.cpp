@@ -814,7 +814,7 @@ void initScript()
 			ip = xml.child("ServerIP").text().as_string();
 			port = xml.child("Port").text().as_string();
 
-			if (username.length() < 2)
+			if (username.length() < 2 || username == "none")
 			{
 				username = "Player";
 			}
