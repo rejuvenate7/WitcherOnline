@@ -194,9 +194,6 @@ statemachine class r_MultiplayerClient
     private var nextWeatherSyncAt : float;
     default nextWeatherSyncAt = -999;
 
-    private var lastRequestedWeather : name;
-    default lastRequestedWeather = '';
-
     private var dialogChoices : array<SSceneChoice>;
     private var dialogChoicesActive : bool;
     private var lastSelectedDialogIndex : int;
@@ -236,9 +233,6 @@ statemachine class r_MultiplayerClient
     default partyTargetMissingSince = -1;
     default partyTargetWasMissing = false;
     default partyTargetLastSeenAt = -999;
-
-    private var partyWarpScheduled : bool;
-    default partyWarpScheduled = false;
 
     private var leaderDialogReadyText : string;
     private var leaderDialogAllReadyShown : bool;
@@ -493,16 +487,6 @@ statemachine class r_MultiplayerClient
         module.WO_ShowDialogAssistText(text, emphasise);
     }
 
-    public function getPartyWarpScheduled() : bool
-    {
-        return partyWarpScheduled;
-    }
-
-    public function setPartyWarpScheduled(val : bool)
-    {
-        partyWarpScheduled = val;
-    }
-
     public function clearActiveDialogChoices()
     {
         dialogChoicesActive = false;
@@ -681,11 +665,11 @@ statemachine class r_MultiplayerClient
 
         if(now - globalPlayer.lastUpdate > 90.0)
         {
-            leavePartyBecauseTargetLeft("target global update stale for too long");
+            leavePartyBecauseTargetLeft();
             return;
         }
 
-        if(followPartyTargetRegion(globalPlayer))
+        if(checkPartyRegions(globalPlayer))
         {
             return;
         }
@@ -706,16 +690,11 @@ statemachine class r_MultiplayerClient
         {
             if(remotePlayer.weather != '' && remotePlayer.weather != 'none')
             {
-                if(GetWeatherConditionName() != remotePlayer.weather && lastRequestedWeather != remotePlayer.weather)
+                if(GetWeatherConditionName() != remotePlayer.weather)
                 {
-                    RequestWeatherChangeTo(remotePlayer.weather, 5, false);
+                    RequestWeatherChangeTo(remotePlayer.weather, 3, false);
 
-                    lastRequestedWeather = remotePlayer.weather;
                     nextWeatherSyncAt = theGame.GetEngineTimeAsSeconds() + 6;
-                }
-                else if(GetWeatherConditionName() == remotePlayer.weather)
-                {
-                    lastRequestedWeather = '';
                 }
             }
         }
@@ -1332,7 +1311,7 @@ statemachine class r_MultiplayerClient
 
         if(missingFor >= maxMissingTime)
         {
-            leavePartyBecauseTargetLeft("target missing from globalPlayers for too long");
+            leavePartyBecauseTargetLeft();
             return false;
         }
 
@@ -1354,10 +1333,9 @@ statemachine class r_MultiplayerClient
         partyTargetLastKnownPos = globalPlayer.pos;
     }
 
-    private function followPartyTargetRegion(globalPlayer : r_RemotePlayer) : bool
+    private function checkPartyRegions(globalPlayer : r_RemotePlayer) : bool
     {
         var currentArea : EAreaName;
-        var now : float;
 
         if(!globalPlayer)
         {
@@ -1371,27 +1349,18 @@ statemachine class r_MultiplayerClient
             return false;
         }
 
-        now = theGame.GetEngineTimeAsSeconds();
+        cancelPendingSyncedDialogChoice();
 
-        if(now < nextPartyFollowTeleportAt)
+        if(leaderDialogReadyText != "")
         {
-            return true;
+            leaderDialogReadyText = "";
+            clearDialogPickAlert();
         }
-
-        nextPartyFollowTeleportAt = now + 5.0;
-
-        partyWarpScheduled = true;
-
-        theGame.ScheduleWorldChangeToPosition(
-            theGame.GetCommonMapManager().GetWorldPathFromAreaType(globalPlayer.area),
-            globalPlayer.pos,
-            thePlayer.GetWorldRotation()
-        );
 
         return true;
     }
 
-    private function leavePartyBecauseTargetLeft(reason : string)
+    private function leavePartyBecauseTargetLeft()
     {
         var oldParty : string;
 
@@ -3307,7 +3276,7 @@ statemachine class r_MultiplayerClient
         var forwardOffset : float = 0.15;
 
         var sideOffset : float = 0.55;
-        var height     : float = 1.1; //1.15
+        var height     : float = 1.05; //1.15
         var spacing    : float;
 
         var myPos      : Vector;
