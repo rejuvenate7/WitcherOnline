@@ -938,7 +938,7 @@ statemachine class r_RemotePlayer
             pin.position = pos;
         }
 
-        pin.description = username + "'s current location.";
+        pin.description = username + GetLocStringById(2111114265);
         pin.label = username;
         pin.type = "Player";
         pin.radius = 0;
@@ -980,7 +980,7 @@ statemachine class r_RemotePlayer
         }
 
         pin.rotation = playerAngle;
-        pin.description = username + "'s current location.";
+        pin.description = username + GetLocStringById(2111114265);
         pin.label = username;
         pin.region = area;
     }
@@ -1560,33 +1560,33 @@ statemachine class r_RemotePlayer
         }
 
         if(menuName == "InCutscene")
-            status = "In a cutscene";
+            status = GetLocStringById(2111114105);
         else if (menuName == "IngameMenu")
-			status = "Game paused";
+            status = GetLocStringById(2111114106);
         else if (menuName == "GlossaryBestiaryMenu")
-            status = "In the bestiary menu";
+            status = GetLocStringById(2111114107);
         else if (menuName == "GlossaryTutorialsMenu")
-            status = "In the tutorial menu";
+            status = GetLocStringById(2111114108);
         else if (menuName == "GlossaryEncyclopediaMenu")
-            status = "In the characters menu";
+            status = GetLocStringById(2111114109);
         else if (menuName == "GlossaryBooksMenu")
-            status = "In the books menu";
+            status = GetLocStringById(2111114110);
         else if (menuName == "CraftingMenu")
-            status = "In the crafting menu";
+            status = GetLocStringById(2111114111);
         else if (menuName == "AlchemyMenu")
-            status = "In the alchemy menu";
+            status = GetLocStringById(2111114112);
         else if (menuName == "InventoryMenu")
-            status = "In the inventory menu";
+            status = GetLocStringById(2111114113);
         else if (menuName == "MapMenu")
-            status = "In the map menu";
+            status = GetLocStringById(2111114114);
         else if (menuName == "JournalQuestMenu")
-            status = "In the quests menu";
+            status = GetLocStringById(2111114115);
         else if (menuName == "CharacterMenu")
-            status = "In the character menu";
+            status = GetLocStringById(2111114116);
         else if (menuName == "MeditationClockMenu")
-            status = "In the mediation menu";
+            status = GetLocStringById(2111114117);
         else if (menuName == "BlacksmithMenu")
-            status = "In the blacksmith menu";
+            status = GetLocStringById(2111114118);
 
         if(status == "")
         {

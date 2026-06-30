@@ -12,7 +12,7 @@ class r_TradeWindow extends CR4HudModuleDialog {
   function openTradeWindow() {
     var data: r_TradeSliderData;
     data = new r_TradeSliderData in this;
-    data.SetMessageTitle( "Asking Price" );
+    data.SetMessageTitle(GetLocStringById(2111114247));
     data.dialogueRef = this;
     data.BlurBackground = false;
     data.minValue = 0;
@@ -59,7 +59,7 @@ class r_BetWindow extends CR4HudModuleDialog {
   function openBetWindow() {
     var data: r_TradeSliderData;
     data = new r_TradeSliderData in this;
-    data.SetMessageTitle( "Bet" );
+    data.SetMessageTitle(GetLocStringById(2111114248));
     data.dialogueRef = this;
     data.BlurBackground = false;
     data.minValue = 0;

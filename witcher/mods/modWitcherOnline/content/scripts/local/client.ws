@@ -1234,7 +1234,7 @@ statemachine class r_MultiplayerClient
 
         if(val == "" || val == "none")
         {
-            theGame.GetGuiManager().ShowNotification("Could not join party.");
+            theGame.GetGuiManager().ShowNotification(GetLocStringById(2111114200));
             return;
         }
 
@@ -1242,19 +1242,19 @@ statemachine class r_MultiplayerClient
 
         if(finalTarget == "" || finalTarget == "none")
         {
-            theGame.GetGuiManager().ShowNotification("Could not join party.");
+            theGame.GetGuiManager().ShowNotification(GetLocStringById(2111114200));
             return;
         }
 
         if(finalTarget == username)
         {
-            theGame.GetGuiManager().ShowNotification("That player is already in your party.");
+            theGame.GetGuiManager().ShowNotification(GetLocStringById(2111114201));
             return;
         }
 
         if(inParty && joinedParty == finalTarget)
         {
-            theGame.GetGuiManager().ShowNotification("You are already in " + finalTarget + "'s party.");
+            theGame.GetGuiManager().ShowNotification(GetLocStringById(2111114202) + " " + finalTarget + GetLocStringById(2111114203));
             return;
         }
 
@@ -1266,7 +1266,7 @@ statemachine class r_MultiplayerClient
         partyTargetWasMissing = false;
         nextPartyFollowTeleportAt = -999;
 
-        theGame.GetGuiManager().ShowNotification("You joined " + finalTarget + "'s party.");
+        theGame.GetGuiManager().ShowNotification(GetLocStringById(2111114204) + " " + finalTarget + GetLocStringById(2111114205));
 
         mpghosts_playSound('gui_global_panel_open');
     }
@@ -1277,7 +1277,7 @@ statemachine class r_MultiplayerClient
 
         if(!inParty)
         {
-            GetWitcherPlayer().DisplayHudMessage("You are not in any party.");
+            GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114206));
             return;
         }
 
@@ -1286,7 +1286,7 @@ statemachine class r_MultiplayerClient
         inParty = false;
         joinedParty = "";
 
-        theGame.GetGuiManager().ShowNotification("You left the party.");
+        theGame.GetGuiManager().ShowNotification(GetLocStringById(2111114207));
 
         mpghosts_playSound('gui_global_panel_close');
     }
@@ -1378,7 +1378,7 @@ statemachine class r_MultiplayerClient
 
         cancelPendingSyncedDialogChoice();
 
-        theGame.GetGuiManager().ShowNotification("You left the party.");
+        theGame.GetGuiManager().ShowNotification(GetLocStringById(2111114207));
 
         mpghosts_playSound('gui_global_panel_close');
     }
@@ -1460,7 +1460,7 @@ statemachine class r_MultiplayerClient
                 }
                 else if(players[i].outgoingGwentRequest == E_Decline && outgoingGwentRequest != E_Ack && !inGwentGame)
                 {
-                    GetWitcherPlayer().DisplayHudMessage("The gwent request was declined.");
+                    GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114211));
                     mpghosts_playSound('gui_enchanting_runeword_remove');
 
                     outgoingGwentRequest = E_Ack;
@@ -1525,7 +1525,7 @@ statemachine class r_MultiplayerClient
 
         if(!override)
         {
-            GetWitcherPlayer().DisplayHudMessage("Declined gwent duel request!");
+            GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114212));
             mpghosts_playSound('gui_global_panel_close');
         }
     }
@@ -1646,11 +1646,11 @@ statemachine class r_MultiplayerClient
     {
         if(localPlayerWon)
         {
-            GetWitcherPlayer().DisplayHudMessage("The game is over. You won!");
+            GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114213));
         }
         else
         {
-            GetWitcherPlayer().DisplayHudMessage("The game is over. You lost!");
+            GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114214));
         }
 
         settleGwentBet(localPlayerWon);
@@ -1677,11 +1677,11 @@ statemachine class r_MultiplayerClient
         if(localPlayerWon)
         {
             thePlayer.AddMoney(activeGwentBet);
-            GetWitcherPlayer().DisplayHudMessage("You received " + activeGwentBet + " crowns.");
+            GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114215) + " " + activeGwentBet + " " + GetLocStringById(2111114216));
         }
         else
         {
-            GetWitcherPlayer().DisplayHudMessage("You lost " + activeGwentBet + " crowns.");
+            GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114217) + " " + activeGwentBet + " " + GetLocStringById(2111114218));
 
             if(activeGwentBet > thePlayer.GetMoney())
             {
@@ -1723,12 +1723,12 @@ statemachine class r_MultiplayerClient
 
         if(toRequest == id)
         {
-            GetWitcherPlayer().DisplayHudMessage("You cannot duel yourself!");
+            GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114219));
             return false;
         }
         else if(inGwentGame)
         {
-            GetWitcherPlayer().DisplayHudMessage("You are already in a game of Gwent!");
+            GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114220));
             return false;
         }
 
@@ -1802,7 +1802,7 @@ statemachine class r_MultiplayerClient
     {
         if(amount > thePlayer.GetMoney())
         {
-            GetWitcherPlayer().DisplayHudMessage("You don't have enough crowns for that bet.");
+            GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114221));
             clearGwentRequestState();
             inGwentGame = false;
             return;
@@ -1820,7 +1820,7 @@ statemachine class r_MultiplayerClient
             outgoingGwentRequest = E_RequestNormal;
         }
 
-        GetWitcherPlayer().DisplayHudMessage("Gwent duel request sent to " +outgoingGwentTo);
+        GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114222) + " " + outgoingGwentTo);
         mpghosts_playSound('gui_global_highlight');
     }
 
@@ -1998,7 +1998,7 @@ statemachine class r_MultiplayerClient
                     thePlayer.GetInventory().RemoveItemByName(outgoingTradeItem, 1);
                     thePlayer.AddMoney(outgoingTradePrice);
                     mpghosts_playSound('gui_enchanting_runeword_add');
-                    GetWitcherPlayer().DisplayHudMessage("The trade has been completed!");
+                    GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114223));
                     
                     outgoingTradeFlag = -4;
                     tradeLastCompleted = theGame.GetEngineTimeAsSeconds();
@@ -2009,7 +2009,7 @@ statemachine class r_MultiplayerClient
                 else if(players[i].outgoingTradeFlag == -3)
                 {
                     // reset our outgoing trade price
-                    GetWitcherPlayer().DisplayHudMessage("The trade was declined.");
+                    GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114224));
                     mpghosts_playSound('gui_enchanting_runeword_remove');
                     
                     outgoingTradeFlag = -4;
@@ -2041,7 +2041,7 @@ statemachine class r_MultiplayerClient
             {
                 if(players[i].outgoingTradePrice > thePlayer.GetMoney())
                 {
-                    GetWitcherPlayer().DisplayHudMessage("You do not have enough crowns to complete this trade!");
+                    GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114225));
                     outgoingTradeFlag = -3;
                     mpghosts_playSound('gui_enchanting_runeword_remove');
                     tradeInProgress = false;
@@ -2056,7 +2056,7 @@ statemachine class r_MultiplayerClient
 
         mpghosts_playSound('gui_enchanting_runeword_add');
 
-        GetWitcherPlayer().DisplayHudMessage("The trade has been completed!");
+        GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114223));
 
         outgoingTradeFlag = -2;
         tradeInProgress = false;
@@ -2096,7 +2096,7 @@ statemachine class r_MultiplayerClient
         
         if(!inventory.IsIdValid(ids[0]))
         {
-            GetWitcherPlayer().DisplayHudMessage(user + " tried to send a trade request for an item that doesn't exist in your game.");
+            GetWitcherPlayer().DisplayHudMessage(user + " " + GetLocStringById(2111114226));
             declineTrade(true);
             return false;
         }
@@ -2137,7 +2137,7 @@ statemachine class r_MultiplayerClient
 
         if(player.id == id)
         {
-            GetWitcherPlayer().DisplayHudMessage("You cannot ride yourself!");
+            GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114227));
             deleteMenu();
             return;
         }
@@ -2434,7 +2434,7 @@ statemachine class r_MultiplayerClient
     {
         outgoingTradePrice = amount;
         outgoingTradeFlag = 0;
-        GetWitcherPlayer().DisplayHudMessage("Trade request sent to " +outgoingTradeTo.username);
+        GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114228) + " " + outgoingTradeTo.username);
         mpghosts_playSound('gui_global_highlight');
     }
 
@@ -2491,132 +2491,132 @@ statemachine class r_MultiplayerClient
 
         if(player.isSailing)
         {
-            ridePrompt = "Ride Boat";
+            ridePrompt = GetLocStringById(2111114119);
         }
         else if(player.isMounted)
         {
-            ridePrompt = "Ride Horse";
+            ridePrompt = GetLocStringById(2111114120);
         }
         else
         {
-            ridePrompt = "Ride";
+            ridePrompt = GetLocStringById(2111114121);
         }
 
         // main menu
-        addMainMenuItem("Chat >", "open_chat");
-        addMainMenuItem("Emotes >", "open_emotes");
+        addMainMenuItem(GetLocStringById(2111114122), "open_chat");
+        addMainMenuItem(GetLocStringById(2111114123), "open_emotes");
 
         if(cpcPlayerType == ENR_PlayerSorceress)
         {
-            addMainMenuItem("Morphs >", "open_morphs");
+            addMainMenuItem(GetLocStringById(2111114124), "open_morphs");
         }
         else
         {
-            addMainMenuItem("Morphs >", "locked");
+            addMainMenuItem(GetLocStringById(2111114124), "locked");
         }
 
-        addMainMenuItem("Play Gwent", "gwent");
+        addMainMenuItem(GetLocStringById(2111114125), "gwent");
         if(inParty)
         {
-            addMainMenuItem("Leave Party", "stopsync");
+            addMainMenuItem(GetLocStringById(2111114126), "stopsync");
         }
         else
         {
-            addMainMenuItem("Join Party", "party");
+            addMainMenuItem(GetLocStringById(2111114127), "party");
         }
         addMainMenuItem(ridePrompt, "ride");
-        addMainMenuItem("Trade", "trade");
-        addMainMenuItem("Close", "close");
+        addMainMenuItem(GetLocStringById(2111114128), "trade");
+        addMainMenuItem(GetLocStringById(2111114129), "close");
 
         // emotes
-        addEmotesMenuItem("Props >", "props_menu");
-        addEmotesMenuItem("Emotes >", "emotes_menu");
-        addEmotesMenuItem("Back", "back_to_main");
+        addEmotesMenuItem(GetLocStringById(2111114130), "props_menu");
+        addEmotesMenuItem(GetLocStringById(2111114123), "emotes_menu");
+        addEmotesMenuItem(GetLocStringById(2111114131), "back_to_main");
         
-        addEmoteMenuItem("Wave", "emote_wave");
-        addEmoteMenuItem("Cheer", "emote_cheer");
-        addEmoteMenuItem("Laugh", "emote_laugh");
-        addEmoteMenuItem("Clap", "emote_clap");
-        addEmoteMenuItem("Dance", "emote_dance");
-        addEmoteMenuItem("Facepalm", "emote_facepalm");
-        addEmoteMenuItem("Sit", "emote_sit");
-        addEmoteMenuItem("Lay Down", "emote_lay");
-        addEmoteMenuItem("Bow", "emote_bow");
-        addEmoteMenuItem("Point", "emote_point");
-        addEmoteMenuItem("Stop", "emote_stop");
-        addEmoteMenuItem("Cry", "emote_cry");
-        addEmoteMenuItem("Beg", "emote_beg");
-        addEmoteMenuItem("Vomit", "emote_vomit");
-        addEmoteMenuItem("Cartwheels", "emote_cartwheel");
-        addEmoteMenuItem("Pray", "emote_pray");
-        addEmoteMenuItem("Question", "emote_question");
-        addEmoteMenuItem("Cross Arms", "emote_cross");
-        addEmoteMenuItem("Flip Off", "emote_flipoff");
-        addEmoteMenuItem("Drunk Walk", "emote_drunk");
-        addEmoteMenuItem("Flop", "emote_flop");
-        addEmoteMenuItem("Piss", "emote_piss");
-        addEmoteMenuItem("Yoga", "emote_yoga");
-        addEmoteMenuItem("Fly", "emote_fly");
-        addEmoteMenuItem("Throat Cut", "emote_throat");
-        addEmoteMenuItem("Scout", "emote_scout");
-        addEmoteMenuItem("Trader", "emote_trader");
-        addEmoteMenuItem("Cower Low", "emote_cowerlow");
-        addEmoteMenuItem("Cower High", "emote_cowerhigh");
-        addEmoteMenuItem("Pain", "emote_pain");
-        addEmoteMenuItem("Mime", "emote_mime");
-        addEmoteMenuItem("Get Warm", "emote_warm");
-        addEmoteMenuItem("Crouch", "emote_crouch");
-        addEmoteMenuItem("Choke", "emote_choke");
-        addEmoteMenuItem("Back", "back_to_emotes");
+        addEmoteMenuItem(GetLocStringById(2111114132), "emote_wave");
+        addEmoteMenuItem(GetLocStringById(2111114133), "emote_cheer");
+        addEmoteMenuItem(GetLocStringById(2111114134), "emote_laugh");
+        addEmoteMenuItem(GetLocStringById(2111114135), "emote_clap");
+        addEmoteMenuItem(GetLocStringById(2111114136), "emote_dance");
+        addEmoteMenuItem(GetLocStringById(2111114137), "emote_facepalm");
+        addEmoteMenuItem(GetLocStringById(2111114138), "emote_sit");
+        addEmoteMenuItem(GetLocStringById(2111114139), "emote_lay");
+        addEmoteMenuItem(GetLocStringById(2111114140), "emote_bow");
+        addEmoteMenuItem(GetLocStringById(2111114141), "emote_point");
+        addEmoteMenuItem(GetLocStringById(2111114142), "emote_stop");
+        addEmoteMenuItem(GetLocStringById(2111114143), "emote_cry");
+        addEmoteMenuItem(GetLocStringById(2111114144), "emote_beg");
+        addEmoteMenuItem(GetLocStringById(2111114145), "emote_vomit");
+        addEmoteMenuItem(GetLocStringById(2111114146), "emote_cartwheel");
+        addEmoteMenuItem(GetLocStringById(2111114147), "emote_pray");
+        addEmoteMenuItem(GetLocStringById(2111114148), "emote_question");
+        addEmoteMenuItem(GetLocStringById(2111114149), "emote_cross");
+        addEmoteMenuItem(GetLocStringById(2111114150), "emote_flipoff");
+        addEmoteMenuItem(GetLocStringById(2111114151), "emote_drunk");
+        addEmoteMenuItem(GetLocStringById(2111114152), "emote_flop");
+        addEmoteMenuItem(GetLocStringById(2111114153), "emote_piss");
+        addEmoteMenuItem(GetLocStringById(2111114154), "emote_yoga");
+        addEmoteMenuItem(GetLocStringById(2111114155), "emote_fly");
+        addEmoteMenuItem(GetLocStringById(2111114156), "emote_throat");
+        addEmoteMenuItem(GetLocStringById(2111114157), "emote_scout");
+        addEmoteMenuItem(GetLocStringById(2111114158), "emote_trader");
+        addEmoteMenuItem(GetLocStringById(2111114159), "emote_cowerlow");
+        addEmoteMenuItem(GetLocStringById(2111114160), "emote_cowerhigh");
+        addEmoteMenuItem(GetLocStringById(2111114161), "emote_pain");
+        addEmoteMenuItem(GetLocStringById(2111114162), "emote_mime");
+        addEmoteMenuItem(GetLocStringById(2111114163), "emote_warm");
+        addEmoteMenuItem(GetLocStringById(2111114164), "emote_crouch");
+        addEmoteMenuItem(GetLocStringById(2111114165), "emote_choke");
+        addEmoteMenuItem(GetLocStringById(2111114131), "back_to_emotes");
 
         // prop emotes
-        addPropMenuItem("Lute", "emote_lute");
-        addPropMenuItem("Spyglass", "emote_spyglass");
-        addPropMenuItem("Fire Eater", "emote_fire");
-        addPropMenuItem("Drink", "emote_drink");
-        addPropMenuItem("Write", "emote_write");
-        addPropMenuItem("Fan", "emote_fan");
-        addPropMenuItem("Broom", "emote_broom");
-        addPropMenuItem("Carry Bag", "emote_carrybag");
-        addPropMenuItem("Pull Bag", "emote_pullbag");
-        addPropMenuItem("Shovel", "emote_shovel");
-        addPropMenuItem("Horn", "emote_horn");
+        addPropMenuItem(GetLocStringById(2111114166), "emote_lute");
+        addPropMenuItem(GetLocStringById(2111114167), "emote_spyglass");
+        addPropMenuItem(GetLocStringById(2111114168), "emote_fire");
+        addPropMenuItem(GetLocStringById(2111114169), "emote_drink");
+        addPropMenuItem(GetLocStringById(2111114170), "emote_write");
+        addPropMenuItem(GetLocStringById(2111114171), "emote_fan");
+        addPropMenuItem(GetLocStringById(2111114172), "emote_broom");
+        addPropMenuItem(GetLocStringById(2111114173), "emote_carrybag");
+        addPropMenuItem(GetLocStringById(2111114174), "emote_pullbag");
+        addPropMenuItem(GetLocStringById(2111114175), "emote_shovel");
+        addPropMenuItem(GetLocStringById(2111114176), "emote_horn");
 
         // morphs
-        addMorphMenuItem("Owl", "morph_owl");
-        addMorphMenuItem("Crow", "morph_crow");
-        addMorphMenuItem("Cat", "morph_cat");
-        addMorphMenuItem("Fox", "morph_fox");
-        addMorphMenuItem("Back", "back_to_main");
+        addMorphMenuItem(GetLocStringById(2111114177), "morph_owl");
+        addMorphMenuItem(GetLocStringById(2111114178), "morph_crow");
+        addMorphMenuItem(GetLocStringById(2111114179), "morph_cat");
+        addMorphMenuItem(GetLocStringById(2111114180), "morph_fox");
+        addMorphMenuItem(GetLocStringById(2111114131), "back_to_main");
 
         if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
         {
-            addPropMenuItem("Eat Platter", "emote_platter");
-            addPropMenuItem("Umbrella", "emote_umbrella");
+            addPropMenuItem(GetLocStringById(2111114181), "emote_platter");
+            addPropMenuItem(GetLocStringById(2111114182), "emote_umbrella");
         }
         else
         {
-            addPropMenuItem("Eat Baguette", "emote_baguette");
-            addPropMenuItem("Smoke Pipe", "emote_smoke");
+            addPropMenuItem(GetLocStringById(2111114183), "emote_baguette");
+            addPropMenuItem(GetLocStringById(2111114184), "emote_smoke");
         }
 
-        addPropMenuItem("Back", "back_to_emotes");
+        addPropMenuItem(GetLocStringById(2111114131), "back_to_emotes");
 
         // chat
-        addChatMenuItem("Hello", "chat_hello");
-        addChatMenuItem("Bye", "chat_bye");
-        addChatMenuItem("Follow me", "chat_follow");
-        addChatMenuItem("Wait here", "chat_wait");
-        addChatMenuItem("Need a ride?", "chat_ride");
-        addChatMenuItem("Trade?", "chat_trade");
-        addChatMenuItem("Thanks", "chat_thanks");
-        addChatMenuItem("Sorry", "chat_sorry");
-        addChatMenuItem("Look here", "chat_look");
-        addChatMenuItem("Help!", "chat_help");
-        addChatMenuItem("Nice armor", "chat_armor");
-        addChatMenuItem("Nice sword", "chat_sword");
-        addChatMenuItem("Nice outfit", "chat_outfit");
-        addChatMenuItem("Back", "back_to_main");
+        addChatMenuItem(GetLocStringById(2111114185), "chat_hello");
+        addChatMenuItem(GetLocStringById(2111114186), "chat_bye");
+        addChatMenuItem(GetLocStringById(2111114187), "chat_follow");
+        addChatMenuItem(GetLocStringById(2111114188), "chat_wait");
+        addChatMenuItem(GetLocStringById(2111114189), "chat_ride");
+        addChatMenuItem(GetLocStringById(2111114190), "chat_trade");
+        addChatMenuItem(GetLocStringById(2111114191), "chat_thanks");
+        addChatMenuItem(GetLocStringById(2111114192), "chat_sorry");
+        addChatMenuItem(GetLocStringById(2111114193), "chat_look");
+        addChatMenuItem(GetLocStringById(2111114194), "chat_help");
+        addChatMenuItem(GetLocStringById(2111114195), "chat_armor");
+        addChatMenuItem(GetLocStringById(2111114196), "chat_sword");
+        addChatMenuItem(GetLocStringById(2111114197), "chat_outfit");
+        addChatMenuItem(GetLocStringById(2111114131), "back_to_main");
     }
 
     private function addMainMenuItem(label : string, action : string)
@@ -2848,7 +2848,7 @@ statemachine class r_MultiplayerClient
         else if(action == "locked")
         {
             mpghosts_playSound('gui_global_denied');
-            GetWitcherPlayer().DisplayHudMessage("To use morphs, switch to Sorceress in Custom Player Characters.");
+            GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114229));
         }
         else if(action == "morph_owl")
         {
@@ -4492,7 +4492,7 @@ statemachine class r_MultiplayerClient
 
             if(!theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_HideJoinNotis'))
             {
-                theGame.GetGuiManager().ShowNotification(p.username + " joined");
+                theGame.GetGuiManager().ShowNotification(p.username + " " + GetLocStringById(2111114208));
             }
         }
 
@@ -4856,19 +4856,19 @@ statemachine class r_MultiplayerClient
                     {
                         if(!seenPartyPlayers.Contains(globalPlayers[i].username))
                         {
-                            theGame.GetGuiManager().ShowNotification(globalPlayers[i].username + " joined your party.");
+                            theGame.GetGuiManager().ShowNotification(globalPlayers[i].username + " " + GetLocStringById(2111114198));
                             mpghosts_playSound('gui_global_panel_open');
                             seenPartyPlayers.PushBack(globalPlayers[i].username);
                         }
                     }
                     else if(globalPlayers[i].lastInParty && globalPlayers[i].lastJoinedParty == username && (!inParty || joinedParty != username))
                     {
-                        theGame.GetGuiManager().ShowNotification(globalPlayers[i].username + " left your party.");
+                        theGame.GetGuiManager().ShowNotification(globalPlayers[i].username + " " + GetLocStringById(2111114199));
                         mpghosts_playSound('gui_global_panel_close');
 
                         for(j = 0; j < seenPartyPlayers.Size(); j+=1)
                         {
-                            if(seenPartyPlayers[i] == globalPlayers[i].username)
+                            if(seenPartyPlayers[j] == globalPlayers[j].username)
                             {
                                 seenPartyPlayers.Erase(i);
                                 break;
@@ -5010,7 +5010,7 @@ statemachine class r_MultiplayerClient
                 {
                     if(!theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_HideJoinNotis'))
                     {
-                        theGame.GetGuiManager().ShowNotification(globalPlayers[i].username + " disconnected");
+                        theGame.GetGuiManager().ShowNotification(globalPlayers[i].username + " " + GetLocStringById(2111114209));
                     }
                 }
                 globalPlayers.Remove(globalPlayers[i]);
@@ -5098,9 +5098,9 @@ statemachine class r_MultiplayerClient
         var messagetitle : string;
         var messagebody : string;
         
-        messagetitle = "Failed to connect to server";
-        messagebody = "Another player is connected with the username '" +usernameTakenUser + "'.<br/><br/>"
-        + "Change your username in the Witcher Online config.";
+        messagetitle = GetLocStringById(2111114249);
+        messagebody = GetLocStringById(2111114250) + " '" +usernameTakenUser + "'.<br/><br/>"
+        + GetLocStringById(2111114251);
 
         tutorialPopup(messagetitle, messagebody);
     }
@@ -5110,8 +5110,8 @@ statemachine class r_MultiplayerClient
         var messagetitle : string;
         var messagebody : string;
         
-        messagetitle = "Failed to connect to server";
-        messagebody = "You were banned from the server.";
+        messagetitle = GetLocStringById(2111114249);
+        messagebody = GetLocStringById(2111114252);
 
         tutorialPopup(messagetitle, messagebody);
     }
@@ -5121,8 +5121,8 @@ statemachine class r_MultiplayerClient
         var messagetitle : string;
         var messagebody : string;
         
-        messagetitle = "Failed to connect to server";
-        messagebody = "You were kicked from the server.";
+        messagetitle = GetLocStringById(2111114249);
+        messagebody = GetLocStringById(2111114253);
 
         tutorialPopup(messagetitle, messagebody);
     }
@@ -5132,8 +5132,8 @@ statemachine class r_MultiplayerClient
         var messagetitle : string;
         var messagebody : string;
         
-        messagetitle = "Failed to connect to server";
-        messagebody = "You are not whitelisted on this server.";
+        messagetitle = GetLocStringById(2111114249);
+        messagebody = GetLocStringById(2111114254);
 
         tutorialPopup(messagetitle, messagebody);
     }
@@ -6764,11 +6764,11 @@ exec function ride(player : string)
     if(remotePlayer && remotePlayer.ghost)
     {
         theGame.r_getMultiplayerClient().ridePlayer(remotePlayer.ghost);
-        GetWitcherPlayer().DisplayHudMessage("Riding " +remotePlayer.username + "!");
+        GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114230) + " " + remotePlayer.username + GetLocStringById(2111114231));
     }
     else
     {
-        GetWitcherPlayer().DisplayHudMessage("No player found by that name.");
+        GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114232));
     }
 }
 
@@ -6783,7 +6783,7 @@ exec function trade(player : string)
     }
     else
     {
-        GetWitcherPlayer().DisplayHudMessage("No player found by that name.");
+        GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114232));
     }
 }
 
@@ -7197,7 +7197,7 @@ function mpghosts_teleport(user :string)
     {
         if(players[i].username == user)
         {
-            theGame.GetGuiManager().ShowNotification("Teleporting to "+user);
+            theGame.GetGuiManager().ShowNotification(GetLocStringById(2111114210) + " " + user);
             if(players[i].area == theGame.GetCommonMapManager().GetCurrentArea())
             {
                 thePlayer.Teleport(players[i].pos);
@@ -7403,17 +7403,17 @@ exec function list()
         playerString = "players";
     }
 
-    messagetitle = "<p align=\"center\">Player List<br/></p>";
+    messagetitle = "<p align=\"center\">" + GetLocStringById(2111114255) + "<br/></p>";
     messagebody =
     "<p align=\"center\">"
-    + finalTotal + " " + playerString + " connected, " + localFinalTotal + " in your current region<br/><br/>"
-    + whiteOrchard + " in White Orchard<br/>"
-    + velen + " in Novigrad/Velen<br/>"
-    + skellige + " in Skellige<br/>"
-    + kaerMorhen + " in Kaer Morhen<br/>"
-    + toussaint + " in Toussaint<br/>"
-    + vizima + " in Vizima<br/>"
-    + other + " in Other/Unknown"
+    + finalTotal + " " + playerString + " " + GetLocStringById(2111114256) + ", " + localFinalTotal + " " + GetLocStringById(2111114257) + "<br/><br/>"
+    + whiteOrchard + " " + GetLocStringById(2111114258) + "<br/>"
+    + velen + " " + GetLocStringById(2111114259) + "<br/>"
+    + skellige + " " + GetLocStringById(2111114260) + "<br/>"
+    + kaerMorhen + " " + GetLocStringById(2111114261) + "<br/>"
+    + toussaint + " " + GetLocStringById(2111114262) + "<br/>"
+    + vizima + " " + GetLocStringById(2111114263) + "<br/>"
+    + other + " " + GetLocStringById(2111114264)
     + "</p>";
 
     theGame.r_getMultiplayerClient().DisplayUserMessage(WitcherOnline_PlayerNotification(messagetitle, messagebody));
@@ -7599,7 +7599,7 @@ function mpghosts_morph(type : name)
     if(theGame.r_getMultiplayerClient().isRiding() || thePlayer.IsUsingHorse(false))
     {
         mpghosts_playSound('gui_global_denied');
-        GetWitcherPlayer().DisplayHudMessage("To use morphs, first dismount.");
+        GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114233));
         return;
     }
 
@@ -7616,13 +7616,13 @@ function mpghosts_morph(type : name)
         else
         {
             mpghosts_playSound('gui_global_denied');
-            GetWitcherPlayer().DisplayHudMessage("To change morphs, first unmorph by holding Cast Sign.");
+            GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114234));
         }
     }
     else
     {
         mpghosts_playSound('gui_global_denied');
-        GetWitcherPlayer().DisplayHudMessage("To use morphs, switch to Sorceress in Custom Player Characters.");
+        GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114229));
     }
 }
 exec function cat()
@@ -7681,7 +7681,7 @@ exec function join(val : string)
     }
     else
     {
-        GetWitcherPlayer().DisplayHudMessage("Player not found!");
+        GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114232));
     }
 }
 

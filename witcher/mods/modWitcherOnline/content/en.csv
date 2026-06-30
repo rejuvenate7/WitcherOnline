@@ -105,3 +105,168 @@
 2111114102||wo_dialog_wait|Waiting for
 2111114103||wo_dialog_not_ready|Party not ready
 2111114104||wo_dialog_ready|Party ready
+2111114105||wo_status_in_cutscene|In a cutscene
+2111114106||wo_status_ingame_menu|Game paused
+2111114107||wo_status_bestiary_menu|In the bestiary menu
+2111114108||wo_status_tutorial_menu|In the tutorial menu
+2111114109||wo_status_characters_menu|In the characters menu
+2111114110||wo_status_books_menu|In the books menu
+2111114111||wo_status_crafting_menu|In the crafting menu
+2111114112||wo_status_alchemy_menu|In the alchemy menu
+2111114113||wo_status_inventory_menu|In the inventory menu
+2111114114||wo_status_map_menu|In the map menu
+2111114115||wo_status_quests_menu|In the quests menu
+2111114116||wo_status_character_menu|In the character menu
+2111114117||wo_status_meditation_menu|In the meditation menu
+2111114118||wo_status_blacksmith_menu|In the blacksmith menu
+2111114119||wo_menu_ride_boat|Ride Boat
+2111114120||wo_menu_ride_horse|Ride Horse
+2111114121||wo_menu_ride|Ride
+2111114122||wo_menu_chat|Chat >
+2111114123||wo_menu_emotes|Emotes >
+2111114124||wo_menu_morphs|Morphs >
+2111114125||wo_menu_play_gwent|Play Gwent
+2111114126||wo_menu_leave_party|Leave Party
+2111114127||wo_menu_join_party|Join Party
+2111114128||wo_menu_trade|Trade
+2111114129||wo_menu_close|Close
+2111114130||wo_menu_props|Props >
+2111114131||wo_menu_back|Back
+2111114132||wo_menu_emote_wave|Wave
+2111114133||wo_menu_emote_cheer|Cheer
+2111114134||wo_menu_emote_laugh|Laugh
+2111114135||wo_menu_emote_clap|Clap
+2111114136||wo_menu_emote_dance|Dance
+2111114137||wo_menu_emote_facepalm|Facepalm
+2111114138||wo_menu_emote_sit|Sit
+2111114139||wo_menu_emote_lay_down|Lay Down
+2111114140||wo_menu_emote_bow|Bow
+2111114141||wo_menu_emote_point|Point
+2111114142||wo_menu_emote_stop|Stop
+2111114143||wo_menu_emote_cry|Cry
+2111114144||wo_menu_emote_beg|Beg
+2111114145||wo_menu_emote_vomit|Vomit
+2111114146||wo_menu_emote_cartwheels|Cartwheels
+2111114147||wo_menu_emote_pray|Pray
+2111114148||wo_menu_emote_question|Question
+2111114149||wo_menu_emote_cross_arms|Cross Arms
+2111114150||wo_menu_emote_flip_off|Flip Off
+2111114151||wo_menu_emote_drunk_walk|Drunk Walk
+2111114152||wo_menu_emote_flop|Flop
+2111114153||wo_menu_emote_piss|Piss
+2111114154||wo_menu_emote_yoga|Yoga
+2111114155||wo_menu_emote_fly|Fly
+2111114156||wo_menu_emote_throat_cut|Throat Cut
+2111114157||wo_menu_emote_scout|Scout
+2111114158||wo_menu_emote_trader|Trader
+2111114159||wo_menu_emote_cower_low|Cower Low
+2111114160||wo_menu_emote_cower_high|Cower High
+2111114161||wo_menu_emote_pain|Pain
+2111114162||wo_menu_emote_mime|Mime
+2111114163||wo_menu_emote_get_warm|Get Warm
+2111114164||wo_menu_emote_crouch|Crouch
+2111114165||wo_menu_emote_choke|Choke
+2111114166||wo_menu_prop_lute|Lute
+2111114167||wo_menu_prop_spyglass|Spyglass
+2111114168||wo_menu_prop_fire_eater|Fire Eater
+2111114169||wo_menu_prop_drink|Drink
+2111114170||wo_menu_prop_write|Write
+2111114171||wo_menu_prop_fan|Fan
+2111114172||wo_menu_prop_broom|Broom
+2111114173||wo_menu_prop_carry_bag|Carry Bag
+2111114174||wo_menu_prop_pull_bag|Pull Bag
+2111114175||wo_menu_prop_shovel|Shovel
+2111114176||wo_menu_prop_horn|Horn
+2111114177||wo_menu_morph_owl|Owl
+2111114178||wo_menu_morph_crow|Crow
+2111114179||wo_menu_morph_cat|Cat
+2111114180||wo_menu_morph_fox|Fox
+2111114181||wo_menu_prop_eat_platter|Eat Platter
+2111114182||wo_menu_prop_umbrella|Umbrella
+2111114183||wo_menu_prop_eat_baguette|Eat Baguette
+2111114184||wo_menu_prop_smoke_pipe|Smoke Pipe
+2111114185||wo_menu_chat_hello|Hello
+2111114186||wo_menu_chat_bye|Bye
+2111114187||wo_menu_chat_follow_me|Follow me
+2111114188||wo_menu_chat_wait_here|Wait here
+2111114189||wo_menu_chat_need_a_ride|Need a ride?
+2111114190||wo_menu_chat_trade|Trade?
+2111114191||wo_menu_chat_thanks|Thanks
+2111114192||wo_menu_chat_sorry|Sorry
+2111114193||wo_menu_chat_look_here|Look here
+2111114194||wo_menu_chat_help|Help!
+2111114195||wo_menu_chat_nice_armor|Nice armor
+2111114196||wo_menu_chat_nice_sword|Nice sword
+2111114197||wo_menu_chat_nice_outfit|Nice outfit
+2111114198||wo_notification_joined_party|joined your party.
+2111114199||wo_notification_left_party|left your party.
+2111114200||wo_notification_could_not_join_party|Could not join party.
+2111114201||wo_notification_player_already_in_party|That player is already in your party.
+2111114202||wo_notification_already_in_party_prefix|You are already in
+2111114203||wo_notification_already_in_party_suffix|'s party.
+2111114204||wo_notification_joined_party_prefix|You joined
+2111114205||wo_notification_joined_party_suffix|'s party.
+2111114206||wo_hud_not_in_any_party|You are not in any party.
+2111114207||wo_notification_left_the_party|You left the party.
+2111114208||wo_notification_player_joined|joined
+2111114209||wo_notification_disconnected|disconnected
+2111114210||wo_notification_teleporting_to|Teleporting to
+2111114211||wo_hud_gwent_request_declined|The gwent request was declined.
+2111114212||wo_hud_declined_gwent_duel_request|Declined gwent duel request!
+2111114213||wo_hud_game_over_won|The game is over. You won!
+2111114214||wo_hud_game_over_lost|The game is over. You lost!
+2111114215||wo_hud_received_crowns_prefix|You received
+2111114216||wo_hud_received_crowns_suffix|crowns.
+2111114217||wo_hud_lost_crowns_prefix|You lost
+2111114218||wo_hud_lost_crowns_suffix|crowns.
+2111114219||wo_hud_cannot_duel_yourself|You cannot duel yourself!
+2111114220||wo_hud_already_in_gwent_game|You are already in a game of Gwent!
+2111114221||wo_hud_not_enough_crowns_for_bet|You don't have enough crowns for that bet.
+2111114222||wo_hud_gwent_duel_request_sent_to|Gwent duel request sent to
+2111114223||wo_hud_trade_completed|The trade has been completed!
+2111114224||wo_hud_trade_declined|The trade was declined.
+2111114225||wo_hud_not_enough_crowns_trade|You do not have enough crowns to complete this trade!
+2111114226||wo_hud_trade_item_missing_prefix|tried to send a trade request for an item that doesn't exist in your game.
+2111114227||wo_hud_cannot_ride_yourself|You cannot ride yourself!
+2111114228||wo_hud_trade_request_sent_to|Trade request sent to
+2111114229||wo_hud_morphs_require_sorceress|To use morphs, switch to Sorceress in Custom Player Characters.
+2111114230||wo_hud_riding_player_prefix|Riding
+2111114231||wo_hud_riding_player_suffix|!
+2111114232||wo_hud_no_player_found_by_name|No player found by that name.
+2111114233||wo_hud_morphs_first_dismount|To use morphs, first dismount.
+2111114234||wo_hud_change_morphs_first_unmorph|To change morphs, first unmorph by holding Cast Sign.
+2111114235||wo_hud_players_online_prefix|There are
+2111114236||wo_hud_players_online_middle|players online in
+2111114237||wo_hud_players_online_suffix|.
+2111114238||wo_hud_welcome_prefix|Welcome,
+2111114239||wo_hud_welcome_suffix|!
+2111114240||wo_hud_not_connected_to_server|You are not connected to any Witcher Online server.
+2111114241||wo_hud_gwent_duel_declined|The Gwent duel was declined.
+2111114242||wo_flash_trading_with|Trading with
+2111114243||wo_flash_wants_to_trade_for|wants to trade for
+2111114244||wo_flash_crowns|crowns
+2111114245||wo_flash_gwent_playing|Gwent: Playing
+2111114246||wo_flash_wants_to_play_gwent_and_bets|wants to play Gwent and bets
+2111114247||wo_flash_asking_price|Asking Price
+2111114248||wo_flash_bet|Bet
+2111114249||wo_message_failed_connect_server|Failed to connect to server
+2111114250||wo_message_username_taken_prefix|Another player is connected with the username
+2111114251||wo_message_username_taken_suffix|Change your username in the Witcher Online config.
+2111114252||wo_message_banned_from_server|You were banned from the server.
+2111114253||wo_message_kicked_from_server|You were kicked from the server.
+2111114254||wo_message_not_whitelisted|You are not whitelisted on this server.
+2111114255||wo_message_player_list|Player List
+2111114256||wo_message_connected|connected
+2111114257||wo_message_in_current_region|in your current region
+2111114258||wo_message_in_white_orchard|in White Orchard
+2111114259||wo_message_in_novigrad_velen|in Novigrad/Velen
+2111114260||wo_message_in_skellige|in Skellige
+2111114261||wo_message_in_kaer_morhen|in Kaer Morhen
+2111114262||wo_message_in_toussaint|in Toussaint
+2111114263||wo_message_in_vizima|in Vizima
+2111114264||wo_message_in_other_unknown|in Other/Unknown
+2111114265||wo_pin_current_location_suffix|'s current location.
+2111114266||wo_message_failed_get_player_data|Failed to get Player Data!
+2111114267||wo_message_not_communicating_server|Your game is not communicating with the Witcher Online server.
+2111114268||wo_message_launch_args_required|Ensure your game was launched with -net -debugscripts and delete x64.final.redscripts.
+2111114269||wo_message_troubleshooting_wiki|Follow all steps from the Troubleshooting page of the wiki.

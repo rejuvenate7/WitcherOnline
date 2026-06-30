@@ -30,11 +30,11 @@ timer function r_showConnectionAlert(dt : float, id : int)
     var wo_messagetitle : string;
     var wo_messagebody  : string;
 
-    wo_messagetitle = "Failed to get Player Data!";
+    wo_messagetitle = GetLocStringById(2111114266);
 
-    wo_messagebody = "Your game is not communicating with the Witcher Online server.<br/><br/>"
-        + "Ensure your game was launched with -net -debugscripts and delete x64.final.redscripts.<br/><br/>"
-        + "Follow all steps from the Troubleshooting page of the wiki.<br/>"
+    wo_messagebody = GetLocStringById(2111114267) + "<br/><br/>"
+        + GetLocStringById(2111114268) + "<br/><br/>"
+        + GetLocStringById(2111114269) + "<br/>"
         + "https://rejuvenate.gitbook.io/witcheronline/guides/troubleshooting<br/>";
     
     theGame.r_getMultiplayerClient().tutorialPopup(wo_messagetitle, wo_messagebody);
@@ -184,7 +184,7 @@ timer function r_showJoinMessage(dt : float, id : int)
         regionString = "regions";
     }
     
-    GetWitcherPlayer().DisplayHudMessage("There are " + total + " players online in " + regions + " " + regionString + ".");
+    GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114235) + " " + total + " " + GetLocStringById(2111114236) + " " + regions + " " + regionString + GetLocStringById(2111114237));
 }
 
 @addMethod(CR4Player) 
@@ -192,11 +192,11 @@ timer function r_showWelcome(dt : float, id : int)
 {
     if(theGame.r_getMultiplayerClient().getServerReceived())
     {
-        GetWitcherPlayer().DisplayHudMessage("Welcome, " + theGame.r_getMultiplayerClient().getUsername() + "!");
+        GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114238) + " " + theGame.r_getMultiplayerClient().getUsername() + GetLocStringById(2111114239));
     }
     else
     {
-        GetWitcherPlayer().DisplayHudMessage("You are not connected to any Witcher Online server.");
+        GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114240));
     }
 }
 
@@ -584,14 +584,14 @@ function OnCloseSelectionPopup()
 {
     if(m_DataObject.wo_isReceivingTrade)
     {
-        GetWitcherPlayer().DisplayHudMessage("The trade was declined.");
+        GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114224));
         theGame.r_getMultiplayerClient().declineTrade(true);
         mpghosts_playSound('gui_enchanting_runeword_remove');
         ClosePopup();
     }
     else if(m_DataObject.wo_isReceivingGwent)
     {
-        GetWitcherPlayer().DisplayHudMessage("The Gwent duel was declined.");
+        GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114241));
         theGame.r_getMultiplayerClient().declineGwentRequest(false);
         mpghosts_playSound('gui_enchanting_runeword_remove');
         ClosePopup();
@@ -651,7 +651,7 @@ function OnConfigUI()
 
         if(m_DataObject.wo_isTrade)
         {
-            m_fxSetCategory.InvokeSelfOneArg( FlashArgString("Trading with " +m_DataObject.wo_toTrade) );
+            m_fxSetCategory.InvokeSelfOneArg( FlashArgString(GetLocStringById(2111114242) + " " + m_DataObject.wo_toTrade) );
         }
         else if(m_DataObject.wo_isReceivingTrade)
         {
@@ -660,7 +660,7 @@ function OnConfigUI()
             m_tradeInventory.ignorePosition = true;
             m_tradeInventory.SetFilterType( IFT_None );
 
-            m_fxSetCategory.InvokeSelfOneArg( FlashArgString(m_DataObject.wo_toTrade + " wants to trade for " + m_DataObject.wo_crownsAmount + " crowns") );
+            m_fxSetCategory.InvokeSelfOneArg( FlashArgString(m_DataObject.wo_toTrade + " " + GetLocStringById(2111114243) + " " + m_DataObject.wo_crownsAmount + " " + GetLocStringById(2111114244)) );
 
             l_flashObject = m_flashValueStorage.CreateTempFlashObject();
             l_flashArray = m_flashValueStorage.CreateTempFlashArray();		
@@ -674,7 +674,7 @@ function OnConfigUI()
             m_tradeInventory.ignorePosition = true;
             m_tradeInventory.SetFilterType( IFT_None );
 
-            m_fxSetCategory.InvokeSelfOneArg( FlashArgString("Gwent: Playing " + m_DataObject.wo_toGwent) );
+            m_fxSetCategory.InvokeSelfOneArg( FlashArgString(GetLocStringById(2111114245) + " " + m_DataObject.wo_toGwent) );
 
             l_flashObject = m_flashValueStorage.CreateTempFlashObject();
             l_flashArray = m_flashValueStorage.CreateTempFlashArray();		
@@ -688,7 +688,7 @@ function OnConfigUI()
             m_tradeInventory.ignorePosition = true;
             m_tradeInventory.SetFilterType( IFT_None );
 
-            m_fxSetCategory.InvokeSelfOneArg( FlashArgString(m_DataObject.wo_toGwent + " wants to play Gwent and bets " + m_DataObject.wo_betAmount + " crowns") );
+            m_fxSetCategory.InvokeSelfOneArg( FlashArgString(m_DataObject.wo_toGwent + " " + GetLocStringById(2111114246) + " " + m_DataObject.wo_betAmount + " " + GetLocStringById(2111114244)) );
 
             l_flashObject = m_flashValueStorage.CreateTempFlashObject();
             l_flashArray = m_flashValueStorage.CreateTempFlashArray();		
