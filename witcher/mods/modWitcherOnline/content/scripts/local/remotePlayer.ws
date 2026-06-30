@@ -3466,7 +3466,7 @@ statemachine class r_RemotePlayer
             }
         }
 
-        if(rend)
+        if(rend && (heldItem == "silver" || heldItem == "steel"))
         {
             if(!lastRend)
             {
