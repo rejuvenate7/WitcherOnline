@@ -7,7 +7,7 @@
   </a>
 </div>
 
-**Witcher Online** is a mod that adds multiplayer to *The Witcher 3: Wild Hunt*, turning your single player experience into an MMO experience. Join servers to play with your friends, customize your character using [Custom Player Characters](https://www.nexusmods.com/witcher3/mods/5940) and relax in taverns using [Chill Out](https://www.nexusmods.com/witcher3/mods/6402). Chat with strangers and perform emotes to roleplay with other players. Complete quests alongside friends.
+**Witcher Online** is a mod that adds multiplayer to *The Witcher 3: Wild Hunt*, turning your single player experience into an MMO experience. Join servers to play with your friends, customize your character using [Custom Player Characters](https://www.nexusmods.com/witcher3/mods/5940) and relax in taverns using [Chill Out](https://www.nexusmods.com/witcher3/mods/6402). Play Gwent and join parties with other players. Chat with strangers and perform emotes to roleplay with other players. Complete quests alongside friends.
 
 ## Getting started
 To play Witcher Online, go to the [nexus page](https://www.nexusmods.com/witcher3/mods/11590).
@@ -22,7 +22,9 @@ Full movement, combat, and appearance sync with other players. Perform emotes an
 
 Sit down at tables and benches using Chill Out and change into any character in the game with Custom Player Characters.
 
-Co-op, world, and NPC sync is **NOT** implemented.
+Play Gwent with other players, using the cards in your deck. Play Timed or Normal mode and place bets.
+
+Play in parties to synchronize time, weather, and dialog choices. NPC sync is **NOT** implemented.
 
 This mod is designed to turn *The Witcher 3* into an MMO experience, where you can see other players on the path.
 
@@ -33,6 +35,18 @@ This mod is designed to turn *The Witcher 3* into an MMO experience, where you c
 Join the public server to wander the world with lots of other players.
 
 ![MMO Experience](assets/mmo.gif)
+
+### Party System
+Join a party with other players to synchronize time, weather, and cutscene dialog choices.
+
+![Party System](assets/world.gif)
+
+![Party System 2](assets/party.gif)
+
+### Cutscene Sync
+Dialogue choices the party leader chooses are selected for all players in the party.
+
+![Cutscene Sync](assets/dialog.gif)
 
 ### Gwent Duels
 
