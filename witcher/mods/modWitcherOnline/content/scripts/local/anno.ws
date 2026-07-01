@@ -974,6 +974,14 @@ function OnDialogOptionAccepted(index : int)
 }
 
 @wrapMethod(CStoryScenePlayer)
+function OnBlockingSceneStarted( scene: CStoryScene )
+{
+    theGame.r_getMultiplayerClient().stopRiding();
+
+    wrappedMethod(scene);
+}
+
+@wrapMethod(CStoryScenePlayer)
 function OnBlockingSceneEnded( output : CStorySceneOutput )
 {
     theGame.r_getMultiplayerClient().clearActiveDialogChoices();
@@ -1123,4 +1131,118 @@ public function WO_ShowDialogAssistText(text : string, emphasise : bool)
 public function WO_ClearDialogAssistText()
 {
     m_fxPreviousSentenceHideSFF.InvokeSelf();
+}
+
+
+@addMethod(CR4HudModuleCompanion)
+public function WO_HideCompanionHud()
+{
+    bShow = false;
+    ShowElement(false);
+
+    companionNPC = NULL;
+    companionNPC2 = NULL;
+
+    m_fxSetNameSFF.InvokeSelfOneArg(FlashArgString(""));
+    m_fxSetPortraitSFF.InvokeSelfOneArg(FlashArgString(""));
+    m_fxSetVitalitySFF.InvokeSelfOneArg(FlashArgNumber(0.0));
+
+    m_fxSetName2SFF.InvokeSelfOneArg(FlashArgString(""));
+    m_fxSetPortrait2SFF.InvokeSelfOneArg(FlashArgString(""));
+    m_fxSetVitality2SFF.InvokeSelfOneArg(FlashArgNumber(0.0));
+}
+
+@addMethod(CR4HudModuleCompanion)
+public function WO_RefreshCompanionHud(party : array<r_RemotePlayer>)
+{
+    bShow = true;
+    ShowElement(true);
+
+    companionNPC = NULL;
+    companionNPC2 = NULL;
+    
+    if(party.Size() == 1)
+    {
+        if(theGame.r_getMultiplayerClient().getInParty() && !party[0].inParty)
+        {
+            m_fxSetNameSFF.InvokeSelfOneArg(FlashArgString(GetLocStringById(2111114270) + " " + party[0].username));
+        }
+        else
+        {
+            m_fxSetNameSFF.InvokeSelfOneArg(FlashArgString(party[0].username));
+        }
+        
+        m_fxSetVitalitySFF.InvokeSelfOneArg(FlashArgNumber(party[0].health));
+
+        if(party[0].cpcPlayerType == ENR_PlayerCiri)
+        {
+            m_fxSetPortraitSFF.InvokeSelfOneArg(FlashArgString("icons/characters/journal_ciri.png"));
+        }
+        else if(party[0].cpcPlayerType == ENR_PlayerWitcheress)
+        {
+            m_fxSetPortraitSFF.InvokeSelfOneArg(FlashArgString("icons/characters/journal_keira.png"));
+        }
+        else if(party[0].cpcPlayerType == ENR_PlayerSorceress)
+        {
+            m_fxSetPortraitSFF.InvokeSelfOneArg(FlashArgString("icons/characters/journal_yenn.png"));
+        }
+        else
+        {
+            m_fxSetPortraitSFF.InvokeSelfOneArg(FlashArgString("icons/characters/journal_geralt.png"));
+        }
+
+        m_fxSetName2SFF.InvokeSelfOneArg(FlashArgString(""));
+        m_fxSetPortrait2SFF.InvokeSelfOneArg(FlashArgString(""));
+        m_fxSetVitality2SFF.InvokeSelfOneArg(FlashArgNumber(0.0));
+    }
+    else if(party.Size() > 1)
+    {
+        m_fxSetNameSFF.InvokeSelfOneArg(FlashArgString(party[1].username));
+        m_fxSetVitalitySFF.InvokeSelfOneArg(FlashArgNumber(party[1].health));
+
+        if(party[1].cpcPlayerType == ENR_PlayerCiri)
+        {
+            m_fxSetPortraitSFF.InvokeSelfOneArg(FlashArgString("icons/characters/journal_ciri.png"));
+        }
+        else if(party[1].cpcPlayerType == ENR_PlayerWitcheress)
+        {
+            m_fxSetPortraitSFF.InvokeSelfOneArg(FlashArgString("icons/characters/journal_keira.png"));
+        }
+        else if(party[1].cpcPlayerType == ENR_PlayerSorceress)
+        {
+            m_fxSetPortraitSFF.InvokeSelfOneArg(FlashArgString("icons/characters/journal_yenn.png"));
+        }
+        else
+        {
+            m_fxSetPortraitSFF.InvokeSelfOneArg(FlashArgString("icons/characters/journal_geralt.png"));
+        }
+
+        if(theGame.r_getMultiplayerClient().getInParty() && !party[0].inParty)
+        {
+            m_fxSetName2SFF.InvokeSelfOneArg(FlashArgString(GetLocStringById(2111114270) + " " + party[0].username));
+        }
+        else
+        {
+            m_fxSetName2SFF.InvokeSelfOneArg(FlashArgString(party[0].username));
+        }
+
+        m_fxSetVitality2SFF.InvokeSelfOneArg(FlashArgNumber(party[0].health));
+
+        if(party[0].cpcPlayerType == ENR_PlayerCiri)
+        {
+            m_fxSetPortrait2SFF.InvokeSelfOneArg(FlashArgString("icons/characters/journal_ciri.png"));
+        }
+        else if(party[0].cpcPlayerType == ENR_PlayerWitcheress)
+        {
+            m_fxSetPortrait2SFF.InvokeSelfOneArg(FlashArgString("icons/characters/journal_keira.png"));
+        }
+        else if(party[0].cpcPlayerType == ENR_PlayerSorceress)
+        {
+            m_fxSetPortrait2SFF.InvokeSelfOneArg(FlashArgString("icons/characters/journal_yenn.png"));
+        }
+        else
+        {
+            m_fxSetPortrait2SFF.InvokeSelfOneArg(FlashArgString("icons/characters/journal_geralt.png"));
+        }
+    }
 }

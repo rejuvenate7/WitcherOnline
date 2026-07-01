@@ -345,7 +345,7 @@ static void pushPlayer3(const std::string& id, const std::vector<std::string>& u
 
 static void pushPlayer4(const std::string& id, const std::vector<std::string>& update4)
 {
-	if (id.empty() || update4.size() < 15)
+	if (id.empty() || update4.size() < 16)
 		return;
 
 	const std::string& inParty = update4[0];
@@ -365,6 +365,7 @@ static void pushPlayer4(const std::string& id, const std::vector<std::string>& u
 	const std::string& gloveDye = update4[12];
 	const std::string& pantDye = update4[13];
 	const std::string& bootDye = update4[14];
+	const std::string& health = update4[15];
 
 	std::string code4 = "wo_update4(";
 
@@ -419,6 +420,9 @@ static void pushPlayer4(const std::string& id, const std::vector<std::string>& u
 
 	code4 += ", ";
 	code4 += bootDye;
+
+	code4 += ", ";
+	code4 += health;
 
 	code4 += ")";
 

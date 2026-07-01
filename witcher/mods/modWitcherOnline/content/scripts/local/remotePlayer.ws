@@ -327,6 +327,9 @@ statemachine class r_RemotePlayer
     public var lastBootDye : int;
     default lastBootDye = 1;
 
+    public var health : float;
+    default health = 1;
+
     public function setDeck(val : SDeckDefinition)
     {
         gwentGame.deck = val;
@@ -1379,9 +1382,6 @@ statemachine class r_RemotePlayer
 
     public function updateGhost()
     {
-        var actors : array<CActor>;
-        var i : int;
-        
         updateDummyOneliner();
 
         if (!isInRange())
@@ -3574,11 +3574,11 @@ statemachine class r_RemotePlayer
 
             if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
             {
-                queueAnim('q704_syanna_dead_pose', 5.0, 0.2, 0, 'dead');
+                queueAnim('q704_syanna_dead_pose', 5.0, 0, 0, 'dead');
             }
             else
             {
-                queueAnim('low_lying_dead_idle', 5.0, 0.2, 0, 'dead');
+                queueAnim('low_lying_dead_idle', 5.0, 0, 0, 'dead');
             }
             
             lastAlive = true;

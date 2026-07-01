@@ -243,8 +243,172 @@ statemachine class r_MultiplayerClient
     default leaderDialogAllReadyClearAt = -999;
 
     private var seenPartyPlayers : array<string>;
+    private var lastHideCompanion : bool;
+    default lastHideCompanion = true;
 
-    function colorToId(val : name) : int
+    public function getPartyMembers() : array<r_RemotePlayer>
+    {
+        var i : int;
+        var j : int;
+        var ret : array<r_RemotePlayer>;
+        var partyLeader : string;
+        var sortedNames : array<string>;
+
+        ret.Clear();
+        sortedNames.Clear();
+
+        if(inParty)
+        {
+            partyLeader = joinedParty;
+        }
+        else
+        {
+            partyLeader = username;
+        }
+
+        if(partyLeader == "" || partyLeader == "none")
+        {
+            return ret;
+        }
+
+        for(i = 0; i < globalPlayers.Size(); i += 1)
+        {
+            if(!globalPlayers[i])
+            {
+                continue;
+            }
+
+            if(globalPlayers[i].username == username || globalPlayers[i].id == id)
+            {
+                continue;
+            }
+
+            if(globalPlayers[i].username == partyLeader)
+            {
+                ret.PushBack(globalPlayers[i]);
+                break;
+            }
+        }
+
+        for(i = 0; i < globalPlayers.Size(); i += 1)
+        {
+            if(!globalPlayers[i])
+            {
+                continue;
+            }
+
+            if(globalPlayers[i].username == username || globalPlayers[i].id == id)
+            {
+                continue;
+            }
+
+            if(globalPlayers[i].username == partyLeader)
+            {
+                continue;
+            }
+
+            if(globalPlayers[i].inParty && globalPlayers[i].joinedParty == partyLeader)
+            {
+                sortedNames.PushBack(globalPlayers[i].username);
+            }
+        }
+
+        ArraySortStrings(sortedNames);
+
+        for(i = 0; i < sortedNames.Size(); i += 1)
+        {
+            for(j = 0; j < globalPlayers.Size(); j += 1)
+            {
+                if(!globalPlayers[j])
+                {
+                    continue;
+                }
+
+                if(globalPlayers[j].username == sortedNames[i])
+                {
+                    ret.PushBack(globalPlayers[j]);
+                    break;
+                }
+            }
+        }
+
+        return ret;
+    }
+
+    public function updateCompanionIcons()
+    {
+        var party : array<r_RemotePlayer>;
+        var now : float = theGame.GetEngineTimeAsSeconds();
+
+        if(!thePlayer)
+        {
+            return;
+        }
+
+        party = getPartyMembers();
+
+        if(((now - theGame.r_getMultiplayerClient().getSpawnTime()) > 1.5) && party.Size() > 0 && !theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_HidePartyHUD'))
+        {
+            showCompanionIcons(party);
+            lastHideCompanion = false;
+        }
+        else
+        {
+            if(!lastHideCompanion)
+            {
+                hideCompanionIcons();
+                lastHideCompanion = true;
+            }
+        }
+    }
+
+    public function showCompanionIcons(party : array<r_RemotePlayer>)
+    {
+        var hud : CR4ScriptedHud;
+        var module : CR4HudModuleCompanion;
+
+        hud = (CR4ScriptedHud)theGame.GetHud();
+
+        if(!hud)
+        {
+            return;
+        }
+
+        module = (CR4HudModuleCompanion)hud.GetHudModule("CompanionModule");
+
+        if(!module)
+        {
+            return;
+        }
+
+        module.WO_RefreshCompanionHud(party);
+    }
+
+    public function hideCompanionIcons()
+    {
+        var hud : CR4ScriptedHud;
+        var module : CR4HudModuleCompanion;
+
+        hud = (CR4ScriptedHud)theGame.GetHud();
+
+        if(!hud)
+        {
+            return;
+        }
+
+        module = (CR4HudModuleCompanion)hud.GetHudModule("CompanionModule");
+
+        if(!module)
+        {
+            return;
+        }
+
+        module.WO_HideCompanionHud();
+
+        lastHideCompanion = true;
+    }
+
+    public function colorToId(val : name) : int
     {
         if (val == 'Dye Default')
             return 1;
@@ -3390,6 +3554,11 @@ statemachine class r_MultiplayerClient
 
     public function Init()
     {
+        inParty = false;
+        joinedParty = "";
+        joinedPartyAt = -999;
+        nextPartyFollowTeleportAt = -999;
+
         lightAttackAnims.Clear();
         heavyAttackAnims.Clear();
         lightFistAnims.Clear();
@@ -4488,6 +4657,11 @@ statemachine class r_MultiplayerClient
             p.pos = position;
             p.area = area;
             p.lastUpdate = theGame.GetEngineTimeAsSeconds();
+
+            p.inParty = false;
+            p.joinedParty = "";
+            p.lastInParty = false;
+            p.lastJoinedParty = "";
             globalPlayers.PushBack(p);
 
             if(!theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_HideJoinNotis'))
@@ -4668,6 +4842,11 @@ statemachine class r_MultiplayerClient
             p.eq_silverScab = silverScab;
             p.eq_crossbow = crossbow;
             p.eq_mask = mask;
+
+            p.inParty = false;
+            p.joinedParty = "";
+            p.lastInParty = false;
+            p.lastJoinedParty = "";
             p.Init();
 
             players.PushBack(p);
@@ -4691,6 +4870,7 @@ statemachine class r_MultiplayerClient
             if (globalPlayers[i].id == id)
             {
                 globalPlayers[i].lastUpdate = theGame.GetEngineTimeAsSeconds(); 
+                globalPlayers[i].cpcPlayerType = cpcPlayerType; 
                 foundGlobal = true;
                 break;
             }
@@ -4825,7 +5005,7 @@ statemachine class r_MultiplayerClient
     }
 
     public function updatePlayerData4(idName : name, inParty : bool, joinedParty : string, weather : name, day : int, hour : int, minute : int, second : int, lastDialogIndex : int, lastDialogCount : int, dialogChoices : string, 
-                                        dialogChoicesActive : bool, armorDye : int, gloveDye : int, pantDye : int, bootDye : int)
+                                        dialogChoicesActive : bool, armorDye : int, gloveDye : int, pantDye : int, bootDye : int, health : float)
     {
         var i : int;
         var j : int;
@@ -4868,9 +5048,9 @@ statemachine class r_MultiplayerClient
 
                         for(j = 0; j < seenPartyPlayers.Size(); j+=1)
                         {
-                            if(seenPartyPlayers[j] == globalPlayers[j].username)
+                            if(seenPartyPlayers[j] == globalPlayers[i].username)
                             {
-                                seenPartyPlayers.Erase(i);
+                                seenPartyPlayers.Erase(j);
                                 break;
                             }
                         }
@@ -4881,6 +5061,7 @@ statemachine class r_MultiplayerClient
                 globalPlayers[i].joinedParty = joinedParty;
                 globalPlayers[i].lastInParty = inParty;
                 globalPlayers[i].lastJoinedParty = joinedParty;
+                globalPlayers[i].health = health;
 
                 foundGlobal = true;
                 break;
@@ -4914,6 +5095,7 @@ statemachine class r_MultiplayerClient
                 players[i].gloveDye = gloveDye;
                 players[i].pantDye = pantDye;
                 players[i].bootDye = bootDye;
+                players[i].health = health;
 
                 players[i].dialogChoices.Clear();
 
@@ -5498,7 +5680,6 @@ exec function wo_get(playerId : string)
     var theHorse : CActor;
     var type 		: EExplorationType;
     var selectedItemId : SItemUniqueId;
-    var user : string;
     var playerRotation      : EulerAngles;
     var rootMenu : CR4Menu;
 
@@ -5519,12 +5700,6 @@ exec function wo_get(playerId : string)
 	var mask : name;
 
     var fallDist : float;
-    
-    // cpc
-    var templates : array< array<String> >;
-    var appearanceItems : array< array<String> >;
-    var heads : array< name >;
-    var curType : ENR_PlayerType;
 
     var ridingPlayer : r_RemotePlayer;
     var outgoingPlayer : string;
@@ -6030,45 +6205,14 @@ exec function wo_get2(playerId : string)
     var pos : Vector;
     var list : string;
     var inv : CInventoryComponent;
-    var steel, silver : SItemUniqueId;
-    var ids : array<SItemUniqueId>;
-    var offhandItem : bool;
-    var theHorse : CActor;
-    var type 		: EExplorationType;
-    var selectedItemId : SItemUniqueId;
     var user : string;
-    var playerRotation      : EulerAngles;
-    var rootMenu : CR4Menu;
-
-    var id : SItemUniqueId;
-    var steelName : name;
-    var silverName : name;
-    var armor : name;
-    var gloves : name;
-    var pants : name;
-    var boots : name;
     var i : int;
-    var acs : array< CComponent >;
-	var head : name;
-	var hair : name;
-	var steelScab : name;
-	var silverScab : name;
-	var crossbow : name;
-	var mask : name;
-
-    var fallDist : float;
     
     // cpc
     var templates : array< array<String> >;
     var appearanceItems : array< array<String> >;
     var heads : array< name >;
     var curType : ENR_PlayerType;
-
-    var ridingPlayer : r_RemotePlayer;
-    var outgoingPlayer : string;
-    var outgoingTradeItem : name;
-
-    var horseAppearance : string;
 
     theGame.r_getMultiplayerClient().setUserId(playerId);
     theGame.r_getMultiplayerClient().setReceived();
@@ -6466,6 +6610,9 @@ exec function wo_get4(playerId : string)
     }
     list += " ";
 
+    list += thePlayer.GetHealthPercents();
+    list += " ";
+
     Log("wo4 "+list);
 }
 
@@ -6506,9 +6653,9 @@ exec function wo_update3(id : name, outgoingGwentTo : string, outgoingGwentReque
 }
 
 exec function wo_update4(id : name, inParty : bool, joinedParty : string, weather : name, day : int, hour : int, minute : int, second : int, lastDialogIndex : int, lastDialogCount : int, dialogChoices : string, 
-                         dialogChoicesActive : bool, armorDye : int, gloveDye : int, pantDye : int, bootDye : int)
+                         dialogChoicesActive : bool, armorDye : int, gloveDye : int, pantDye : int, bootDye : int, health : float)
 {
-    theGame.r_getMultiplayerClient().updatePlayerData4(id, inParty, joinedParty, weather, day, hour, minute, second, lastDialogIndex , lastDialogCount, dialogChoices, dialogChoicesActive, armorDye, gloveDye, pantDye, bootDye);
+    theGame.r_getMultiplayerClient().updatePlayerData4(id, inParty, joinedParty, weather, day, hour, minute, second, lastDialogIndex , lastDialogCount, dialogChoices, dialogChoicesActive, armorDye, gloveDye, pantDye, bootDye, health);
 }
 
 exec function mpghosts_disconnect(id :string)
@@ -7492,6 +7639,8 @@ state WO_Tick in r_MultiplayerClient
 	{
         while(true)
         {
+            parent.updateCompanionIcons();
+
             if (!parent.getInGame())
             {
                 SleepOneFrame();

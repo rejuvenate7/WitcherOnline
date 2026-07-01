@@ -270,3 +270,5 @@
 2111114267||wo_message_not_communicating_server|Your game is not communicating with the Witcher Online server.
 2111114268||wo_message_launch_args_required|Ensure your game was launched with -net -debugscripts and delete x64.final.redscripts.
 2111114269||wo_message_troubleshooting_wiki|Follow all steps from the Troubleshooting page of the wiki.
+2111114270||wo_message_party_leader|[Leader]
+2111114271||option_MPGhosts_HidePartyHUD|Hide Party HUD
