@@ -1246,3 +1246,73 @@ public function WO_RefreshCompanionHud(party : array<r_RemotePlayer>)
         }
     }
 }
+
+@wrapMethod(ChillOut)
+function InitGroups() 
+{
+    var area: EAreaName;
+    wrappedMethod();
+
+    area = CO_CurrentArea();
+
+    if (area == AN_NMLandNovigrad) {
+        
+    } else if (area == AN_Skellige_ArdSkellig) {
+
+    } else if (area == AN_Kaer_Morhen) {
+
+    } else if (area == AN_Prologue_Village) {
+        WO_WhiteOrchard(this, m_groups);
+    } else if (area == AN_Prologue_Village_Winter) {
+        WO_WhiteOrchard(this, m_groups);
+    } else if (area == AN_Wyzima) {
+
+    } else if (area == (int) AN_Dlc_Bob) {
+        WO_Bob(this, m_groups);
+    }
+}
+
+function WO_Bob(self: IScriptable, out groups: array<CO_SpotEntGroup>) 
+{
+    var group: CO_SpotEntGroup;
+
+    group = new CO_SpotEntGroup in self;
+    group.tag = 'wo_bob';
+    groups.PushBack(group);
+
+    group.Add(ChillSpot(Vector(-605.967529, -1429.678101, 84.242104), EulerAngles(0, -93.045372), CST_Chair));
+
+    group.Add(ChillSpot(Vector(-586.438538, -1420.142, 84.757736), EulerAngles(0, 93.171272), CST_Chair));
+    group.Add(ChillSpot(Vector(-586.457458, -1429.595, 84.736206), EulerAngles(0, 89.509407), CST_Chair));
+
+    group.Add(ChillSpot(Vector(-588.891, -1403.756958, 84.718536), EulerAngles(0, 178.715973), CST_Chair));
+
+    group.Add(ChillSpot(Vector(-599.513611, -1422.512, 84.796898), EulerAngles(0, -88.679054), CST_Chair));
+
+    group.Add(ChillSpot(Vector(-568.422, -1426.960693, 88.986076), EulerAngles(0, -179.185318), CST_Chair));
+
+    group.Add(ChillSpot(Vector(-597.734, -1291.977539, 101.653915), EulerAngles(0, -0.093154), CST_Chair));
+
+    LogChannel('Yo', "ADded toussaint");
+}
+
+function WO_WhiteOrchard(self: IScriptable, out groups: array<CO_SpotEntGroup>) 
+{
+    var group: CO_SpotEntGroup;
+    var winter: bool;
+    winter = theGame.GetWorld().GetDepotPath() == "levels\prolog_village_winter\prolog_village.w2w";
+
+    group = new CO_SpotEntGroup in self;
+    group.tag = 'wo_velen';
+    groups.PushBack(group);
+
+    group.Add(ChillSpot(Vector(53.5, 7.262, 2.354600), EulerAngles(0, -83.447166), CST_Table)); // +
+    group.Add(ChillSpot(Vector(55.219,  6.423944, 2.353349), EulerAngles(0, 98.897591), CST_Table));
+    group.Add(ChillSpot(Vector(55.1,  7.586, 2.353349), EulerAngles(0, 98.897591), CST_Table)); // -
+
+    if (!winter)
+    {
+        group.Add(ChillSpot(Vector(60.20, 8.767, 2.353349), EulerAngles(0, 98.897591), CST_Table)); // +
+        group.Add(ChillSpot(Vector(58.649, 8.507, 2.353348), EulerAngles(0, -87.870636), CST_Table));
+    }
+}

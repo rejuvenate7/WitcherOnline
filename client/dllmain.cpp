@@ -292,7 +292,7 @@ void pushPlayer(const std::string& id, const std::vector<std::string>& update1A,
 
 static void pushPlayer3(const std::string& id, const std::vector<std::string>& update3)
 {
-	if (id.empty() || update3.size() < 2)
+	if (id.empty() || update3.size() < 6)
 		return;
 
 	const std::string& outgoingGwentTo = update3[0];
