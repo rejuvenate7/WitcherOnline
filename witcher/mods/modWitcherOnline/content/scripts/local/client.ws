@@ -898,16 +898,6 @@ statemachine class r_MultiplayerClient
         }
     }
 
-    private function enterCutscene(val : string)
-    {
-        var scene : CStoryScene;
-
-        scene = (CStoryScene)LoadResource(val, true);
-        theGame.GetStorySceneSystem().PlayScene(scene, "Input");
-
-        LogChannel('Entering Scene', val);
-    }
-
     private function consumeRemoteDialogChoice(remotePlayer : r_RemotePlayer)
     {
         if(!remotePlayer)

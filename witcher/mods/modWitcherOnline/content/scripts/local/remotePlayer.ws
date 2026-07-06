@@ -330,6 +330,12 @@ statemachine class r_RemotePlayer
     public var health : float;
     default health = 1;
 
+    private var chillOutNPCCleanupAt : float;
+    private var chillOutNPCCleanupInterval : float;
+
+    default chillOutNPCCleanupAt = -999;
+    default chillOutNPCCleanupInterval = 1.0;
+
     public function setDeck(val : SDeckDefinition)
     {
         gwentGame.deck = val;
@@ -1436,6 +1442,114 @@ statemachine class r_RemotePlayer
         }
     }
 
+    private function scheduleChillOutNPCCleanup()
+    {
+        chillOutNPCCleanupAt = theGame.GetEngineTimeAsSeconds() + 0.75;
+    }
+
+    private function updateChillOutNPCCleanup()
+    {
+        var now : float;
+
+        if(chillOutAnim == '')
+        {
+            chillOutNPCCleanupAt = -999;
+            return;
+        }
+
+        if(lastMoveDir != 'none')
+        {
+            return;
+        }
+
+        now = theGame.GetEngineTimeAsSeconds();
+
+        if(chillOutNPCCleanupAt < 0)
+        {
+            chillOutNPCCleanupAt = now + 0.75;
+            return;
+        }
+
+        if(now < chillOutNPCCleanupAt)
+        {
+            return;
+        }
+
+        despawnNearbyChillOutNPCs();
+
+        chillOutNPCCleanupAt = now + chillOutNPCCleanupInterval;
+    }
+
+    private function despawnNearbyChillOutNPCs()
+    {
+        var npc : CNewNPC;
+        var i : int;
+        var ents : array<CGameplayEntity>;
+        var scanPos : Vector;
+        var radius : float;
+        var tags : array<name>;
+
+        radius = 0.65;
+
+        if(!ghost)
+        {
+            return;
+        }
+
+        scanPos = ghost.GetWorldPosition();
+
+        FindGameplayEntitiesInSphere(ents, scanPos, radius, 20,,,,'CNewNPC');
+
+        for(i = 0; i < ents.Size(); i += 1)
+        {
+            npc = (CNewNPC)ents[i];
+
+            if(!npc)
+            {
+                continue;
+            }
+
+            if(npc == ghost)
+            {
+                continue;
+            }
+
+            if(npc == thePlayer)
+            {
+                continue;
+            }
+
+            tags = npc.GetTags();
+
+            if(tags.Size() > 0)
+            {
+                continue;
+            }
+
+            if(!npc.IsHuman())
+            {
+                continue;
+            }
+
+            if(!npc.GetVisibility())
+            {
+                continue;
+            }
+
+            if(!npc.GetGameplayVisibility())
+            {
+                continue;
+            }
+
+            if(npc.IsVIP())
+            {
+                continue;
+            }
+
+            npc.Destroy();
+        }
+    }
+
     private function updateChillOut()
     {
         var chillDur : float;
@@ -1454,6 +1568,7 @@ statemachine class r_RemotePlayer
                 queueAnim(chillOutAnim, chillDur, 0.3, 0, 'chillout', true);
                 lastChillOutAnim = chillOutAnim;
                 lastChillOut = true;
+                scheduleChillOutNPCCleanup();
                 return;
             }
 
@@ -1461,6 +1576,7 @@ statemachine class r_RemotePlayer
             {
                 queueAnim(chillOutAnim, chillDur, 0.3, 0, 'chillout', true);
                 lastChillOutAnim = chillOutAnim;
+                scheduleChillOutNPCCleanup();
                 return;
             }
 
@@ -1468,9 +1584,13 @@ statemachine class r_RemotePlayer
             {
                 queueAnim(chillOutAnim, chillDur, 0.0001, 0, 'chillout');
             }
+
+            updateChillOutNPCCleanup();
         }
         else
         {
+            chillOutNPCCleanupAt = -999;
+
             if (lastChillOut)
             {
                 stopAllAnims();
@@ -2037,10 +2157,216 @@ statemachine class r_RemotePlayer
         }
     }
 
+    private function normalizeNGPItem(item : name) : name
+    {
+        if(FactsQuerySum("NewGamePlus") > 0)
+        {
+            return item;
+        }
+
+        if(item == 'NGP Viper School steel sword') return 'Viper School steel sword';
+        if(item == 'NGP Viper School silver sword') return 'Viper School silver sword';
+        if(item == 'NGP Lynx Armor') return 'Lynx Armor';
+        if(item == 'NGP Lynx Armor 1') return 'Lynx Armor 1';
+        if(item == 'NGP Lynx Armor 2') return 'Lynx Armor 2';
+        if(item == 'NGP Lynx Armor 3') return 'Lynx Armor 3';
+        if(item == 'NGP Lynx Gloves 1') return 'Lynx Gloves 1';
+        if(item == 'NGP Lynx Gloves 2') return 'Lynx Gloves 2';
+        if(item == 'NGP Lynx Gloves 3') return 'Lynx Gloves 3';
+        if(item == 'NGP Lynx Gloves 4') return 'Lynx Gloves 4';
+        if(item == 'NGP Lynx Pants 1') return 'Lynx Pants 1';
+        if(item == 'NGP Lynx Pants 2') return 'Lynx Pants 2';
+        if(item == 'NGP Lynx Pants 3') return 'Lynx Pants 3';
+        if(item == 'NGP Lynx Pants 4') return 'Lynx Pants 4';
+        if(item == 'NGP Lynx Boots 1') return 'Lynx Boots 1';
+        if(item == 'NGP Lynx Boots 2') return 'Lynx Boots 2';
+        if(item == 'NGP Lynx Boots 3') return 'Lynx Boots 3';
+        if(item == 'NGP Lynx Boots 4') return 'Lynx Boots 4';
+        if(item == 'NGP Lynx School steel sword') return 'Lynx School steel sword';
+        if(item == 'NGP Lynx School steel sword 1') return 'Lynx School steel sword 1';
+        if(item == 'NGP Lynx School steel sword 2') return 'Lynx School steel sword 2';
+        if(item == 'NGP Lynx School steel sword 3') return 'Lynx School steel sword 3';
+        if(item == 'NGP Lynx School silver sword') return 'Lynx School silver sword';
+        if(item == 'NGP Lynx School silver sword 1') return 'Lynx School silver sword 1';
+        if(item == 'NGP Lynx School silver sword 2') return 'Lynx School silver sword 2';
+        if(item == 'NGP Lynx School silver sword 3') return 'Lynx School silver sword 3';
+        if(item == 'NGP Gryphon Armor') return 'Gryphon Armor';
+        if(item == 'NGP Gryphon Armor 1') return 'Gryphon Armor 1';
+        if(item == 'NGP Gryphon Armor 2') return 'Gryphon Armor 2';
+        if(item == 'NGP Gryphon Armor 3') return 'Gryphon Armor 3';
+        if(item == 'NGP Gryphon Gloves 1') return 'Gryphon Gloves 1';
+        if(item == 'NGP Gryphon Gloves 2') return 'Gryphon Gloves 2';
+        if(item == 'NGP Gryphon Gloves 3') return 'Gryphon Gloves 3';
+        if(item == 'NGP Gryphon Gloves 4') return 'Gryphon Gloves 4';
+        if(item == 'NGP Gryphon Pants 1') return 'Gryphon Pants 1';
+        if(item == 'NGP Gryphon Pants 2') return 'Gryphon Pants 2';
+        if(item == 'NGP Gryphon Pants 3') return 'Gryphon Pants 3';
+        if(item == 'NGP Gryphon Pants 4') return 'Gryphon Pants 4';
+        if(item == 'NGP Gryphon Boots 1') return 'Gryphon Boots 1';
+        if(item == 'NGP Gryphon Boots 2') return 'Gryphon Boots 2';
+        if(item == 'NGP Gryphon Boots 3') return 'Gryphon Boots 3';
+        if(item == 'NGP Gryphon Boots 4') return 'Gryphon Boots 4';
+        if(item == 'NGP Gryphon School steel sword') return 'Gryphon School steel sword';
+        if(item == 'NGP Gryphon School steel sword 1') return 'Gryphon School steel sword 1';
+        if(item == 'NGP Gryphon School steel sword 2') return 'Gryphon School steel sword 2';
+        if(item == 'NGP Gryphon School steel sword 3') return 'Gryphon School steel sword 3';
+        if(item == 'NGP Gryphon School silver sword') return 'Gryphon School silver sword';
+        if(item == 'NGP Gryphon School silver sword 1') return 'Gryphon School silver sword 1';
+        if(item == 'NGP Gryphon School silver sword 2') return 'Gryphon School silver sword 2';
+        if(item == 'NGP Gryphon School silver sword 3') return 'Gryphon School silver sword 3';
+        if(item == 'NGP Bear Armor') return 'Bear Armor';
+        if(item == 'NGP Bear Armor 1') return 'Bear Armor 1';
+        if(item == 'NGP Bear Armor 2') return 'Bear Armor 2';
+        if(item == 'NGP Bear Armor 3') return 'Bear Armor 3';
+        if(item == 'NGP Bear Gloves 1') return 'Bear Gloves 1';
+        if(item == 'NGP Bear Gloves 2') return 'Bear Gloves 2';
+        if(item == 'NGP Bear Gloves 3') return 'Bear Gloves 3';
+        if(item == 'NGP Bear Gloves 4') return 'Bear Gloves 4';
+        if(item == 'NGP Bear Pants 1') return 'Bear Pants 1';
+        if(item == 'NGP Bear Pants 2') return 'Bear Pants 2';
+        if(item == 'NGP Bear Pants 3') return 'Bear Pants 3';
+        if(item == 'NGP Bear Pants 4') return 'Bear Pants 4';
+        if(item == 'NGP Bear Boots 1') return 'Bear Boots 1';
+        if(item == 'NGP Bear Boots 2') return 'Bear Boots 2';
+        if(item == 'NGP Bear Boots 3') return 'Bear Boots 3';
+        if(item == 'NGP Bear Boots 4') return 'Bear Boots 4';
+        if(item == 'NGP Bear School steel sword') return 'Bear School steel sword';
+        if(item == 'NGP Bear School steel sword 1') return 'Bear School steel sword 1';
+        if(item == 'NGP Bear School steel sword 2') return 'Bear School steel sword 2';
+        if(item == 'NGP Bear School steel sword 3') return 'Bear School steel sword 3';
+        if(item == 'NGP Bear School silver sword') return 'Bear School silver sword';
+        if(item == 'NGP Bear School silver sword 1') return 'Bear School silver sword 1';
+        if(item == 'NGP Bear School silver sword 2') return 'Bear School silver sword 2';
+        if(item == 'NGP Bear School silver sword 3') return 'Bear School silver sword 3';
+        if(item == 'NGP Ofir Armor') return 'Ofir Armor';
+        if(item == 'NGP Ofir Sabre 2') return 'Ofir Sabre 2';
+        if(item == 'NGP Crafted Burning Rose Armor') return 'Crafted Burning Rose Armor';
+        if(item == 'NGP Crafted Burning Rose Gloves') return 'Crafted Burning Rose Gloves';
+        if(item == 'NGP Crafted Burning Rose Sword') return 'Crafted Burning Rose Sword';
+        if(item == 'NGP Crafted Ofir Armor') return 'Crafted Ofir Armor';
+        if(item == 'NGP Crafted Ofir Boots') return 'Crafted Ofir Boots';
+        if(item == 'NGP Crafted Ofir Gloves') return 'Crafted Ofir Gloves';
+        if(item == 'NGP Crafted Ofir Pants') return 'Crafted Ofir Pants';
+        if(item == 'NGP Crafted Ofir Steel Sword') return 'Crafted Ofir Steel Sword';
+        if(item == 'NGP EP1 Crafted Witcher Silver Sword') return 'EP1 Crafted Witcher Silver Sword';
+        if(item == 'NGP Olgierd Sabre') return 'Olgierd Sabre';
+        if(item == 'NGP EP1 Witcher Armor') return 'EP1 Witcher Armor';
+        if(item == 'NGP EP1 Witcher Boots') return 'EP1 Witcher Boots';
+        if(item == 'NGP EP1 Witcher Gloves') return 'EP1 Witcher Gloves';
+        if(item == 'NGP EP1 Witcher Pants') return 'EP1 Witcher Pants';
+        if(item == 'NGP EP1 Viper School steel sword') return 'EP1 Viper School steel sword';
+        if(item == 'NGP EP1 Viper School silver sword') return 'EP1 Viper School silver sword';
+        if(item == 'NGP Lynx Armor 4') return 'Lynx Armor 4';
+        if(item == 'NGP Gryphon Armor 4') return 'Gryphon Armor 4';
+        if(item == 'NGP Bear Armor 4') return 'Bear Armor 4';
+        if(item == 'NGP Wolf Armor 4') return 'Wolf Armor 4';
+        if(item == 'NGP Red Wolf Armor 1') return 'Red Wolf Armor 1';
+        if(item == 'NGP Lynx Gloves 5') return 'Lynx Gloves 5';
+        if(item == 'NGP Gryphon Gloves 5') return 'Gryphon Gloves 5';
+        if(item == 'NGP Bear Gloves 5') return 'Bear Gloves 5';
+        if(item == 'NGP Wolf Gloves 5') return 'Wolf Gloves 5';
+        if(item == 'NGP Red Wolf Gloves 1') return 'Red Wolf Gloves 1';
+        if(item == 'NGP Lynx Pants 5') return 'Lynx Pants 5';
+        if(item == 'NGP Gryphon Pants 5') return 'Gryphon Pants 5';
+        if(item == 'NGP Bear Pants 5') return 'Bear Pants 5';
+        if(item == 'NGP Wolf Pants 5') return 'Wolf Pants 5';
+        if(item == 'NGP Red Wolf Pants 1') return 'Red Wolf Pants 1';
+        if(item == 'NGP Lynx Boots 5') return 'Lynx Boots 5';
+        if(item == 'NGP Gryphon Boots 5') return 'Gryphon Boots 5';
+        if(item == 'NGP Bear Boots 5') return 'Bear Boots 5';
+        if(item == 'NGP Wolf Boots 5') return 'Wolf Boots 5';
+        if(item == 'NGP Red Wolf Boots 1') return 'Red Wolf Boots 1';
+        if(item == 'NGP Lynx School steel sword 4') return 'Lynx School steel sword 4';
+        if(item == 'NGP Gryphon School steel sword 4') return 'Gryphon School steel sword 4';
+        if(item == 'NGP Bear School steel sword 4') return 'Bear School steel sword 4';
+        if(item == 'NGP Wolf School steel sword 4') return 'Wolf School steel sword 4';
+        if(item == 'NGP Red Wolf School steel sword 1') return 'Red Wolf School steel sword 1';
+        if(item == 'NGP Lynx School silver sword 4') return 'Lynx School silver sword 4';
+        if(item == 'NGP Gryphon School silver sword 4') return 'Gryphon School silver sword 4';
+        if(item == 'NGP Bear School silver sword 4') return 'Bear School silver sword 4';
+        if(item == 'NGP Wolf School silver sword 4') return 'Wolf School silver sword 4';
+        if(item == 'NGP Red Wolf School silver sword 1') return 'Red Wolf School silver sword 1';
+        if(item == 'NGP Guard Lvl1 Armor 3') return 'Guard Lvl1 Armor 3';
+        if(item == 'NGP Guard Lvl1 A Armor 3') return 'Guard Lvl1 A Armor 3';
+        if(item == 'NGP Guard Lvl2 Armor 3') return 'Guard Lvl2 Armor 3';
+        if(item == 'NGP Guard Lvl2 A Armor 3') return 'Guard Lvl2 A Armor 3';
+        if(item == 'NGP Knight Geralt Armor 3') return 'Knight Geralt Armor 3';
+        if(item == 'NGP Knight Geralt A Armor 3') return 'Knight Geralt A Armor 3';
+        if(item == 'NGP q702_vampire_armor') return 'q702_vampire_armor';
+        if(item == 'NGP Guard Lvl1 Gloves 3') return 'Guard Lvl1 Gloves 3';
+        if(item == 'NGP Guard Lvl1 A Gloves 3') return 'Guard Lvl1 A Gloves 3';
+        if(item == 'NGP Guard Lvl2 Gloves 3') return 'Guard Lvl2 Gloves 3';
+        if(item == 'NGP Guard Lvl2 A Gloves 3') return 'Guard Lvl2 A Gloves 3';
+        if(item == 'NGP Knight Geralt Gloves 3') return 'Knight Geralt Gloves 3';
+        if(item == 'NGP Knight Geralt A Gloves 3') return 'Knight Geralt A Gloves 3';
+        if(item == 'NGP q702_vampire_gloves') return 'q702_vampire_gloves';
+        if(item == 'NGP Guard Lvl1 Pants 3') return 'Guard Lvl1 Pants 3';
+        if(item == 'NGP Guard Lvl1 A Pants 3') return 'Guard Lvl1 A Pants 3';
+        if(item == 'NGP Guard Lvl2 Pants 3') return 'Guard Lvl2 Pants 3';
+        if(item == 'NGP Guard Lvl2 A Pants 3') return 'Guard Lvl2 A Pants 3';
+        if(item == 'NGP Knight Geralt Pants 3') return 'Knight Geralt Pants 3';
+        if(item == 'NGP Knight Geralt A Pants 3') return 'Knight Geralt A Pants 3';
+        if(item == 'NGP q702_vampire_pants') return 'q702_vampire_pants';
+        if(item == 'NGP Guard Lvl1 Boots 3') return 'Guard Lvl1 Boots 3';
+        if(item == 'NGP Guard Lvl1 A Boots 3') return 'Guard Lvl1 A Boots 3';
+        if(item == 'NGP Guard Lvl2 Boots 3') return 'Guard Lvl2 Boots 3';
+        if(item == 'NGP Guard Lvl2 A Boots 3') return 'Guard Lvl2 A Boots 3';
+        if(item == 'NGP Knight Geralt Boots 3') return 'Knight Geralt Boots 3';
+        if(item == 'NGP Knight Geralt A Boots 3') return 'Knight Geralt A Boots 3';
+        if(item == 'NGP q702_vampire_boots') return 'q702_vampire_boots';
+        if(item == 'NGP Serpent Steel Sword 1') return 'Serpent Steel Sword 1';
+        if(item == 'NGP Serpent Steel Sword 2') return 'Serpent Steel Sword 2';
+        if(item == 'NGP Serpent Steel Sword 3') return 'Serpent Steel Sword 3';
+        if(item == 'NGP Guard lvl1 steel sword 3') return 'Guard lvl1 steel sword 3';
+        if(item == 'NGP Guard lvl2 steel sword 3') return 'Guard lvl2 steel sword 3';
+        if(item == 'NGP Knights steel sword 3') return 'Knights steel sword 3';
+        if(item == 'NGP Hanza steel sword 3') return 'Hanza steel sword 3';
+        if(item == 'NGP Toussaint steel sword 3') return 'Toussaint steel sword 3';
+        if(item == 'NGP q702 vampire steel sword') return 'q702 vampire steel sword';
+        if(item == 'NGP Serpent Silver Sword 1') return 'Serpent Silver Sword 1';
+        if(item == 'NGP Serpent Silver Sword 2') return 'Serpent Silver Sword 2';
+        if(item == 'NGP Serpent Silver Sword 3') return 'Serpent Silver Sword 3';
+        if(item == 'NGP Netflix Armor') return 'Netflix Armor';
+        if(item == 'NGP Netflix Armor 1') return 'Netflix Armor 1';
+        if(item == 'NGP Netflix Armor 2') return 'Netflix Armor 2';
+        if(item == 'NGP Netflix Gloves 1') return 'Netflix Gloves 1';
+        if(item == 'NGP Netflix Gloves 2') return 'Netflix Gloves 2';
+        if(item == 'NGP Netflix Gloves') return 'Netflix Gloves';
+        if(item == 'NGP Netflix Pants 1') return 'Netflix Pants 1';
+        if(item == 'NGP Netflix Pants 2') return 'Netflix Pants 2';
+        if(item == 'NGP Netflix Pants') return 'Netflix Pants';
+        if(item == 'NGP Netflix Boots 1') return 'Netflix Boots 1';
+        if(item == 'NGP Netflix Boots 2') return 'Netflix Boots 2';
+        if(item == 'NGP Netflix Boots') return 'Netflix Boots';
+        if(item == 'NGP Netflix steel sword') return 'Netflix steel sword';
+        if(item == 'NGP Netflix steel sword 1') return 'Netflix steel sword 1';
+        if(item == 'NGP Netflix steel sword 2') return 'Netflix steel sword 2';
+        if(item == 'NGP Netflix silver sword') return 'Netflix silver sword';
+        if(item == 'NGP Netflix silver sword 1') return 'Netflix silver sword 1';
+        if(item == 'NGP Netflix silver sword 2') return 'Netflix silver sword 2';
+        if(item == 'NGP Dol Blathanna Armor') return 'Dol Blathanna Armor';
+        if(item == 'NGP Dol Blathanna Gloves') return 'Dol Blathanna Gloves';
+        if(item == 'NGP Dol Blathanna Pants') return 'Dol Blathanna Pants';
+        if(item == 'NGP Dol Blathanna Boots') return 'Dol Blathanna Boots';
+        if(item == 'NGP Dol Blathanna longsword') return 'Dol Blathanna longsword';
+        if(item == 'NGP White Widow of Dol Blathanna') return 'White Widow of Dol Blathanna';
+        if(item == 'NGP White Tiger Armor') return 'White Tiger Armor';
+        if(item == 'NGP White Tiger Gloves') return 'White Tiger Gloves';
+        if(item == 'NGP White Tiger Pants') return 'White Tiger Pants';
+        if(item == 'NGP White Tiger Boots') return 'White Tiger Boots';
+        if(item == 'NGP Steel Vixen') return 'Steel Vixen';
+        if(item == 'NGP Silver Vixen') return 'Silver Vixen';
+
+        return item;
+    }
+
     protected function EquipNewItem(inv : CInventoryComponent, out lastItem : name, newItem : name, optional mount : bool, optional hide : bool)
     {
         var ids : array<SItemUniqueId>;
         var ent : CEntity;
+
+        lastItem = normalizeNGPItem(lastItem);
+        newItem = normalizeNGPItem(newItem);
         
         if (lastItem != '' && lastItem != newItem)
         {
@@ -2092,6 +2418,8 @@ statemachine class r_RemotePlayer
         {
             return;
         }
+
+        val = normalizeNGPItem(val);
 
         ids = inv.GetItemsByName(val);
         

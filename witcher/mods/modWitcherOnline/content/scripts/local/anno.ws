@@ -1292,8 +1292,6 @@ function WO_Bob(self: IScriptable, out groups: array<CO_SpotEntGroup>)
     group.Add(ChillSpot(Vector(-568.422, -1426.960693, 88.986076), EulerAngles(0, -179.185318), CST_Chair));
 
     group.Add(ChillSpot(Vector(-597.734, -1291.977539, 101.653915), EulerAngles(0, -0.093154), CST_Chair));
-
-    LogChannel('Yo', "ADded toussaint");
 }
 
 function WO_WhiteOrchard(self: IScriptable, out groups: array<CO_SpotEntGroup>) 
