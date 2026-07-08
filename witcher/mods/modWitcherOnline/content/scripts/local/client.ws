@@ -758,36 +758,36 @@ statemachine class r_MultiplayerClient
         return 0;
     }
 
-    public function intToDialogAction(val : int) : EDialogActionIcon
+    public function stringToDialogAction(val : string) : EDialogActionIcon
     {
-        if(val == 0)     return DialogAction_NONE;
-        if(val == 1)     return DialogAction_AXII;
-        if(val == 2)     return DialogAction_CONTENT_MISSING;
-        if(val == 3)     return DialogAction_BRIBE;
-        if(val == 4)     return DialogAction_HOUSE;
-        if(val == 5)     return DialogAction_PERSUASION;
-        if(val == 6)     return DialogAction_GETBACK;
-        if(val == 7)     return DialogAction_GAME_DICES;
-        if(val == 8)     return DialogAction_GAME_FIGHT;
-        if(val == 9)     return DialogAction_GAME_WRESTLE;
-        if(val == 10)    return DialogAction_CRAFTING;
-        if(val == 11)    return DialogAction_SHOPPING;
-        if(val == 12)    return DialogAction_EXIT;
-        if(val == 13)    return DialogAction_HAIRCUT;
-        if(val == 14)    return DialogAction_MONSTERCONTRACT;
-        if(val == 15)    return DialogAction_BET;
-        if(val == 16)    return DialogAction_STORAGE;
-        if(val == 17)    return DialogAction_GIFT;
-        if(val == 18)    return DialogAction_GAME_DRINK;
-        if(val == 19)    return DialogAction_GAME_DAGGER;
-        if(val == 20)    return DialogAction_SMITH;
-        if(val == 21)    return DialogAction_ARMORER;
-        if(val == 22)    return DialogAction_RUNESMITH;
-        if(val == 23)    return DialogAction_TEACHER;
-        if(val == 24)    return DialogAction_FAST_TRAVEL;
-        if(val == 25)    return DialogAction_GAME_CARDS;
-        if(val == 26)    return DialogAction_SHAVING;
-        if(val == 27)    return DialogAction_AUCTION;
+        if(val == "DialogAction_NONE" || val == "0")               return DialogAction_NONE;
+        if(val == "DialogAction_AXII" || val == "1")               return DialogAction_AXII;
+        if(val == "DialogAction_CONTENT_MISSING" || val == "2")    return DialogAction_CONTENT_MISSING;
+        if(val == "DialogAction_BRIBE" || val == "3")              return DialogAction_BRIBE;
+        if(val == "DialogAction_HOUSE" || val == "4")              return DialogAction_HOUSE;
+        if(val == "DialogAction_PERSUASION" || val == "5")         return DialogAction_PERSUASION;
+        if(val == "DialogAction_GETBACK" || val == "6")            return DialogAction_GETBACK;
+        if(val == "DialogAction_GAME_DICES" || val == "7")         return DialogAction_GAME_DICES;
+        if(val == "DialogAction_GAME_FIGHT" || val == "8")         return DialogAction_GAME_FIGHT;
+        if(val == "DialogAction_GAME_WRESTLE" || val == "9")       return DialogAction_GAME_WRESTLE;
+        if(val == "DialogAction_CRAFTING" || val == "10")          return DialogAction_CRAFTING;
+        if(val == "DialogAction_SHOPPING" || val == "11")          return DialogAction_SHOPPING;
+        if(val == "DialogAction_EXIT" || val == "12")              return DialogAction_EXIT;
+        if(val == "DialogAction_HAIRCUT" || val == "13")           return DialogAction_HAIRCUT;
+        if(val == "DialogAction_MONSTERCONTRACT" || val == "14")   return DialogAction_MONSTERCONTRACT;
+        if(val == "DialogAction_BET" || val == "15")               return DialogAction_BET;
+        if(val == "DialogAction_STORAGE" || val == "16")           return DialogAction_STORAGE;
+        if(val == "DialogAction_GIFT" || val == "17")              return DialogAction_GIFT;
+        if(val == "DialogAction_GAME_DRINK" || val == "18")        return DialogAction_GAME_DRINK;
+        if(val == "DialogAction_GAME_DAGGER" || val == "19")       return DialogAction_GAME_DAGGER;
+        if(val == "DialogAction_SMITH" || val == "20")             return DialogAction_SMITH;
+        if(val == "DialogAction_ARMORER" || val == "21")           return DialogAction_ARMORER;
+        if(val == "DialogAction_RUNESMITH" || val == "22")         return DialogAction_RUNESMITH;
+        if(val == "DialogAction_TEACHER" || val == "23")           return DialogAction_TEACHER;
+        if(val == "DialogAction_FAST_TRAVEL" || val == "24")       return DialogAction_FAST_TRAVEL;
+        if(val == "DialogAction_GAME_CARDS" || val == "25")        return DialogAction_GAME_CARDS;
+        if(val == "DialogAction_SHAVING" || val == "26")           return DialogAction_SHAVING;
+        if(val == "DialogAction_AUCTION" || val == "27")           return DialogAction_AUCTION;
 
         return DialogAction_NONE;
     }
@@ -1283,7 +1283,7 @@ statemachine class r_MultiplayerClient
             }
             else if(fieldIndex == 3)
             {
-                choice.dialogAction = intToDialogAction(StringToInt(token));
+                choice.dialogAction = stringToDialogAction(token);
             }
 
             fieldIndex += 1;
