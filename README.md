@@ -36,6 +36,11 @@ Join the public server to wander the world with lots of other players.
 
 ![MMO Experience](assets/mmo.gif)
 
+### Chill Out
+Sit down in taverns and other locations throughout the world.
+
+![Chill Out](assets/chill.gif)
+
 ### Party System
 Join a party with other players to synchronize time, weather, and cutscene dialog choices.
 
