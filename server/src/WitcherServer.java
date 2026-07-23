@@ -53,7 +53,7 @@ public class WitcherServer
     private static final int DEFAULT_PORT = 40000;
     private static final DateTimeFormatter LOG_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
-    private static final int DEFAULT_STATUS_PORT = 25565;
+    private static final int DEFAULT_STATUS_PORT = 40001;
 
     private static volatile HttpServer statusServer = null;
     private static volatile String cachedStatusFontBase64 = "";
@@ -71,17 +71,26 @@ public class WitcherServer
 
         DatagramSocket socket = new DatagramSocket(port);
 
-        int statusPort = chooseStatusPort(serverProperties);
+        boolean svgEnabled = readBoolean(serverProperties, "svgEnabled", false);
+        int svgPort = DEFAULT_STATUS_PORT;
 
-        loadStatusAssets();
-
-        statusServer = startStatusServer(statusPort);
+        if(svgEnabled)
+        {
+            svgPort = chooseSvgPort(serverProperties);
+            loadStatusAssets();
+            statusServer = startStatusServer(svgPort);
+        }
 
         dbgNotime("Launching Witcher Online for The Witcher 3: Wild Hunt...\n");
         dbgNotime("Author: rejuvenate7 - Github: https://github.com/rejuvenate7\n");
         dbg("Starting Witcher Online server on *:%d\n", port);
-        dbg("Starting Witcher Online status SVG server on *:%d\n", statusPort);
-        dbg("Status SVG: http://127.0.0.1:%d/status.svg\n", statusPort);
+
+        if(svgEnabled)
+        {
+            dbg("Starting Witcher Online status SVG server on *:%d\n", svgPort);
+            dbg("Status SVG: http://127.0.0.1:%d/status.svg\n", svgPort);
+        }
+
         dbg("For help, type \"help\" or \"?\"\n");
 
         Thread recvThread = startThread("udp-recv", () -> receiveLoop(socket));
@@ -95,9 +104,9 @@ public class WitcherServer
         consoleThread.join();
     }
 
-    private static int chooseStatusPort(Properties properties)
+    private static int chooseSvgPort(Properties properties)
     {
-        String propertyPort = properties.getProperty("statusPort");
+        String propertyPort = properties.getProperty("svgPort");
 
         if (propertyPort != null)
         {
@@ -108,7 +117,7 @@ public class WitcherServer
                 return parsed;
             }
 
-            System.err.println("Invalid server.properties statusPort: " + propertyPort + " (falling back)");
+            System.err.println("Invalid server.properties svgPort: " + propertyPort + " (falling back)");
         }
 
         return DEFAULT_STATUS_PORT;
