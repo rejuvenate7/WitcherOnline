@@ -1,4 +1,3 @@
-
 function MP_SU_removeCustomPin(pin: MP_SU_MapPin, optional manager: MP_SUMP_Manager): bool {
   var i: int;
 
@@ -7,18 +6,41 @@ function MP_SU_removeCustomPin(pin: MP_SU_MapPin, optional manager: MP_SUMP_Mana
   }
 
   if (!manager) {
-    MP_SUMP_Logger("SU_removeCustomPin(), manager not found");
-
     return false;
   }
 
   i = manager.mappins.FindFirst(pin);
+
   if (i < 0) {
     return false;
   }
 
+  manager.unindexPin(pin);
   manager.mappins.EraseFast(i);
+
   return true;
+}
+
+function MP_SU_removeCustomPinByPlayerId(playerId : int) {
+  var pin : MP_SU_MapPin;
+  var manager : MP_SUMP_Manager;
+
+  manager = MP_SUMP_getManager();
+
+  if(!manager)
+  {
+    return;
+  }
+
+  pin = manager.getPinByPlayerId(playerId);
+
+  if(!pin)
+  {
+    return;
+  }
+
+  MP_SU_removeMinimapPin(pin.playerId);
+  MP_SU_removeCustomPin(pin, manager);
 }
 
 function MP_SU_removeCustomPinByTag(tag: String) {
@@ -41,7 +63,6 @@ function MP_SU_removeCustomPinByTag(tag: String) {
 }
 
 function MP_SUMP_getManager(): MP_SUMP_Manager {
-  //MP_SUMP_Logger("SUMP_getManager()");
 	
 	return thePlayer.MP_getSharedutilsMappinsManager();
 }

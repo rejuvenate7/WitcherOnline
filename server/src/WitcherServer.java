@@ -1,3 +1,9 @@
+import com.sun.net.httpserver.Headers;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.util.Base64;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -22,6 +28,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class WitcherServer
 {
@@ -46,6 +53,13 @@ public class WitcherServer
     private static final int DEFAULT_PORT = 40000;
     private static final DateTimeFormatter LOG_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
+    private static final int DEFAULT_STATUS_PORT = 25565;
+
+    private static volatile HttpServer statusServer = null;
+    private static volatile String cachedStatusFontBase64 = "";
+
+    private static final AtomicInteger nextPlayerId = new AtomicInteger(1);
+
     public static void main(String[] args) throws Exception
     {
         Properties serverProperties = loadServerProperties();
@@ -57,9 +71,17 @@ public class WitcherServer
 
         DatagramSocket socket = new DatagramSocket(port);
 
+        int statusPort = chooseStatusPort(serverProperties);
+
+        loadStatusAssets();
+
+        statusServer = startStatusServer(statusPort);
+
         dbgNotime("Launching Witcher Online for The Witcher 3: Wild Hunt...\n");
         dbgNotime("Author: rejuvenate7 - Github: https://github.com/rejuvenate7\n");
         dbg("Starting Witcher Online server on *:%d\n", port);
+        dbg("Starting Witcher Online status SVG server on *:%d\n", statusPort);
+        dbg("Status SVG: http://127.0.0.1:%d/status.svg\n", statusPort);
         dbg("For help, type \"help\" or \"?\"\n");
 
         Thread recvThread = startThread("udp-recv", () -> receiveLoop(socket));
@@ -71,6 +93,329 @@ public class WitcherServer
         sendThread.join();
         cleanupThread.join();
         consoleThread.join();
+    }
+
+    private static int chooseStatusPort(Properties properties)
+    {
+        String propertyPort = properties.getProperty("statusPort");
+
+        if (propertyPort != null)
+        {
+            Integer parsed = parsePort(propertyPort.trim());
+
+            if (parsed != null)
+            {
+                return parsed;
+            }
+
+            System.err.println("Invalid server.properties statusPort: " + propertyPort + " (falling back)");
+        }
+
+        return DEFAULT_STATUS_PORT;
+    }
+
+    private static HttpServer startStatusServer(int statusPort) throws IOException
+    {
+        HttpServer server = HttpServer.create(new InetSocketAddress(statusPort), 0);
+
+        server.createContext("/status.svg", WitcherServer::handleStatusSvg);
+        server.createContext("/players.svg", WitcherServer::handleStatusSvg);
+        server.createContext("/status.json", WitcherServer::handleStatusJson);
+
+        server.setExecutor(null);
+        server.start();
+
+        return server;
+    }
+
+    private static void handleStatusSvg(HttpExchange exchange) throws IOException
+    {
+        String svg = buildStatusSvg();
+
+        sendHttp(exchange, 200, "image/svg+xml; charset=utf-8", svg);
+    }
+
+    private static void handleStatusJson(HttpExchange exchange) throws IOException
+    {
+        List<String> names = getConnectedPlayerNames();
+
+        StringBuilder json = new StringBuilder();
+
+        json.append("{");
+        json.append("\"server\":\"Witcher Online\",");
+        json.append("\"online\":").append(names.size()).append(",");
+        json.append("\"players\":[");
+
+        for (int i = 0; i < names.size(); i++)
+        {
+            if (i > 0)
+            {
+                json.append(",");
+            }
+
+            json.append("\"").append(jsonEscape(names.get(i))).append("\"");
+        }
+
+        json.append("]");
+        json.append("}");
+
+        sendHttp(exchange, 200, "application/json; charset=utf-8", json.toString());
+    }
+
+    private static void loadStatusAssets()
+    {
+        Path dir = statusAssetsDir();
+
+        dbg("Status assets dir=%s\n", dir);
+
+        cachedStatusFontBase64 = readBase64IfExists(dir.resolve("status-font.woff2"));
+
+        dbg("Loaded status font from %s\n", dir);
+    }
+
+    private static Path statusAssetsDir()
+    {
+        return appDir().resolve("assets").resolve("status");
+    }
+
+    private static String readBase64IfExists(Path path)
+    {
+        try
+        {
+            if (!Files.exists(path))
+            {
+                return "";
+            }
+
+            byte[] data = Files.readAllBytes(path);
+            return Base64.getEncoder().encodeToString(data);
+        }
+        catch (Exception e)
+        {
+            dbg("Failed to load status asset %s: %s\n", path, e.getMessage());
+            return "";
+        }
+    }
+
+    private static int estimateSvgTextWidth(String text, int fontSize)
+    {
+        if (text == null || text.isEmpty())
+        {
+            return fontSize;
+        }
+
+        double width = 0.0;
+
+        for (int i = 0; i < text.length(); i++)
+        {
+            char c = text.charAt(i);
+
+            if (c == ' ')
+            {
+                width += fontSize * 0.28;
+            }
+            else if (c == 'i' || c == 'l' || c == 'I' || c == '!' || c == '.' || c == ',' || c == '\'')
+            {
+                width += fontSize * 0.28;
+            }
+            else if (c == 'W' || c == 'M')
+            {
+                width += fontSize * 0.82;
+            }
+            else if (c >= '0' && c <= '9')
+            {
+                width += fontSize * 0.48;
+            }
+            else
+            {
+                width += fontSize * 0.58;
+            }
+        }
+
+        width += text.length();
+
+        return (int)Math.ceil(width) + 4;
+    }
+
+    private static String buildStatusSvg()
+    {
+        List<String> names = getConnectedPlayerNames();
+        int count = names.size();
+
+        String titleText = "Witcher Online";
+        String playerCountText = count == 1 ? "1 player online" : count + " players online";
+
+        StringBuilder svg = new StringBuilder();
+
+        int paddingX = 4;
+        int paddingTop = 4;
+        int paddingBottom = 6;
+
+        int titleFontSize = 58;
+        int countFontSize = 32;
+
+        int titleWidth = estimateSvgTextWidth(titleText, titleFontSize);
+        int countWidth = estimateSvgTextWidth(playerCountText, countFontSize);
+
+        int svgW = Math.max(titleWidth, countWidth) + paddingX * 2;
+
+        int titleY = paddingTop + 54;
+        int countY = titleY + 39;
+
+        int svgH = countY + paddingBottom + 5;
+
+        int textX = paddingX;
+
+        svg.append("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"");
+        svg.append(svgW);
+        svg.append("\" height=\"");
+        svg.append(svgH);
+        svg.append("\" viewBox=\"0 0 ");
+        svg.append(svgW);
+        svg.append(" ");
+        svg.append(svgH);
+        svg.append("\">");
+
+        svg.append("<defs>");
+        svg.append("<style>");
+
+        if (!cachedStatusFontBase64.isEmpty())
+        {
+            svg.append("@font-face{");
+            svg.append("font-family:'WitcherStatusFont';");
+            svg.append("src:url('data:font/woff2;base64,");
+            svg.append(cachedStatusFontBase64);
+            svg.append("') format('woff2');");
+            svg.append("font-weight:normal;");
+            svg.append("font-style:normal;");
+            svg.append("}");
+        }
+
+        svg.append(".text-outline{");
+        svg.append("font-family:'WitcherStatusFont',Georgia,serif;");
+        svg.append("stroke:#000000;");
+        svg.append("stroke-width:2px;");
+        svg.append("stroke-opacity:1;");
+        svg.append("stroke-linejoin:round;");
+        svg.append("paint-order:stroke fill;");
+        svg.append("}");
+
+        svg.append(".title-text{");
+        svg.append("font-size:");
+        svg.append(titleFontSize);
+        svg.append("px;");
+        svg.append("fill:#ffffff;");
+        svg.append("letter-spacing:1px;");
+        svg.append("}");
+
+        svg.append(".count-text{");
+        svg.append("font-size:");
+        svg.append(countFontSize);
+        svg.append("px;");
+        svg.append("fill:#f7ead0;");
+        svg.append("letter-spacing:1px;");
+        svg.append("}");
+
+        svg.append("</style>");
+        svg.append("</defs>");
+
+        svg.append("<text class=\"text-outline title-text\" x=\"");
+        svg.append(textX);
+        svg.append("\" y=\"");
+        svg.append(titleY);
+        svg.append("\">");
+        svg.append(xmlEscape(titleText));
+        svg.append("</text>");
+
+        svg.append("<text class=\"text-outline count-text\" x=\"");
+        svg.append(textX);
+        svg.append("\" y=\"");
+        svg.append(countY);
+        svg.append("\">");
+        svg.append(xmlEscape(playerCountText));
+        svg.append("</text>");
+
+        svg.append("</svg>");
+
+        return svg.toString();
+    }
+
+    private static List<String> getConnectedPlayerNames()
+    {
+        List<String> names = new ArrayList<>();
+
+        for (PlayerSession session : players.values())
+        {
+            if (session != null && session.username != null && !session.username.trim().isEmpty())
+            {
+                names.add(session.username.trim());
+            }
+        }
+
+        Collections.sort(names, String.CASE_INSENSITIVE_ORDER);
+
+        return names;
+    }
+
+    private static void sendHttp(HttpExchange exchange, int status, String contentType, String body) throws IOException
+    {
+        byte[] data = body.getBytes(StandardCharsets.UTF_8);
+
+        Headers headers = exchange.getResponseHeaders();
+        headers.set("Content-Type", contentType);
+        headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0");
+        headers.set("Pragma", "no-cache");
+        headers.set("Expires", "0");
+        headers.set("Access-Control-Allow-Origin", "*");
+
+        exchange.sendResponseHeaders(status, data.length);
+
+        try (OutputStream os = exchange.getResponseBody())
+        {
+            os.write(data);
+        }
+    }
+
+    private static String xmlEscape(String s)
+    {
+        if (s == null)
+        {
+            return "";
+        }
+
+        StringBuilder out = new StringBuilder(s.length() + 8);
+
+        for (int i = 0; i < s.length(); i++)
+        {
+            char c = s.charAt(i);
+
+            if (c == '&')
+            {
+                out.append("&amp;");
+            }
+            else if (c == '<')
+            {
+                out.append("&lt;");
+            }
+            else if (c == '>')
+            {
+                out.append("&gt;");
+            }
+            else if (c == '"')
+            {
+                out.append("&quot;");
+            }
+            else if (c == '\'')
+            {
+                out.append("&apos;");
+            }
+            else
+            {
+                out.append(c);
+            }
+        }
+
+        return out.toString();
     }
 
     private static Thread startThread(String name, Runnable target)
@@ -145,6 +490,31 @@ public class WitcherServer
                 || "UPDATE4".equals(opcode);
     }
 
+    private static boolean isInteger(String value)
+    {
+        if (value == null || value.isEmpty())
+        {
+            return false;
+        }
+
+        for (int i = 0; i < value.length(); i++)
+        {
+            char c = value.charAt(i);
+
+            if (i == 0 && c == '-')
+            {
+                continue;
+            }
+
+            if (c < '0' || c > '9')
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private static void handleMessage(DatagramSocket socket, ClientEndpoint sender, String msg) throws Exception
     {
         String[] parts = msg.split("\t", -1);
@@ -161,7 +531,30 @@ public class WitcherServer
             return;
         }
 
-        String username = parts[1].trim();
+        int packetPlayerId = 0;
+        String username;
+        int fieldsStart;
+
+        if (parts.length >= 3 && isInteger(parts[1].trim()))
+        {
+            try
+            {
+                packetPlayerId = Integer.parseInt(parts[1].trim());
+            }
+            catch (NumberFormatException e)
+            {
+                packetPlayerId = 0;
+            }
+
+            username = unescapeField(parts[2]).trim();
+            fieldsStart = 3;
+        }
+        else
+        {
+            username = unescapeField(parts[1]).trim();
+            fieldsStart = 2;
+        }
+
         if (username.isEmpty())
         {
             safeSend(socket, sender, "ERROR\tINVALID_USERNAME");
@@ -195,6 +588,7 @@ public class WitcherServer
             else if (expired)
             {
                 boolean reserved = reserveTimedOutPlayer(usernameKey, current, now);
+
                 if (reserved)
                 {
                     dbg("Rejected %s from %s because username is reserved for previous IP\n", username, sender);
@@ -203,6 +597,7 @@ public class WitcherServer
                 }
 
                 current = players.get(usernameKey);
+
                 if (current != null)
                 {
                     dbg("Rejected duplicate username %s from %s because owned by %s\n",
@@ -244,19 +639,46 @@ public class WitcherServer
                 dbg("Restored reserved username %s for %s\n", username, sender);
             }
 
-            PlayerSession created = new PlayerSession(username, sender, now);
+            int playerIdToUse;
+
+            if (packetPlayerId > 0)
+            {
+                PlayerSession idOwner = findPlayerById(packetPlayerId);
+
+                if (idOwner != null && !normalizeUsernameKey(idOwner.username).equals(usernameKey))
+                {
+                    dbg("Rejected username %s from %s because requested id=%d is already owned by %s\n",
+                            username,
+                            sender,
+                            packetPlayerId,
+                            idOwner.username);
+
+                    safeSend(socket, sender, "ERROR\tID_TAKEN");
+                    return;
+                }
+
+                playerIdToUse = packetPlayerId;
+                bumpNextPlayerIdPast(playerIdToUse);
+            }
+            else
+            {
+                playerIdToUse = allocateNewPlayerId();
+            }
+
+            PlayerSession created = new PlayerSession(playerIdToUse, username, sender, now);
             PlayerSession race = players.putIfAbsent(usernameKey, created);
 
             if (race == null)
             {
                 current = created;
-                dbg("Accepted username %s for %s\n", username, sender);
+                dbg("Accepted username %s id=%d for %s\n", username, created.playerId, sender);
             }
             else
             {
                 current = race;
 
                 String currentIp = normalizeIp(current.endpoint.address.getHostAddress());
+
                 if (!currentIp.equals(senderIp) && !current.endpoint.equals(sender))
                 {
                     dbg("Rejected duplicate username %s from %s because owned by %s\n",
@@ -272,7 +694,8 @@ public class WitcherServer
         current.lastSeen = now;
 
         List<String> fields = new ArrayList<>();
-        for (int i = 2; i < parts.length; i++)
+
+        for (int i = fieldsStart; i < parts.length; i++)
         {
             fields.add(unescapeField(parts[i]));
         }
@@ -423,12 +846,12 @@ public class WitcherServer
             return 0;
         }
 
-        String packetText = buildTypedPacket(opcode, session.username, fields);
+        String packetText = buildTypedPacket(opcode, session.playerId, session.username, fields);
         byte[] data = packetText.getBytes(StandardCharsets.UTF_8);
 
         if (data.length > 1200)
         {
-            dbg("Large packet: opcode=%s user=%s bytes=%d\n", opcode, session.username, data.length);
+            dbg("Large packet: opcode=%s user=%s bytes=%d\n data=%s", opcode, session.username, data.length, packetText);
         }
 
         int sent = 0;
@@ -457,10 +880,15 @@ public class WitcherServer
         return sent;
     }
 
-    private static String buildTypedPacket(String opcode, String playerId, List<String> fields)
+    private static String buildTypedPacket(String opcode, int playerId, String username, List<String> fields)
     {
         StringBuilder sb = new StringBuilder();
-        sb.append(opcode).append("\t").append(escapeField(playerId));
+
+        sb.append(opcode)
+                .append("\t")
+                .append(playerId)
+                .append("\t")
+                .append(escapeField(username));
 
         for (String field : fields)
         {
@@ -796,7 +1224,15 @@ public class WitcherServer
         {
             return;
         }
+
         socket.close();
+
+        HttpServer server = statusServer;
+        if (server != null)
+        {
+            server.stop(0);
+            statusServer = null;
+        }
     }
 
     private static void sendText(DatagramSocket socket, ClientEndpoint client, String text) throws Exception
@@ -1317,5 +1753,59 @@ public class WitcherServer
                 ip);
 
         return true;
+    }
+
+    private static PlayerSession findPlayerById(int playerId)
+    {
+        if (playerId <= 0)
+        {
+            return null;
+        }
+
+        for (PlayerSession session : players.values())
+        {
+            if (session != null && session.playerId == playerId)
+            {
+                return session;
+            }
+        }
+
+        return null;
+    }
+
+    private static int allocateNewPlayerId()
+    {
+        int candidate;
+
+        do
+        {
+            candidate = nextPlayerId.getAndIncrement();
+        }
+        while (candidate <= 0 || findPlayerById(candidate) != null);
+
+        return candidate;
+    }
+
+    private static void bumpNextPlayerIdPast(int usedId)
+    {
+        if (usedId <= 0)
+        {
+            return;
+        }
+
+        while (true)
+        {
+            int current = nextPlayerId.get();
+
+            if (current > usedId)
+            {
+                return;
+            }
+
+            if (nextPlayerId.compareAndSet(current, usedId + 1))
+            {
+                return;
+            }
+        }
     }
 }

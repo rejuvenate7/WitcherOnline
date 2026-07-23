@@ -25,6 +25,7 @@ struct r_GwentGame
 
 statemachine class r_RemotePlayer 
 {
+    public var serverPlayerId      : int;
     public var id      : string;
     public var lastUpdate : float;
     public var username      : string;
@@ -155,7 +156,7 @@ statemachine class r_RemotePlayer
     public var initSmooth : bool;
 
     public var isRiding : bool;
-    public var ridingPlayerId : string;
+    public var ridingPlayerId : int;
 
     public var outgoingTradeTo : string;
     public var outgoingTradeItem : name;
@@ -612,11 +613,7 @@ statemachine class r_RemotePlayer
 
     protected function ensureOneliners()
     {
-        var tag : string = "MPGhost" + id;
-        var statusTag : string = "MPGhostStatus" + id;
-
-        MP_SUOL_getManager().deleteByTag(tag);
-        MP_SUOL_getManager().deleteByTag(statusTag);
+        MP_SUOL_getManager().deleteRemotePlayerOneliners(serverPlayerId);
 
         createOneliner();
         createStatusOneliner();
@@ -685,7 +682,7 @@ statemachine class r_RemotePlayer
             finalUsername = username;
         }
 
-        oneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag(tag);
+        oneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByIntTag(MP_SUOL_usernameKey(serverPlayerId));
 
         if(oneliner)
         {
@@ -703,6 +700,7 @@ statemachine class r_RemotePlayer
         oneliner.visible = true;
         oneliner.entity = ghost;
         oneliner.tag = tag;
+        oneliner.intTag = MP_SUOL_usernameKey(serverPlayerId);
         oneliner.render_distance = StringToInt(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_RenderDistance'));
         MP_SUOL_getManager().createOneliner(oneliner);
     }
@@ -735,6 +733,7 @@ statemachine class r_RemotePlayer
         .text(finalUsername);
         oneliner.position = pos;
         oneliner.tag = tag;
+        oneliner.intTag = MP_SUOL_dummyKey(serverPlayerId);
         oneliner.visible = true;
         oneliner.render_distance = StringToInt(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_RenderDistance'));
 
@@ -749,7 +748,7 @@ statemachine class r_RemotePlayer
         tag = "MPGhostStatus" + id;
 
         lastStatus = "";
-        chatOneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag(tag);
+        chatOneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByIntTag(MP_SUOL_statusKey(serverPlayerId));
 
         if(chatOneliner)
         {
@@ -759,10 +758,11 @@ statemachine class r_RemotePlayer
         }
         
         chatOneliner = new MP_SU_OnelinerEntity in theInput;
-        chatOneliner.offset = Vector(0,0,1.95);
+        chatOneliner.head = true;
         chatOneliner.visible = false;
         chatOneliner.entity = ghost;
         chatOneliner.tag = tag;
+        chatOneliner.intTag = MP_SUOL_statusKey(serverPlayerId);
         chatOneliner.render_distance = 100;
         MP_SUOL_getManager().createOneliner(chatOneliner);
     }
@@ -792,7 +792,7 @@ statemachine class r_RemotePlayer
             lastUsername = username;
             lastEntityUsernameColor = color;
 
-            oneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag(tag);
+            oneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByIntTag(MP_SUOL_usernameKey(serverPlayerId));
         
             if(!oneliner)
                 return;
@@ -819,7 +819,7 @@ statemachine class r_RemotePlayer
 
         tag = "MPGhostDummy" + id;
 
-        oneliner = (MP_SU_Oneliner)MP_SUOL_getManager().findByTag(tag);
+        oneliner = (MP_SU_Oneliner)MP_SUOL_getManager().findByIntTag(MP_SUOL_dummyKey(serverPlayerId));
     
         if(!oneliner)
         {
@@ -869,7 +869,7 @@ statemachine class r_RemotePlayer
 
         tag = "MPGhostStatus" + id;
 
-        chatOneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag(tag);
+        chatOneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByIntTag(MP_SUOL_statusKey(serverPlayerId));
 
         if(!chatOneliner)
             return;
@@ -894,20 +894,19 @@ statemachine class r_RemotePlayer
         tag = "MPGhost" + id;
         statusTag = "MPGhostStatus" + id;
 
-        oneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag(tag);
-        chatOneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag(statusTag);
+        oneliner     = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByIntTag(MP_SUOL_usernameKey(serverPlayerId));
+        chatOneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByIntTag(MP_SUOL_statusKey(serverPlayerId));
 
         if(!oneliner || !chatOneliner)
         {
             return;
         }
 
-        ridingPlayer = mpghosts_getPlayerById(ridingPlayerId);
+        ridingPlayer = hm_getRemotePlayer(theGame.r_getMultiplayerClient().getPlayerMap(), ridingPlayerId);
 
         if(isMounted || (ridingPlayer && isRiding && ridingPlayer.isMounted))
         {
             oneliner.offset = Vector(0,0,1);
-            chatOneliner.offset = Vector(0,0,2.95);
 
             MP_SUOL_getManager().updateOneliner(oneliner);
             MP_SUOL_getManager().updateOneliner(chatOneliner);
@@ -915,7 +914,6 @@ statemachine class r_RemotePlayer
         else
         {
             oneliner.offset = Vector(0,0,0);
-            chatOneliner.offset = Vector(0,0,1.95);
             MP_SUOL_getManager().updateOneliner(oneliner);
             MP_SUOL_getManager().updateOneliner(chatOneliner);
         }
@@ -926,7 +924,7 @@ statemachine class r_RemotePlayer
         var pin: MP_SU_MapPin;
         var tagname : name;
 
-        pin = MP_SUMP_getCustomPinByTag("MPGhost_" + id);
+        pin = MP_SUMP_getCustomPinByPlayerId(playerNum);
 
         if(pin)
         {
@@ -966,7 +964,7 @@ statemachine class r_RemotePlayer
         var pin : MP_SU_MapPin;
 
         playerAngle = -yaw;
-        pin = MP_SUMP_getCustomPinByTag("MPGhost_" + id);
+        pin = MP_SUMP_getCustomPinByPlayerId(playerNum);
 
         if(!pin)
         {
@@ -996,7 +994,7 @@ statemachine class r_RemotePlayer
 
     public function destroyPin()
     {
-        MP_SU_removeCustomPinByTag("MPGhost_" + id);
+        MP_SU_removeCustomPinByPlayerId(playerNum);
     }
 
     private function resetStates()
@@ -1158,8 +1156,8 @@ statemachine class r_RemotePlayer
         tag = "MPGhost" + id;
         statusTag = "MPGhostStatus" + id;
 
-        oneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag(tag);
-        chatOneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag(statusTag);
+        oneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByIntTag(MP_SUOL_usernameKey(serverPlayerId));
+        chatOneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByIntTag(MP_SUOL_statusKey(serverPlayerId));
         
         if (!oneliner)
         {
@@ -1204,7 +1202,7 @@ statemachine class r_RemotePlayer
 
         for(i = 0; i < players.Size(); i+=1)
         {
-            if(players[i] && players[i].ghost && players[i].ghost.HasAttachment() && players[i].isRiding && players[i].ridingPlayerId == id)
+            if(players[i] && players[i].ghost && players[i].ghost.HasAttachment() && players[i].isRiding && players[i].ridingPlayerId == serverPlayerId)
             {
                 theGame.r_getMultiplayerClient().detachRiderSafe(players[i].ghost, true);
                 theGame.r_getMultiplayerClient().fixAttachRotation(players[i].ghost);
@@ -1218,11 +1216,6 @@ statemachine class r_RemotePlayer
                 theGame.r_getMultiplayerClient().detachRiderSafe(thePlayer, true);
                 mpghosts_stopeemote();
             }
-        }
-
-        if(theGame.r_getMultiplayerClient().getSelectedPlayer() == this)
-        {
-            theGame.r_getMultiplayerClient().deleteMenu();
         }
 
         if(horse)
@@ -1283,7 +1276,7 @@ statemachine class r_RemotePlayer
 
         if(isRiding)
         {
-            targetIsLocalPlayer = ridingPlayerId == theGame.r_getMultiplayerClient().getId();
+            targetIsLocalPlayer = ridingPlayerId == theGame.r_getMultiplayerClient().getServerId();
 
             if(targetIsLocalPlayer)
             {
@@ -1621,7 +1614,7 @@ statemachine class r_RemotePlayer
             return;
         }
 
-        chatOneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag("MPGhostStatus" + id);
+        chatOneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByIntTag(MP_SUOL_statusKey(serverPlayerId));
 
         if(!chatOneliner)
         {
@@ -1632,7 +1625,7 @@ statemachine class r_RemotePlayer
         {
             prevChatTime = lastChatTime;
         }
-        else if (lastChatTime != prevChatTime)
+        else if (lastChatTime != prevChatTime && lastChat != "reserved_string")
         {
             updateStatus(lastChat);
             chatOneliner.visible = true;
@@ -1660,7 +1653,7 @@ statemachine class r_RemotePlayer
             return;
         }  
 
-        chatOneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag("MPGhostStatus" + id);
+        chatOneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByIntTag(MP_SUOL_statusKey(serverPlayerId));
 
         if(!chatOneliner)
         {

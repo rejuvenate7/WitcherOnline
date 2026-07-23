@@ -4,21 +4,20 @@ function MP_SU_updateCustomMapPins(out flash_array: CScriptedFlashArray, value_s
   var flash_object: CScriptedFlashObject;
   var custom_pins: array<MP_SU_MapPin>;
   var current_pin: MP_SU_MapPin;
-  var region, shown_region: String;
+  var shown_region: String;
   var journal_area: int;
   var i: int;
 
   custom_pins = MP_SUMP_getCustomPins();
 
-  region = SUH_getCurrentRegion();
-  shown_region = SUH_normalizeRegion(AreaTypeToName(shown_area));
+  shown_region = theGame.r_getMultiplayerClient().normalizeRegion(AreaTypeToName(shown_area));
   journal_area = theGame.GetCommonMapManager().GetCurrentJournalArea();
 
   for (i = 0; i < custom_pins.Size(); i += 1) {
     current_pin = custom_pins[i];
 
     // the player is not in the right region or right map view, we skip the pin.
-    if (SUH_normalizeRegion(AreaTypeToName(current_pin.region)) != shown_region) {
+    if (theGame.r_getMultiplayerClient().normalizeRegion(AreaTypeToName(current_pin.region)) != shown_region) {
       continue;
     }
 
@@ -86,7 +85,7 @@ function MP_SU_updateMinimapPins() {
           FlashArgInt(0), // priority
           FlashArgBool(false), // is quest pin
           FlashArgBool(true), // is user pin
-          FlashArgBool(pin.highlighted), // highlighted
+          FlashArgBool(pin.highlighted) // highlighted
         );
 
         m_MovePin.InvokeSelfFourArgs(
@@ -113,9 +112,7 @@ function MP_SU_moveMinimapPins() {
   var hud : CR4ScriptedHud;
   var pin: MP_SU_MapPin;
   var i : int;
-  var j: int;
   var seenId: int;
-  var found: bool;
   var manager: MP_SUMP_Manager;
 
   manager = MP_SUMP_getManager();
@@ -150,20 +147,8 @@ function MP_SU_moveMinimapPins() {
   for (i = manager.seenPinIds.Size() - 1; i >= 0; i -= 1)
   {
     seenId = manager.seenPinIds[i];
-    found = false;
 
-    for (j = 0; j < manager.mappins.Size(); j += 1)
-    {
-      pin = manager.mappins[j];
-
-      if (pin.playerId == seenId)
-      {
-        found = true;
-        break;
-      }
-    }
-
-    if (!found)
+    if(!manager.getPinByPlayerId(seenId))
     {
       MP_SU_removeMinimapPin(seenId);
       manager.seenPinIds.Erase(i);
@@ -175,7 +160,9 @@ function MP_SUMP_addCustomPin(pin: MP_SU_MapPin) {
   var manager: MP_SUMP_Manager;
 
   manager = MP_SUMP_getManager();
+
   manager.mappins.PushBack(pin);
+  manager.indexPin(pin);
 
   MP_SU_updateMinimapPins();
 }
@@ -200,6 +187,10 @@ function MP_SUMP_getCustomPinByTag(tag : string): MP_SU_MapPin {
   return NULL;
 }
 
+function MP_SUMP_getCustomPinByPlayerId(playerId : int): MP_SU_MapPin {
+  return MP_SUMP_getManager().getPinByPlayerId(playerId);
+}
+
 function MP_SUMP_updateCustomPinsLabel(tag: string, label: string) {
   var custom_pins: array<MP_SU_MapPin> = MP_SUMP_getManager().mappins;
   var i: int;
@@ -210,13 +201,4 @@ function MP_SUMP_updateCustomPinsLabel(tag: string, label: string) {
       return;
     }
   }
-  //MP_SUMP_Logger("Unable to update label for map pin: " + tag);
-}
-
-function MP_SUMP_Logger(message: string, optional informGUI: bool) {
-	//LogChannel('SUMP', message);
-	
-	if (informGUI) {
-		//theGame.GetGuiManager().ShowNotification("SUMP: " + message, 5, true);
-	}
 }

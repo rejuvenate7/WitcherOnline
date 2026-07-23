@@ -3,6 +3,7 @@ import java.util.List;
 
 public class PlayerSession
 {
+    public final int playerId;
     public final String username;
     public volatile ClientEndpoint endpoint;
     public volatile long lastSeen;
@@ -14,8 +15,9 @@ public class PlayerSession
     public volatile List<String> update3Fields = Collections.emptyList();
     public volatile List<String> update4Fields = Collections.emptyList();
 
-    public PlayerSession(String username, ClientEndpoint endpoint, long lastSeen)
+    public PlayerSession(int playerId, String username, ClientEndpoint endpoint, long lastSeen)
     {
+        this.playerId = playerId;
         this.username = username;
         this.endpoint = endpoint;
         this.lastSeen = lastSeen;

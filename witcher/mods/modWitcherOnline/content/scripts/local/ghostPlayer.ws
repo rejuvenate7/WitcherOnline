@@ -34,24 +34,13 @@ statemachine class MPDRPlayer extends CNewNPC
 		{
 			theGame.r_getMultiplayerClient().createMenu(((CActor)this));
 		}
-		else if( actionName == "Use" )
-		{
-			theGame.r_getMultiplayerClient().useMenu(((CActor)this));
-		}
 	}
 	
 	event OnInteractionActivationTest(interactionComponentName: string, activator: CEntity) 
 	{
 		if( interactionComponentName == "wo_interact" )
 		{
-			if( activator == thePlayer && !theGame.r_getMultiplayerClient().isMenuOpen() && !theGame.r_getMultiplayerClient().isRiding())
-			{	
-				return true;
-			}
-		}
-		else if( interactionComponentName == "wo_use" )
-		{
-			if( activator == thePlayer && theGame.r_getMultiplayerClient().isMenuOpen() && !theGame.r_getMultiplayerClient().isRiding() && (((CActor)this) == theGame.r_getMultiplayerClient().getSelectedPlayer().ghost))
+			if( activator == thePlayer && !theGame.r_getMultiplayerClient().isRiding())
 			{	
 				return true;
 			}

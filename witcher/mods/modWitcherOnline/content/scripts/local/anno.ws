@@ -93,7 +93,7 @@ timer function r_showJoinMessage(dt : float, id : int)
 
         total += 1;
 
-        regionName = SUH_normalizeRegion(AreaTypeToName(players[i].area));
+        regionName = theGame.r_getMultiplayerClient().normalizeRegion(AreaTypeToName(players[i].area));
 
         if(regionName == "no_mans_land")
         {
@@ -123,7 +123,7 @@ timer function r_showJoinMessage(dt : float, id : int)
 
     total += 1;
 
-    currentRegion = SUH_normalizeRegion(AreaTypeToName(theGame.GetCommonMapManager().GetCurrentArea()));
+    currentRegion = theGame.r_getMultiplayerClient().normalizeRegion(AreaTypeToName(theGame.GetCommonMapManager().GetCurrentArea()));
 
     if(currentRegion == "no_mans_land")
     {
@@ -447,7 +447,6 @@ function PlayerStartAction( playerAction : EPlayerExplorationAction, optional an
 @wrapMethod(CR4ItemSelectionPopup)
 function OnCallSelectItem(itemId : SItemUniqueId)
 {
-    var defMgr : CDefinitionsManagerAccessor = theGame.GetDefinitionsManager();
     var itemName : name;
     var emoteId : int;
 
@@ -482,19 +481,41 @@ function OnCallSelectItem(itemId : SItemUniqueId)
         theGame.r_getMultiplayerClient().openGwentBetWindow();
         ClosePopup();
     }
-    else if(m_DataObject.wo_isEmotes)
+    else if(m_DataObject.wo_isEmotes || m_DataObject.wo_isPlayerMenu)
     {
-        if(m_selectedItemCategory == 0)
+        if(m_DataObject.wo_isEmotes)
         {
-            itemName = m_DataObject.targetInventory.GetItemName(itemId);
+            if(m_selectedItemCategory == 0)
+            {
+                itemName = m_DataObject.targetInventory.GetItemName(itemId);
+            }
+            else if(m_selectedItemCategory == 1)
+            {
+                itemName = theGame.r_getMultiplayerClient().getChatInventory().GetItemName(itemId);
+            }
+            else if(m_selectedItemCategory == 2)
+            {
+                itemName = theGame.r_getMultiplayerClient().getMorphInventory().GetItemName(itemId);
+            }
         }
-        else if(m_selectedItemCategory == 1)
+        else
         {
-            itemName = theGame.r_getMultiplayerClient().getChatInventory().GetItemName(itemId);
-        }
-        else if(m_selectedItemCategory == 2)
-        {
-            itemName = theGame.r_getMultiplayerClient().getMorphInventory().GetItemName(itemId);
+            if(m_selectedItemCategory == 0)
+            {
+                itemName = m_DataObject.targetInventory.GetItemName(itemId);
+            }
+            else if(m_selectedItemCategory == 1)
+            {
+                itemName = theGame.r_getMultiplayerClient().getEmoteInventory().GetItemName(itemId);
+            }
+            else if(m_selectedItemCategory == 2)
+            {
+                itemName = theGame.r_getMultiplayerClient().getChatInventory().GetItemName(itemId);
+            }
+            else if(m_selectedItemCategory == 3)
+            {
+                itemName = theGame.r_getMultiplayerClient().getMorphInventory().GetItemName(itemId);
+            }
         }
         
         emoteId = StringToInt(StrReplace(itemName, "wo_emote", "")) - 1;
@@ -571,6 +592,30 @@ function OnCallSelectItem(itemId : SItemUniqueId)
         {
             mpghosts_emote(emoteId);
         }
+        else if(itemName == 'wo_inviteGwent')
+        {
+            ClosePopup();
+            theGame.r_getMultiplayerClient().gwentRequest(m_DataObject.wo_playerMenuPlayer.username);
+            return true;
+        }
+        else if(itemName == 'wo_joinParty')
+        {
+            theGame.r_getMultiplayerClient().joinParty(m_DataObject.wo_playerMenuPlayer.username);
+        }
+        else if(itemName == 'wo_leaveParty')
+        {
+            theGame.r_getMultiplayerClient().leaveParty();
+        }
+        else if(itemName == 'wo_ride' || itemName == 'wo_rideHorse' || itemName == 'wo_rideBoat')
+        {
+            theGame.r_getMultiplayerClient().ridePlayer(m_DataObject.wo_playerMenuPlayer.ghost);
+        }
+        else if(itemName == 'wo_trade')
+        {
+            ClosePopup();
+            theGame.r_getMultiplayerClient().tradeWithPlayer(m_DataObject.wo_playerMenuPlayer.ghost);
+            return true;
+        }
         ClosePopup();
     }
     else
@@ -610,7 +655,7 @@ function OnConfigUI()
     
     m_DataObject = (W3ItemSelectionPopupData)GetPopupInitData();
 
-    if(m_DataObject.wo_isTrade || m_DataObject.wo_isReceivingTrade || m_DataObject.wo_isGwent || m_DataObject.wo_isReceivingGwent || m_DataObject.wo_isEmotes)
+    if(m_DataObject.wo_isTrade || m_DataObject.wo_isReceivingTrade || m_DataObject.wo_isGwent || m_DataObject.wo_isReceivingGwent || m_DataObject.wo_isEmotes || m_DataObject.wo_isPlayerMenu)
     {
         super.OnConfigUI();
 		
@@ -644,13 +689,9 @@ function OnConfigUI()
 
         m_containerOwner = (CGameplayEntity)theGame.GetEntityByTag( m_DataObject.collectorTag );
 		
-		UpdateData();
-		
-		m_guiManager.RequestMouseCursor(true);
-		theGame.ForceUIAnalog(true);
-
         if(m_DataObject.wo_isTrade)
         {
+            UpdateData();
             m_fxSetCategory.InvokeSelfOneArg( FlashArgString(GetLocStringById(2111114242) + " " + m_DataObject.wo_toTrade) );
         }
         else if(m_DataObject.wo_isReceivingTrade)
@@ -711,6 +752,26 @@ function OnConfigUI()
             m_tradeInventory.GetInventoryFlashArray(l_flashArray, l_flashObject);		
             m_flashValueStorage.SetFlashArray( "repair.grid.player", l_flashArray );
         }
+        else if(m_DataObject.wo_isPlayerMenu)
+        {
+            m_fxShowCategoryButtons.InvokeSelfOneArg( FlashArgBool(true) );	
+
+            m_tradeInventory = new W3GuiSelectItemComponent in theGame.GetGuiManager();
+            m_tradeInventory.Initialize( m_DataObject.targetInventory );
+            m_tradeInventory.ignorePosition = true;
+            m_tradeInventory.SetFilterType( IFT_None );
+
+            m_fxSetCategory.InvokeSelfOneArg( FlashArgString(m_DataObject.wo_playerMenuPlayer.username) );
+
+            l_flashObject = m_flashValueStorage.CreateTempFlashObject();
+            l_flashArray = m_flashValueStorage.CreateTempFlashArray();		
+            m_tradeInventory.GetInventoryFlashArray(l_flashArray, l_flashObject);		
+            m_flashValueStorage.SetFlashArray( "repair.grid.player", l_flashArray );
+        }
+
+        m_guiManager.RequestMouseCursor(true);
+		theGame.ForceUIAnalog(true);
+        //theGame.Pause("ItemSelectionPopup");
     }
     else
     {
@@ -804,6 +865,57 @@ function OnChangeCategory( id : int )
 
         return true;
     }
+    else if(m_DataObject.wo_isPlayerMenu)
+    {
+        m_selectedItemCategory += id;
+
+        if (m_selectedItemCategory < 0)
+            m_selectedItemCategory = 3;
+        else if (m_selectedItemCategory > 3)
+            m_selectedItemCategory = 0;
+
+        switch(m_selectedItemCategory)
+        {
+            case 0:
+                locString = m_DataObject.wo_playerMenuPlayer.username;
+                m_tradeInventory = new W3GuiSelectItemComponent in theGame.GetGuiManager();
+                m_tradeInventory.Initialize( m_DataObject.targetInventory );
+                m_tradeInventory.ignorePosition = true;
+                m_tradeInventory.SetFilterType( IFT_None );
+                break;
+            case 1:
+                locString = GetLocStringById(2111114099);
+                m_tradeInventory = new W3GuiSelectItemComponent in theGame.GetGuiManager();
+                m_tradeInventory.Initialize( theGame.r_getMultiplayerClient().getEmoteInventory() );
+                m_tradeInventory.ignorePosition = true;
+                m_tradeInventory.SetFilterType( IFT_None );
+                break;
+            case 2:
+                locString = GetLocStringById(2111114098);
+                m_tradeInventory = new W3GuiSelectItemComponent in theGame.GetGuiManager();
+                m_tradeInventory.Initialize( theGame.r_getMultiplayerClient().getChatInventory() );
+                m_tradeInventory.ignorePosition = true;
+                m_tradeInventory.SetFilterType( IFT_None );
+                break;
+            case 3:
+                locString = GetLocStringById(2111114097);
+                m_tradeInventory = new W3GuiSelectItemComponent in theGame.GetGuiManager();
+                m_tradeInventory.Initialize( theGame.r_getMultiplayerClient().getMorphInventory() );
+                m_tradeInventory.ignorePosition = true;
+                m_tradeInventory.SetFilterType( IFT_None );
+                break;
+        }
+        
+        m_fxDeselectItem.InvokeSelf();
+        m_fxSetCategory.InvokeSelfOneArg( FlashArgString( locString ) );
+        
+        l_flashObject = m_flashValueStorage.CreateTempFlashObject();
+        l_flashArray = m_flashValueStorage.CreateTempFlashArray();		
+        m_tradeInventory.GetInventoryFlashArray(l_flashArray, l_flashObject);		
+        m_flashValueStorage.SetFlashArray( "repair.grid.player", l_flashArray );
+
+        return true;
+    }
     else
     {
         return wrappedMethod(id);
@@ -835,31 +947,16 @@ var wo_isReceivingTrade : bool;
 var wo_isEmotes : bool;
 
 @addField(W3ItemSelectionPopupData)
+var wo_playerMenuPlayer : r_RemotePlayer;
+
+@addField(W3ItemSelectionPopupData)
+var wo_isPlayerMenu : bool;
+
+@addField(W3ItemSelectionPopupData)
 var wo_crownsAmount : int;
 
 @addField(W3ItemSelectionPopupData)
 var wo_betAmount : int;
-
-@wrapMethod(CPlayerInput)
-function OnToggleSigns( action : SInputAction )
-{
-    var tolerance : float;
-	tolerance = 2.5f;
-
-    wrappedMethod(action);
-    
-    if(theGame.r_getMultiplayerClient().isMenuOpen())
-    {
-        if( action.value < -tolerance )
-        {
-            theGame.r_getMultiplayerClient().updateMenuIndex(true);
-        }
-        else if( action.value > tolerance )
-        {
-            theGame.r_getMultiplayerClient().updateMenuIndex(false);
-        }
-    }
-}
 
 @wrapMethod(CExplorationStateManager) 
 function UpdateCameraIfNeeded( out moveData : SCameraMovementData, dt : float ) : bool
@@ -876,42 +973,6 @@ function UpdateCameraIfNeeded( out moveData : SCameraMovementData, dt : float ) 
 
 @addMethod(CInputManager)
 function IgnoreGameInput( actionName : name, ignore : bool );
-
-@wrapMethod(CPlayerInput)
-function OnCommDrinkPotion1( action : SInputAction )
-{
-    if(theGame.r_getMultiplayerClient().isMenuOpen() && theInput.LastUsedGamepad())
-    {
-        if(action.value > 0)
-        {
-            theGame.r_getMultiplayerClient().updateMenuIndex(false);
-        }
-
-        return true;
-    }
-    else
-    {
-        return wrappedMethod(action);
-    }
-}
-
-@wrapMethod(CPlayerInput)
-function OnCommDrinkPotion2( action : SInputAction )
-{
-    if(theGame.r_getMultiplayerClient().isMenuOpen() && theInput.LastUsedGamepad())
-    {
-        if(action.value > 0)
-        {
-            theGame.r_getMultiplayerClient().updateMenuIndex(true);
-        }
-
-        return true;
-    }
-    else
-    {
-        return wrappedMethod(action);
-    }
-}
 
 @wrapMethod(CExplorationStatePushed)
 function StateWantsToEnter() : bool 

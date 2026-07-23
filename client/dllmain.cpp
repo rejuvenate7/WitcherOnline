@@ -12,6 +12,7 @@
 #include <filesystem>
 #include "pugixml\pugixml.hpp"
 #include <unordered_set>
+#include <unordered_map>
 #define ASIO_STANDALONE
 #include <asio.hpp>
 namespace fs = std::filesystem;
@@ -22,6 +23,7 @@ static std::thread g_poll;
 static std::thread g_game;
 
 static std::string username = "Player";
+static std::atomic<int> g_localPlayerId{ 0 };
 static std::string ip = "46.62.255.79";
 static std::string port = "40000";
 
@@ -240,10 +242,15 @@ static void AppendExecField(std::string& code, const std::string& value)
 	}
 }
 
-void pushPlayer(const std::string& id, const std::vector<std::string>& update1A, const std::vector<std::string>& update1B,
-	const std::vector<std::string>& update2A, const std::vector<std::string>& update2B)
+void pushPlayer(
+	int playerId,
+	const std::string& username,
+	const std::vector<std::string>& update1A,
+	const std::vector<std::string>& update1B,
+	const std::vector<std::string>& update2A,
+	const std::vector<std::string>& update2B)
 {
-	if (id.empty())
+	if (playerId <= 0 || username.empty())
 		return;
 
 	std::vector<std::string> firstHalf;
@@ -259,9 +266,12 @@ void pushPlayer(const std::string& id, const std::vector<std::string>& update1A,
 	if (firstHalf.empty() || secondHalf.empty())
 		return;
 
+	std::string playerIdStr = std::to_string(playerId);
+
 	std::string code1 = "wo_update(";
-	code1 += "\"";
-	code1 += EscapeExecQuoted(id, '"');
+	code1 += playerIdStr;
+	code1 += ", \"";
+	code1 += EscapeExecQuoted(username, '"');
 	code1 += "\"";
 
 	for (size_t i = 0; i < firstHalf.size(); ++i)
@@ -272,8 +282,9 @@ void pushPlayer(const std::string& id, const std::vector<std::string>& update1A,
 	code1 += ")";
 
 	std::string code2 = "wo_update2(";
-	code2 += "\"";
-	code2 += EscapeExecQuoted(id, '"');
+	code2 += playerIdStr;
+	code2 += ", \"";
+	code2 += EscapeExecQuoted(username, '"');
 	code2 += "\"";
 
 	for (size_t i = 0; i < secondHalf.size(); ++i)
@@ -283,16 +294,13 @@ void pushPlayer(const std::string& id, const std::vector<std::string>& update1A,
 
 	code2 += ")";
 
-	g_client.ExecNoWaitLatest("wo1:" + id, code1);
-	g_client.ExecNoWaitLatest("wo2:" + id, code2);
-
-	//std::cout << "Code1: " << code1 << "\n";
-	//std::cout << "Code2: " << code2 << "\n";
+	g_client.ExecNoWaitLatest("wo1:" + playerIdStr, code1);
+	g_client.ExecNoWaitLatest("wo2:" + playerIdStr, code2);
 }
 
-static void pushPlayer3(const std::string& id, const std::vector<std::string>& update3)
+static void pushPlayer3(int playerId, const std::string& username, const std::vector<std::string>& update3)
 {
-	if (id.empty() || update3.size() < 6)
+	if (playerId <= 0 || username.empty() || update3.size() < 6)
 		return;
 
 	const std::string& outgoingGwentTo = update3[0];
@@ -311,9 +319,13 @@ static void pushPlayer3(const std::string& id, const std::vector<std::string>& u
 		gwentData += update3[i];
 	}
 
+	std::string playerIdStr = std::to_string(playerId);
+
 	std::string code3 = "wo_update3(";
-	code3 += "\"";
-	code3 += EscapeExecQuoted(id, '"');
+	code3 += playerIdStr;
+
+	code3 += ", \"";
+	code3 += EscapeExecQuoted(username, '"');
 	code3 += "\"";
 
 	code3 += ", \"";
@@ -340,12 +352,12 @@ static void pushPlayer3(const std::string& id, const std::vector<std::string>& u
 	code3 += EscapeExecQuoted(gwentData, '"');
 	code3 += "\")";
 
-	g_client.ExecNoWaitLatest("wo3:" + id, code3);
+	g_client.ExecNoWaitLatest("wo3:" + playerIdStr, code3);
 }
 
-static void pushPlayer4(const std::string& id, const std::vector<std::string>& update4)
+static void pushPlayer4(int playerId, const std::string& username, const std::vector<std::string>& update4)
 {
-	if (id.empty() || update4.size() < 16)
+	if (playerId <= 0 || username.empty() || update4.size() < 16)
 		return;
 
 	const std::string& inParty = update4[0];
@@ -358,19 +370,20 @@ static void pushPlayer4(const std::string& id, const std::vector<std::string>& u
 	const std::string& lastDialogIndex = update4[7];
 	const std::string& lastDialogCount = update4[8];
 	const std::string& dialogChoices = update4[9];
-
 	const std::string& dialogChoicesActive = update4[10];
-
 	const std::string& armorDye = update4[11];
 	const std::string& gloveDye = update4[12];
 	const std::string& pantDye = update4[13];
 	const std::string& bootDye = update4[14];
 	const std::string& health = update4[15];
 
-	std::string code4 = "wo_update4(";
+	std::string playerIdStr = std::to_string(playerId);
 
-	code4 += "\"";
-	code4 += EscapeExecQuoted(id, '"');
+	std::string code4 = "wo_update4(";
+	code4 += playerIdStr;
+
+	code4 += ", \"";
+	code4 += EscapeExecQuoted(username, '"');
 	code4 += "\"";
 
 	code4 += ", ";
@@ -426,7 +439,7 @@ static void pushPlayer4(const std::string& id, const std::vector<std::string>& u
 
 	code4 += ")";
 
-	g_client.ExecNoWaitLatest("wo4:" + id, code4);
+	g_client.ExecNoWaitLatest("wo4:" + playerIdStr, code4);
 }
 
 static void CloseOnlineSession()
@@ -443,6 +456,8 @@ static void CloseOnlineSession()
 
 struct RemotePlayerChunks
 {
+	std::string username;
+
 	std::vector<std::string> update1A;
 	std::vector<std::string> update1B;
 	std::vector<std::string> update2A;
@@ -455,7 +470,7 @@ struct RemotePlayerChunks
 };
 
 std::mutex remoteMu;
-std::unordered_map<std::string, RemotePlayerChunks> remotePlayers;
+std::unordered_map<int, RemotePlayerChunks> remotePlayers;
 
 static void HandleServerPacket(const std::string& msg)
 {
@@ -497,22 +512,46 @@ static void HandleServerPacket(const std::string& msg)
 		parts[0] == "UPDATE3" ||
 		parts[0] == "UPDATE4")
 	{
-		if (parts.size() < 2)
+		if (parts.size() < 3)
 			return;
 
 		std::string opcode = parts[0];
-		std::string id = parts[1];
-		std::vector<std::string> fields(parts.begin() + 2, parts.end());
+
+		int playerId = 0;
+
+		try
+		{
+			playerId = std::stoi(parts[1]);
+		}
+		catch (...)
+		{
+			return;
+		}
+
+		if (playerId <= 0)
+			return;
+
+		std::string username = parts[2];
+
+		if (username.empty())
+			return;
+
+		if (username == ::username && playerId > 0)
+		{
+			g_localPlayerId.store(playerId);
+		}
+
+		std::vector<std::string> fields(parts.begin() + 3, parts.end());
 
 		if (opcode == "UPDATE3")
 		{
-			pushPlayer3(id, fields);
+			pushPlayer3(playerId, username, fields);
 			return;
 		}
 
 		if (opcode == "UPDATE4")
 		{
-			pushPlayer4(id, fields);
+			pushPlayer4(playerId, username, fields);
 			return;
 		}
 
@@ -522,10 +561,13 @@ static void HandleServerPacket(const std::string& msg)
 		std::vector<std::string> u1b;
 		std::vector<std::string> u2a;
 		std::vector<std::string> u2b;
+		std::string pushUsername;
 
 		{
 			std::lock_guard<std::mutex> lk(remoteMu);
-			auto& rp = remotePlayers[id];
+			auto& rp = remotePlayers[playerId];
+
+			rp.username = username;
 
 			if (opcode == "UPDATE1A")
 			{
@@ -554,6 +596,7 @@ static void HandleServerPacket(const std::string& msg)
 				u1b = rp.update1B;
 				u2a = rp.update2A;
 				u2b = rp.update2B;
+				pushUsername = rp.username;
 
 				rp.has1A = false;
 				rp.has1B = false;
@@ -566,7 +609,7 @@ static void HandleServerPacket(const std::string& msg)
 
 		if (readyToPush)
 		{
-			pushPlayer(id, u1a, u1b, u2a, u2b);
+			pushPlayer(playerId, pushUsername, u1a, u1b, u2a, u2b);
 		}
 
 		return;
@@ -619,15 +662,33 @@ static void PollPoseThread() {
 
 			if (g_client.IsConnected()) {
 
+				int localPlayerId = g_localPlayerId.load();
+				std::string localPlayerIdStr = std::to_string(localPlayerId);
+				std::string packetId;
+
+				if (localPlayerId > 0)
+				{
+					packetId = localPlayerIdStr + "\t" + EscapeField(username);
+				}
+				else
+				{
+					packetId = EscapeField(username);
+				}
+
 				std::string out;
-				bool ok = g_client.ExecTagged("wo_get(\"" + username + "\")", "wo", out, 500);
+				bool ok = g_client.ExecTagged(
+					"wo_get(" + localPlayerIdStr + ", \"" + EscapeExecQuoted(username, '"') + "\")",
+					"wo",
+					out,
+					500
+				);
 
 				if (ok)
 				{
 					ParsedHalves halves = ParseValuesSplitHalf(out);
 
-					std::string packet1a = BuildPacket("UPDATE1A", username, halves.first);
-					std::string packet1b = BuildPacket("UPDATE1B", username, halves.second);
+					std::string packet1a = BuildPacket("UPDATE1A", packetId, halves.first);
+					std::string packet1b = BuildPacket("UPDATE1B", packetId, halves.second);
 
 					//std::cout << "Got data 1A (" << packet1a.size() << " bytes): " << packet1a << "\n";
 					//std::cout << "Got data 1B (" << packet1b.size() << " bytes): " << packet1b << "\n";
@@ -649,14 +710,19 @@ static void PollPoseThread() {
 				}
 
 				std::string out2;
-				bool ok2 = g_client.ExecTagged("wo_get2(\"" + username + "\")", "wo2", out2, 500);
+				bool ok2 = g_client.ExecTagged(
+					"wo_get2(" + localPlayerIdStr + ", \"" + EscapeExecQuoted(username, '"') + "\")",
+					"wo2",
+					out2,
+					500
+				);
 
 				if (ok2)
 				{
 					ParsedHalves halves2 = ParseValuesSplitHalf(out2);
 
-					std::string packet2a = BuildPacket("UPDATE2A", username, halves2.first);
-					std::string packet2b = BuildPacket("UPDATE2B", username, halves2.second);
+					std::string packet2a = BuildPacket("UPDATE2A", packetId, halves2.first);
+					std::string packet2b = BuildPacket("UPDATE2B", packetId, halves2.second);
 
 					//std::cout << "Got data 2A (" << packet2a.size() << " bytes): " << packet2a << "\n";
 					//std::cout << "Got data 2B (" << packet2b.size() << " bytes): " << packet2b << "\n";
@@ -678,7 +744,12 @@ static void PollPoseThread() {
 				}
 
 				std::string out3;
-				bool ok3 = g_client.ExecTagged("wo_get3(\"" + username + "\")", "wo3", out3, 500);
+				bool ok3 = g_client.ExecTagged(
+					"wo_get3(" + localPlayerIdStr + ", \"" + EscapeExecQuoted(username, '"') + "\")",
+					"wo3",
+					out3,
+					500
+				);
 
 				if (ok3)
 				{
@@ -689,7 +760,7 @@ static void PollPoseThread() {
 					fields3.insert(fields3.end(), halves3.first.begin(), halves3.first.end());
 					fields3.insert(fields3.end(), halves3.second.begin(), halves3.second.end());
 
-					std::string packet3 = BuildPacket("UPDATE3", username, fields3);
+					std::string packet3 = BuildPacket("UPDATE3", packetId, fields3);
 
 					//std::cout << "Got data 3 (" << out3.size() << " bytes): " << out3 << "\n";
 					//std::cout << "Sending packet3: " << packet3 << "\n";
@@ -708,7 +779,12 @@ static void PollPoseThread() {
 				}
 
 				std::string out4;
-				bool ok4 = g_client.ExecTagged("wo_get4(\"" + username + "\")", "wo4", out4, 500);
+				bool ok4 = g_client.ExecTagged(
+					"wo_get4(" + localPlayerIdStr + ", \"" + EscapeExecQuoted(username, '"') + "\")",
+					"wo4",
+					out4,
+					500
+				);
 
 				if (ok4)
 				{
@@ -719,7 +795,7 @@ static void PollPoseThread() {
 					fields4.insert(fields4.end(), halves4.first.begin(), halves4.first.end());
 					fields4.insert(fields4.end(), halves4.second.begin(), halves4.second.end());
 
-					std::string packet4 = BuildPacket("UPDATE4", username, fields4);
+					std::string packet4 = BuildPacket("UPDATE4", packetId, fields4);
 
 					try {
 						if (!fields4.empty())

@@ -55,10 +55,13 @@ statemachine class r_MultiplayerClient
 {
     private var chillDefs : array<r_ChillDef>;
     private var id, username : string;
+    private var serverPlayerId : int;
     public var multiplayerLocalName : string;
     public var multiplayerOpponentName : string;
     private var players : array<r_RemotePlayer>;
     private var globalPlayers : array<r_RemotePlayer>;
+    private var playersByServerId : MP_SU_HashMap;
+    private var globalPlayersByServerId : MP_SU_HashMap;
     private var inGame : bool;
     private var spawnTime : float;
     private var execReceived : bool;
@@ -133,24 +136,6 @@ statemachine class r_MultiplayerClient
     default resetFlagPending = false;
     default resetFlagAt = -999;
 
-    private var menuOpen : bool;
-    private var menuSelectedPlayer : r_RemotePlayer;
-    private var menuSelected : int;
-
-    private var menuScroll : int;
-    private var currentMenuId : int;
-    private var maxVisibleOptions : int;
-
-    private var mainMenuItems : array<r_RemoteMenuItem>;
-    private var emoteMenuItems : array<r_RemoteMenuItem>;
-    private var emotesMenuItems : array<r_RemoteMenuItem>;
-    private var chatMenuItems : array<r_RemoteMenuItem>;
-    private var propMenuItems : array<r_RemoteMenuItem>;
-    private var morphMenuItems : array<r_RemoteMenuItem>;
-
-    private var menuSlots : array<MP_SU_OnelinerEntity>;
-
-    private var lastMenuScroll : int;
     private var joinMessage : bool;
 
     private var nextPlayerNum : int;
@@ -245,6 +230,11 @@ statemachine class r_MultiplayerClient
     private var seenPartyPlayers : array<string>;
     private var lastHideCompanion : bool;
     default lastHideCompanion = true;
+
+    public function getPlayerMap() : MP_SU_HashMap
+    {
+        return playersByServerId;
+    }
 
     public function getPartyMembers() : array<r_RemotePlayer>
     {
@@ -2292,7 +2282,6 @@ statemachine class r_MultiplayerClient
         if(player.id == id)
         {
             GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114227));
-            deleteMenu();
             return;
         }
 
@@ -2338,8 +2327,6 @@ statemachine class r_MultiplayerClient
                 lastRidingType = "player";
             }
         }
-
-        deleteMenu();
     }
 
     public function checkRidingAttachment()
@@ -2553,7 +2540,6 @@ statemachine class r_MultiplayerClient
     public function tradeWithPlayer(actor : CActor)
     {
         var player : r_RemotePlayer;
-        var cat : array<name>;
         var m_popupData : W3ItemSelectionPopupData;
         player = mpghosts_getPlayerFromActor(actor);
 
@@ -2561,8 +2547,6 @@ statemachine class r_MultiplayerClient
             return;
 
         outgoingTradeTo = player;
-
-        deleteMenu();
 
         m_popupData = new W3ItemSelectionPopupData in theGame.GetGuiManager();
         m_popupData.targetInventory = thePlayer.GetInventory();
@@ -2628,918 +2612,56 @@ statemachine class r_MultiplayerClient
     {
         return ridingEnabled;
     }
-
-    private function buildMenus(player : r_RemotePlayer)
-    {
-        var ridePrompt : string;
-        var cpcPlayerType : ENR_PlayerType;
-
-        cpcPlayerType = NR_GetPlayerManager().GetCurrentPlayerType();
-
-        mainMenuItems.Clear();
-        emotesMenuItems.Clear();
-        emoteMenuItems.Clear();
-        chatMenuItems.Clear();
-        propMenuItems.Clear();
-        morphMenuItems.Clear();
-
-        if(player.isSailing)
-        {
-            ridePrompt = GetLocStringById(2111114119);
-        }
-        else if(player.isMounted)
-        {
-            ridePrompt = GetLocStringById(2111114120);
-        }
-        else
-        {
-            ridePrompt = GetLocStringById(2111114121);
-        }
-
-        // main menu
-        addMainMenuItem(GetLocStringById(2111114122), "open_chat");
-        addMainMenuItem(GetLocStringById(2111114123), "open_emotes");
-
-        if(cpcPlayerType == ENR_PlayerSorceress)
-        {
-            addMainMenuItem(GetLocStringById(2111114124), "open_morphs");
-        }
-        else
-        {
-            addMainMenuItem(GetLocStringById(2111114124), "locked");
-        }
-
-        addMainMenuItem(GetLocStringById(2111114125), "gwent");
-        if(inParty)
-        {
-            addMainMenuItem(GetLocStringById(2111114126), "stopsync");
-        }
-        else
-        {
-            addMainMenuItem(GetLocStringById(2111114127), "party");
-        }
-        addMainMenuItem(ridePrompt, "ride");
-        addMainMenuItem(GetLocStringById(2111114128), "trade");
-        addMainMenuItem(GetLocStringById(2111114129), "close");
-
-        // emotes
-        addEmotesMenuItem(GetLocStringById(2111114130), "props_menu");
-        addEmotesMenuItem(GetLocStringById(2111114123), "emotes_menu");
-        addEmotesMenuItem(GetLocStringById(2111114131), "back_to_main");
-        
-        addEmoteMenuItem(GetLocStringById(2111114132), "emote_wave");
-        addEmoteMenuItem(GetLocStringById(2111114133), "emote_cheer");
-        addEmoteMenuItem(GetLocStringById(2111114134), "emote_laugh");
-        addEmoteMenuItem(GetLocStringById(2111114135), "emote_clap");
-        addEmoteMenuItem(GetLocStringById(2111114136), "emote_dance");
-        addEmoteMenuItem(GetLocStringById(2111114137), "emote_facepalm");
-        addEmoteMenuItem(GetLocStringById(2111114138), "emote_sit");
-        addEmoteMenuItem(GetLocStringById(2111114139), "emote_lay");
-        addEmoteMenuItem(GetLocStringById(2111114140), "emote_bow");
-        addEmoteMenuItem(GetLocStringById(2111114141), "emote_point");
-        addEmoteMenuItem(GetLocStringById(2111114142), "emote_stop");
-        addEmoteMenuItem(GetLocStringById(2111114143), "emote_cry");
-        addEmoteMenuItem(GetLocStringById(2111114144), "emote_beg");
-        addEmoteMenuItem(GetLocStringById(2111114145), "emote_vomit");
-        addEmoteMenuItem(GetLocStringById(2111114146), "emote_cartwheel");
-        addEmoteMenuItem(GetLocStringById(2111114147), "emote_pray");
-        addEmoteMenuItem(GetLocStringById(2111114148), "emote_question");
-        addEmoteMenuItem(GetLocStringById(2111114149), "emote_cross");
-        addEmoteMenuItem(GetLocStringById(2111114150), "emote_flipoff");
-        addEmoteMenuItem(GetLocStringById(2111114151), "emote_drunk");
-        addEmoteMenuItem(GetLocStringById(2111114152), "emote_flop");
-        addEmoteMenuItem(GetLocStringById(2111114153), "emote_piss");
-        addEmoteMenuItem(GetLocStringById(2111114154), "emote_yoga");
-        addEmoteMenuItem(GetLocStringById(2111114155), "emote_fly");
-        addEmoteMenuItem(GetLocStringById(2111114156), "emote_throat");
-        addEmoteMenuItem(GetLocStringById(2111114157), "emote_scout");
-        addEmoteMenuItem(GetLocStringById(2111114158), "emote_trader");
-        addEmoteMenuItem(GetLocStringById(2111114159), "emote_cowerlow");
-        addEmoteMenuItem(GetLocStringById(2111114160), "emote_cowerhigh");
-        addEmoteMenuItem(GetLocStringById(2111114161), "emote_pain");
-        addEmoteMenuItem(GetLocStringById(2111114162), "emote_mime");
-        addEmoteMenuItem(GetLocStringById(2111114163), "emote_warm");
-        addEmoteMenuItem(GetLocStringById(2111114164), "emote_crouch");
-        addEmoteMenuItem(GetLocStringById(2111114165), "emote_choke");
-        addEmoteMenuItem(GetLocStringById(2111114131), "back_to_emotes");
-
-        // prop emotes
-        addPropMenuItem(GetLocStringById(2111114166), "emote_lute");
-        addPropMenuItem(GetLocStringById(2111114167), "emote_spyglass");
-        addPropMenuItem(GetLocStringById(2111114168), "emote_fire");
-        addPropMenuItem(GetLocStringById(2111114169), "emote_drink");
-        addPropMenuItem(GetLocStringById(2111114170), "emote_write");
-        addPropMenuItem(GetLocStringById(2111114171), "emote_fan");
-        addPropMenuItem(GetLocStringById(2111114172), "emote_broom");
-        addPropMenuItem(GetLocStringById(2111114173), "emote_carrybag");
-        addPropMenuItem(GetLocStringById(2111114174), "emote_pullbag");
-        addPropMenuItem(GetLocStringById(2111114175), "emote_shovel");
-        addPropMenuItem(GetLocStringById(2111114176), "emote_horn");
-
-        // morphs
-        addMorphMenuItem(GetLocStringById(2111114177), "morph_owl");
-        addMorphMenuItem(GetLocStringById(2111114178), "morph_crow");
-        addMorphMenuItem(GetLocStringById(2111114179), "morph_cat");
-        addMorphMenuItem(GetLocStringById(2111114180), "morph_fox");
-        addMorphMenuItem(GetLocStringById(2111114131), "back_to_main");
-
-        if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
-        {
-            addPropMenuItem(GetLocStringById(2111114181), "emote_platter");
-            addPropMenuItem(GetLocStringById(2111114182), "emote_umbrella");
-        }
-        else
-        {
-            addPropMenuItem(GetLocStringById(2111114183), "emote_baguette");
-            addPropMenuItem(GetLocStringById(2111114184), "emote_smoke");
-        }
-
-        addPropMenuItem(GetLocStringById(2111114131), "back_to_emotes");
-
-        // chat
-        addChatMenuItem(GetLocStringById(2111114185), "chat_hello");
-        addChatMenuItem(GetLocStringById(2111114186), "chat_bye");
-        addChatMenuItem(GetLocStringById(2111114187), "chat_follow");
-        addChatMenuItem(GetLocStringById(2111114188), "chat_wait");
-        addChatMenuItem(GetLocStringById(2111114189), "chat_ride");
-        addChatMenuItem(GetLocStringById(2111114190), "chat_trade");
-        addChatMenuItem(GetLocStringById(2111114191), "chat_thanks");
-        addChatMenuItem(GetLocStringById(2111114192), "chat_sorry");
-        addChatMenuItem(GetLocStringById(2111114193), "chat_look");
-        addChatMenuItem(GetLocStringById(2111114194), "chat_help");
-        addChatMenuItem(GetLocStringById(2111114195), "chat_armor");
-        addChatMenuItem(GetLocStringById(2111114196), "chat_sword");
-        addChatMenuItem(GetLocStringById(2111114197), "chat_outfit");
-        addChatMenuItem(GetLocStringById(2111114131), "back_to_main");
-    }
-
-    private function addMainMenuItem(label : string, action : string)
-    {
-        var item : r_RemoteMenuItem;
-        item.label = label;
-        item.action = action;
-        mainMenuItems.PushBack(item);
-    }
-
-    private function addEmoteMenuItem(label : string, action : string)
-    {
-        var item : r_RemoteMenuItem;
-        item.label = label;
-        item.action = action;
-        emoteMenuItems.PushBack(item);
-    }
-
-    private function addEmotesMenuItem(label : string, action : string)
-    {
-        var item : r_RemoteMenuItem;
-        item.label = label;
-        item.action = action;
-        emotesMenuItems.PushBack(item);
-    }
-
-    private function addPropMenuItem(label : string, action : string)
-    {
-        var item : r_RemoteMenuItem;
-        item.label = label;
-        item.action = action;
-        propMenuItems.PushBack(item);
-    }
-
-    private function addChatMenuItem(label : string, action : string)
-    {
-        var item : r_RemoteMenuItem;
-        item.label = label;
-        item.action = action;
-        chatMenuItems.PushBack(item);
-    }
-
-    private function addMorphMenuItem(label : string, action : string)
-    {
-        var item : r_RemoteMenuItem;
-        item.label = label;
-        item.action = action;
-        morphMenuItems.PushBack(item);
-    }
-
-    private function getCurrentMenuSize() : int
-    {
-        if(currentMenuId == 1)
-            return emoteMenuItems.Size();
-
-        if(currentMenuId == 2)
-            return chatMenuItems.Size();
-
-        if(currentMenuId == 3)
-            return propMenuItems.Size();
-
-        if(currentMenuId == 4)
-            return emotesMenuItems.Size();
-
-        if(currentMenuId == 5)
-            return morphMenuItems.Size();
-
-        return mainMenuItems.Size();
-    }
-
-    private function getCurrentMenuLabel(index : int) : string
-    {
-        if(currentMenuId == 1)
-            return emoteMenuItems[index].label;
-
-        if(currentMenuId == 2)
-            return chatMenuItems[index].label;
-
-        if(currentMenuId == 3)
-            return propMenuItems[index].label;
-
-        if(currentMenuId == 4)
-            return emotesMenuItems[index].label;
-
-        if(currentMenuId == 5)
-            return morphMenuItems[index].label;
-
-        return mainMenuItems[index].label;
-    }
-
-    private function getCurrentMenuAction(index : int) : string
-    {
-        if(currentMenuId == 1)
-            return emoteMenuItems[index].action;
-
-        if(currentMenuId == 2)
-            return chatMenuItems[index].action;
-
-        if(currentMenuId == 3)
-            return propMenuItems[index].action;
-
-        if(currentMenuId == 4)
-            return emotesMenuItems[index].action;
-
-        if(currentMenuId == 5)
-            return morphMenuItems[index].action;
-
-        return mainMenuItems[index].action;
-    }
     
     public function createMenu(actor : CActor)
     {
-        var i        : int;
-        var slot     : MP_SU_OnelinerEntity;
+        var m_popupData : W3ItemSelectionPopupData;
+        var inventory : CInventoryComponent;
+        var cpcPlayerType : ENR_PlayerType;
         var player   : r_RemotePlayer;
 
         player = mpghosts_getPlayerFromActor(actor);
         if(!player)
             return;
 
-        deleteMenu();
-
-        menuSelectedPlayer = player;
-        maxVisibleOptions = 8;
-
-        buildMenus(player);
-
-        currentMenuId = 0;
-        menuSelected = 0;
-        menuScroll = 0;
-
-        for(i = 0; i < maxVisibleOptions; i += 1)
-        {
-            slot = new MP_SU_OnelinerEntity in theInput;
-            slot.text = (new MP_SUOL_TagBuilder in theInput)
-                .tag("font")
-                .attr("size", "20")
-                .attr("color", "#FFFFFF")
-                .text("");
-
-            slot.tag = "wo_MenuSlot" + i;
-            slot.entity = player.ghost;
-            slot.visible = true;
-
-            MP_SUOL_getManager().createOneliner(slot);
-            menuSlots.PushBack(slot);
-        }
-
-        lastMenuSize = -1;
-        lastMenuIndex = -1;
-        lastMenuScroll = -1;
-
-        menuOpen = true;
-        updateMenuPositions();
-        mpghosts_playSound('gui_global_panel_open');
-    }
-
-    private function openMenuById(menuId : int)
-    {
-        currentMenuId = menuId;
-        menuSelected = 0;
-        menuScroll = 0;
-
-        lastMenuSize = -1;
-        lastMenuIndex = -1;
-        lastMenuScroll = -1;
-    }
-
-    public function useMenu(actor : CActor)
-    {
-        var action : string;
-        var player : r_RemotePlayer;
-
-        if(!menuOpen)
-            return;
-
-        action = getCurrentMenuAction(menuSelected);
-
-        if(action == "close")
-        {
-            deleteMenu();
-            mpghosts_playSound('gui_global_panel_close');
-        }
-        else if(action == "ride")
-        {
-            ridePlayer(actor);
-        }
-        else if(action == "trade")
-        {
-            tradeWithPlayer(actor);
-        }
-        else if(action == "gwent")
-        {
-            player = mpghosts_getPlayerFromActor(actor);
-            gwentRequest(player.username);
-            deleteMenu();
-        }
-        else if(action == "party")
-        {
-            player = mpghosts_getPlayerFromActor(actor);
-            joinParty(player.username);
-            deleteMenu();
-        }
-        else if(action == "stopsync")
-        {
-            theGame.r_getMultiplayerClient().leaveParty();
-            deleteMenu();
-        }
-        else if(action == "emotes_menu")
-        {
-            openMenuById(1);
-            mpghosts_playSound('gui_global_panel_open');
-        }
-        else if(action == "open_emotes")
-        {
-            openMenuById(4);
-            mpghosts_playSound('gui_global_panel_open');
-        }
-        else if(action == "props_menu")
-        {
-            openMenuById(3);
-            mpghosts_playSound('gui_global_panel_open');
-        }
-        else if(action == "open_morphs")
-        {
-            openMenuById(5);
-            mpghosts_playSound('gui_global_panel_open');
-        }
-        else if(action == "locked")
-        {
-            mpghosts_playSound('gui_global_denied');
-            GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114229));
-        }
-        else if(action == "morph_owl")
-        {
-            mpghosts_morph('owl');
-            deleteMenu();
-        }
-        else if(action == "morph_crow")
-        {
-            mpghosts_morph('crow');
-            deleteMenu();
-        }
-        else if(action == "morph_fox")
-        {
-            mpghosts_morph('fox');
-            deleteMenu();
-        }
-        else if(action == "morph_cat")
-        {
-            mpghosts_morph('cat');
-            deleteMenu();
-        }
-        else if(action == "open_chat")
-        {
-            openMenuById(2);
-            mpghosts_playSound('gui_global_panel_open');
-        }
-        else if(action == "back_to_main")
-        {
-            openMenuById(0);
-            mpghosts_playSound('gui_global_panel_close');
-        }
-        else if(action == "back_to_emotes")
-        {
-            openMenuById(4);
-            mpghosts_playSound('gui_global_panel_close');
-        }
-        else if(action == "emote_wave")
-        {
-            mpghosts_emote(0);
-        }
-        else if(action == "emote_cheer")
-        {
-            mpghosts_emote(7);
-        }
-        else if(action == "emote_laugh")
-        {
-            mpghosts_emote(18);
-        }
-        else if(action == "emote_clap")
-        {
-            mpghosts_emote(9);
-        }
-        else if(action == "emote_dance")
-        {
-            mpghosts_emote(21);
-        }
-        else if(action == "emote_facepalm")
-        {
-            mpghosts_emote(22);
-        }
-        else if(action == "emote_sit")
-        {
-            mpghosts_emote(19);
-        }
-        else if(action == "emote_lay")
-        {
-            mpghosts_emote(20);
-        }
-        else if(action == "emote_bow")
-        {
-            mpghosts_emote(1);
-        }
-        else if(action == "emote_point")
-        {
-            mpghosts_emote(4);
-        }
-        else if(action == "emote_stop")
-        {
-            mpghosts_emote(5);
-        }
-        else if(action == "emote_cry")
-        {
-            mpghosts_emote(6);
-        }
-        else if(action == "emote_beg")
-        {
-            mpghosts_emote(8);
-        }
-        else if(action == "emote_vomit")
-        {
-            mpghosts_emote(10);
-        }
-        else if(action == "emote_cartwheel")
-        {
-            mpghosts_emote(33);
-        }
-        else if(action == "emote_pray")
-        {
-            mpghosts_emote(12);
-        }
-        else if(action == "emote_question")
-        {
-            mpghosts_emote(3);
-        }
-        else if(action == "emote_cross")
-        {
-            mpghosts_emote(23);
-        }
-        else if(action == "emote_flipoff")
-        {
-            mpghosts_emote(24);
-        }
-        else if(action == "emote_drunk")
-        {
-            mpghosts_emote(11);
-        }
-        else if(action == "emote_flop")
-        {
-            mpghosts_emote(27);
-        }
-        else if(action == "emote_piss")
-        {
-            mpghosts_emote(28);
-        }
-        else if(action == "emote_horn")
-        {
-            mpghosts_emote(25);
-        }
-        else if(action == "emote_yoga")
-        {
-            mpghosts_emote(14);
-        }
-        else if(action == "emote_fly")
-        {
-            mpghosts_emote(26);
-        }
-        else if(action == "emote_lute")
-        {
-            mpghosts_emote(32);
-        }
-        else if(action == "chat_hello")
-        {
-            mpghosts_chat("Hello");
-        }
-        else if(action == "chat_bye")
-        {
-            mpghosts_chat("Bye");
-        }
-        else if(action == "chat_follow")
-        {
-            mpghosts_chat("Follow me");
-        }
-        else if(action == "chat_wait")
-        {
-            mpghosts_chat("Wait here");
-        }
-        else if(action == "chat_ride")
-        {
-            mpghosts_chat("Need a ride?");
-        }
-        else if(action == "chat_trade")
-        {
-            mpghosts_chat("Trade?");
-        }
-        else if(action == "chat_thanks")
-        {
-            mpghosts_chat("Thanks");
-        }
-        else if(action == "chat_sorry")
-        {
-            mpghosts_chat("Sorry");
-        }
-        else if(action == "chat_look")
-        {
-            mpghosts_chat("Look here");
-        }
-        else if(action == "chat_help")
-        {
-            mpghosts_chat("Help!");
-        }
-        else if(action == "chat_armor")
-        {
-            mpghosts_chat("Nice armor");
-        }
-        else if(action == "chat_sword")
-        {
-            mpghosts_chat("Nice sword");
-        }
-        else if(action == "chat_outfit")
-        {
-            mpghosts_chat("Nice outfit");
-        }
-        else if(action == "emote_throat")
-        {
-            mpghosts_emote(34);
-        }
-        else if(action == "emote_scout")
-        {
-            mpghosts_emote(35);
-        }
-        else if(action == "emote_trader")
-        {
-            mpghosts_emote(37);
-        }
-        
-        if(action == "emote_cowerlow")
-        {
-            mpghosts_emote(41);
-        }
-        else if(action == "emote_cowerhigh")
-        {
-            mpghosts_emote(42);
-        }
-        else if(action == "emote_pain")
-        {
-            mpghosts_emote(43);
-        }
-        else if(action == "emote_mime")
-        {
-            mpghosts_emote(44);
-        }
-        else if(action == "emote_warm")
-        {
-            mpghosts_emote(47);
-        }
-        else if(action == "emote_crouch")
-        {
-            mpghosts_emote(48);
-        }
-        else if(action == "emote_choke")
-        {
-            mpghosts_emote(16);
-        }
-        else if(action == "emote_spyglass")
-        {
-            mpghosts_emote(38);
-        }
-        else if(action == "emote_fire")
-        {
-            mpghosts_emote(39);
-        }
-        else if(action == "emote_drink")
-        {
-            mpghosts_emote(50);
-        }
-        else if(action == "emote_write")
-        {
-            mpghosts_emote(40);
-        }
-        else if(action == "emote_fan")
-        {
-            mpghosts_emote(36);
-        }
-        else if(action == "emote_broom")
-        {
-            mpghosts_emote(45);
-        }
-        else if(action == "emote_carrybag")
-        {
-            mpghosts_emote(46);
-        }
-        else if(action == "emote_pullbag")
-        {
-            mpghosts_emote(51);
-        }
-        else if(action == "emote_shovel")
-        {
-            mpghosts_emote(49);
-        }
-        else if(action == "emote_platter")
-        {
-            mpghosts_emote(54);
-        }
-        else if(action == "emote_umbrella")
-        {
-            mpghosts_emote(55);
-        }
-        else if(action == "emote_baguette")
-        {
-            mpghosts_emote(52);
-        }
-        else if(action == "emote_smoke")
-        {
-            mpghosts_emote(53);
-        }
-    }
-
-    public function deleteMenu()
-    {
-        var i : int;
-
-        for(i = 0; i < menuSlots.Size(); i += 1)
-        {
-            MP_SUOL_getManager().deleteByTag("wo_MenuSlot" + i);
-        }
-
-        menuSlots.Clear();
-        mainMenuItems.Clear();
-        emoteMenuItems.Clear();
-        chatMenuItems.Clear();
-
-        menuOpen = false;
-        menuSelected = 0;
-        menuScroll = 0;
-        currentMenuId = 0;
-
-        lastMenuSize = -1;
-        lastMenuIndex = -1;
-        lastMenuScroll = -1;
-    }
-
-    public function isMenuOpen() : bool
-    {
-        return menuOpen;
-    }
-
-    public function getSelectedPlayer() : r_RemotePlayer
-    {
-        return menuSelectedPlayer;
-    }
-
-    public function updateMenuIndex(val : bool)
-    {
-        var menuSize  : int;
-        var maxScroll : int;
-
-        menuSize = getCurrentMenuSize();
-        if(menuSize <= 0)
-            return;
-
-        if(val)
-        {
-            menuSelected += 1;
-        }
-        else
-        {
-            menuSelected -= 1;
-        }
-
-        if(menuSelected >= menuSize)
-        {
-            menuSelected = 0;
-        }
-        if(menuSelected < 0)
-        {
-            menuSelected = menuSize - 1;
-        }
-
-        if(menuSelected >= menuScroll + maxVisibleOptions)
-        {
-            menuScroll = menuSelected - maxVisibleOptions + 1;
-        }
-        if(menuSelected < menuScroll)
-        {
-            menuScroll = menuSelected;
-        }
-
-        maxScroll = menuSize - maxVisibleOptions;
-        if(maxScroll < 0)
-        {
-            maxScroll = 0;
-        }
-
-        if(menuScroll < 0)
-        {
-            menuScroll = 0;
-        }
-        if(menuScroll > maxScroll)
-        {
-            menuScroll = maxScroll;
-        }
-
-        mpghosts_playSound('gui_global_highlight');
-    }
-    
-    private var lastMenuSize : int;
-    private var lastMenuIndex : int;
-
-    private function buildMenuText(label : string, sizeI : int, isSelected : bool) : string
-    {
-        var color : string;
-        var cpcPlayerType : ENR_PlayerType;
-
         cpcPlayerType = NR_GetPlayerManager().GetCurrentPlayerType();
-
-        if(label == "Back" || label == "Close")
+        
+        inventory = new CInventoryComponent in theGame;
+        
+        if(inParty)
         {
-            color = "#EDCBA3";
-        }
-        else if(label == "Morphs >")
-        {
-            if(cpcPlayerType == ENR_PlayerSorceress)
-            {
-                color = "#FFFFFF";
-            }
-            else
-            {
-                color = "#ff0000";
-            }
+            inventory.AddAnItem('wo_leaveParty', 1);
         }
         else
         {
-            color = "#FFFFFF";
+            inventory.AddAnItem('wo_joinParty', 1);
         }
 
-        if(isSelected)
+        inventory.AddAnItem('wo_inviteGwent', 1);
+
+        if(player.isSailing)
         {
-            color = "#0b9dff";
+            inventory.AddAnItem('wo_rideBoat', 1);
         }
-
-        return (new MP_SUOL_TagBuilder in theInput)
-            .tag("font")
-            .attr("size", "" + sizeI)
-            .attr("color", color)
-            .text(label);
-    }
-
-    public function updateMenuPositions()
-    {
-        var heading    : float;
-        var right      : Vector;
-        var off        : Vector;
-
-        var forward    : Vector;
-        var forwardOffset : float = 0.15;
-
-        var sideOffset : float = 0.55;
-        var height     : float = 1.05; //1.15
-        var spacing    : float;
-
-        var myPos      : Vector;
-        var targetPos  : Vector;
-        var dist       : float;
-
-        var sizeMin    : float = 20.0;
-        var sizeMax    : float = 30.0;
-        var k          : float;
-        var nearDist   : float = 2.0;
-        var minDist    : float = 0.5;
-
-        var sizeF      : float;
-        var sizeI      : int;
-
-        var spacingNear     : float = 0.1;
-        var spacingFar      : float = 0.13;
-        var spacingNearDist : float = 2.0;
-        var spacingFarDist  : float = 4.0;
-
-        var sT         : float;
-
-        var i          : int;
-        var itemIndex  : int;
-        var rowFromTop : int;
-        var slot       : MP_SU_OnelinerEntity;
-        var label      : string;
-        var menuSize   : int;
-
-        if(!menuOpen || !menuSelectedPlayer || !menuSelectedPlayer.ghost)
-            return;
-
-        if(menuSelectedPlayer.isMounted || (menuSelectedPlayer.isRiding && menuSelectedPlayer.lastMountType == "horse"))
+        else if(player.isMounted)
         {
-            height += 0.9;
+            inventory.AddAnItem('wo_rideHorse', 1);
         }
-
-        heading = menuSelectedPlayer.ghost.GetHeading();
-        right = VecFromHeading(heading + 90.0);
-        forward = VecFromHeading(heading);
-
-        right.Z = 0.0;
-        right.W = 0.0;
-
-        forward.Z = 0.0;
-        forward.W = 0.0;
-
-        myPos     = thePlayer.GetWorldPosition();
-        targetPos = menuSelectedPlayer.ghost.GetWorldPosition();
-        dist      = VecDistance(myPos, targetPos);
-        dist      = MaxF(dist, minDist);
-
-        if(dist >= 6)
+        else
         {
-            deleteMenu();
-            return;
+            inventory.AddAnItem('wo_ride', 1);
         }
+        inventory.AddAnItem('wo_trade', 1);
 
-        k     = sizeMax * nearDist;
-        sizeF = k / dist;
-        sizeF = ClampF(sizeF, sizeMin, sizeMax);
-        sizeI = RoundMath(sizeF);
+        m_popupData = new W3ItemSelectionPopupData in theGame.GetGuiManager();
+        m_popupData.targetInventory = inventory;
+        m_popupData.overrideQuestItemRestrictions = true;
 
-        sT = ClampF((dist - spacingNearDist) / (spacingFarDist - spacingNearDist), 0.0, 1.0);
-        spacing = LerpF(sT, spacingNear, spacingFar, true);
-
-        menuSize = getCurrentMenuSize();
-
-        for(i = 0; i < maxVisibleOptions; i += 1)
-        {
-            itemIndex = menuScroll + i;
-            rowFromTop = (maxVisibleOptions - 1) - i;
-
-            slot = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByTag("wo_MenuSlot" + i);
-            if(!slot)
-                continue;
-
-            slot.entity = menuSelectedPlayer.ghost;
-
-            off = Vector(
-                right.X * sideOffset + forward.X * forwardOffset,
-                right.Y * sideOffset + forward.Y * forwardOffset,
-                height + spacing * rowFromTop,
-                0.0
-            );
-
-            slot.offset = off;
-
-            if(itemIndex < menuSize)
-            {
-                label = getCurrentMenuLabel(itemIndex);
-                slot.visible = true;
-
-                if(sizeI != lastMenuSize || menuSelected != lastMenuIndex || menuScroll != lastMenuScroll)
-                {
-                    slot.text = buildMenuText(label, sizeI, itemIndex == menuSelected);
-                }
-            }
-            else
-            {
-                slot.visible = false;
-            }
-
-            MP_SUOL_getManager().updateOneliner(slot);
-        }
-
-        lastMenuSize = sizeI;
-        lastMenuIndex = menuSelected;
-        lastMenuScroll = menuScroll;
+        m_popupData.selectionMode = EISPM_RadialMenuSilverOil;
+        m_popupData.wo_isPlayerMenu = true;
+        m_popupData.wo_playerMenuPlayer = player;
+        
+        theGame.RequestPopup('ItemSelectionPopup', m_popupData);
     }
 
     public function Init()
@@ -3758,7 +2880,6 @@ statemachine class r_MultiplayerClient
     public function startTick()
     {
         clearOnlineVehicles();
-        deleteMenu();
         ridingPlayer = NULL;
         ridingEnabled = false;
         theInput.RegisterListener( this, 'OnEmoteMenu', 'WO_Emote' );
@@ -4082,7 +3203,7 @@ statemachine class r_MultiplayerClient
             .attr("size", "20")
             .attr("color", "#ffffff")
             .text(msg);
-            chatOneliner.offset = Vector(0,0,1.95);
+
             chatOneliner.visible = true;
             chatOneliner.entity = thePlayer;
             MP_SUOL_getManager().updateOneliner(chatOneliner);
@@ -4095,8 +3216,9 @@ statemachine class r_MultiplayerClient
         .attr("size", "20")
         .attr("color", "#ffffff")
         .text(msg);
-        chatOneliner.offset = Vector(0,0,1.95);
+
         chatOneliner.visible = true;
+        chatOneliner.head = true;
         chatOneliner.entity = thePlayer;
         chatOneliner.tag = "MPClientChat" + id;
         chatOneliner.render_distance = 20;
@@ -4129,6 +3251,19 @@ statemachine class r_MultiplayerClient
                 deleteChatOneliner();
             }
         }
+    }
+
+    public function normalizeRegion(region: string): string 
+    {
+        if (region == "novigrad") {
+            return "no_mans_land";
+        }
+
+        if (region == "prolog_village_winter") {
+            return "prolog_village";
+        }
+
+        return region;
     }
 
     public function getJoinedParty() : string
@@ -4176,15 +3311,25 @@ statemachine class r_MultiplayerClient
         return joinMessage;
     }
 
-    public function setUserId(id : string)
+    public function setUserId(serverPlayerId : int, id : string)
     {
         this.id = id;
         this.username = id;
+
+        if(serverPlayerId > 0)
+        {
+            this.serverPlayerId = serverPlayerId;
+        }
     }
 
     public function getId() : string
     {
         return id;
+    }
+
+    public function getServerId() : int
+    {
+        return serverPlayerId;
     }
 
     function TrimSpaces(s : string) : string
@@ -4542,18 +3687,38 @@ statemachine class r_MultiplayerClient
     {
         var i : int;
         var now : float;
+        var p : r_RemotePlayer;
+
+        ensurePlayerHashMaps();
 
         now = theGame.GetEngineTimeAsSeconds();
 
-        for (i = globalPlayers.Size() - 1; i >= 0; i -= 1)
+        for(i = globalPlayers.Size() - 1; i >= 0; i -= 1)
         {
-            if ((now - globalPlayers[i].lastUpdate) > timeout)
+            p = globalPlayers[i];
+
+            if(!p)
             {
-                globalPlayers.Remove(globalPlayers[i]);
+                globalPlayers.Erase(i);
+                continue;
+            }
+
+            if((now - p.lastUpdate) > timeout)
+            {
+                if(p.serverPlayerId > 0)
+                {
+                    disconnectByServerId(p.serverPlayerId);
+                    hm_removeRemotePlayer(globalPlayersByServerId, p.serverPlayerId);
+                }
+                else
+                {
+                    disconnect(p.id);
+                }
+
+                globalPlayers.Erase(i);
             }
         }
     }
-
     public function getMaleTemp() : CEntityTemplate
     {
         if(!maleTemp)
@@ -4573,35 +3738,104 @@ statemachine class r_MultiplayerClient
         return femaleTemp;
     }
 
-    public function updatePlayerData(idName : name, x : float, y : float, z : float, w : float, heading : float, speed : float, 
-                                        area : int, clientInGame : bool, heldItem : string, offhandItem : string, inCombat : bool, 
-                                        isSwimming : bool, curState : name, lastJumpTime : float, lastJumpType : EJumpType, 
-                                        lastClimbType : EClimbHeightType, isDiving : bool, isFalling : bool, lastLightAttackTime : float, 
-                                        lastHeavyAttackTime : float, lastDodgeTime : float, lastRollTime : float, isGuarded : bool, lastHit : float,
-                                        lastParry : float, lastFinisher : float, finisherMonster : bool, signType : ESignType, lastSign : float, isSailing : bool, isMounted : bool,
-                                        horseSpeed : float, aimingCrossbow : bool, isLadder : bool, currentState : name, bombSelected : bool, isAlive : bool,
-                                        lastEmote : int, lastEmoteTime : float, lastChatTime : float, lastChat : string, chillOutAnim : name, yaw : float, stamina : float, swirling : bool, rend : bool,
-                                        channeling : bool, menuName : string, lastActionTime : float, lastAction : EPlayerExplorationAction,
-                                        steel : name, silver : name, armor : name, gloves : name, pants : name, boots : name, head : name, hair : name, steelScab : name, silverScab : name, crossbow : name, mask : name,
-                                        isRiding : bool, ridingPlayerId : string, outgoingTradeTo : string, outgoingTradeItem : name, outgoingTradePrice : int, outgoingTradeFlag : int, horseAppearance : string,
-                                        morphActive : bool, morphType : name, morphAppearance : name, morphRotation : float) 
+    private function ensurePlayerHashMaps()
+    {
+        if(!playersByServerId)
+        {
+            playersByServerId = (new MP_SU_HashMap in this).init();
+        }
+
+        if(!globalPlayersByServerId)
+        {
+            globalPlayersByServerId = (new MP_SU_HashMap in this).init();
+        }
+    }
+
+    private function getPlayerByServerId(serverPlayerId : int) : r_RemotePlayer
+    {
+        ensurePlayerHashMaps();
+
+        if(serverPlayerId <= 0)
+        {
+            return NULL;
+        }
+
+        return hm_getRemotePlayer(playersByServerId, serverPlayerId);
+    }
+
+    private function getGlobalPlayerByServerId(serverPlayerId : int) : r_RemotePlayer
+    {
+        ensurePlayerHashMaps();
+
+        if(serverPlayerId <= 0)
+        {
+            return NULL;
+        }
+
+        return hm_getRemotePlayer(globalPlayersByServerId, serverPlayerId);
+    }
+
+    private function cleanupRemotePlayer(p : r_RemotePlayer)
+    {
+        if(!p)
+        {
+            return;
+        }
+
+        MP_SUOL_getManager().deleteRemotePlayerOneliners(p.serverPlayerId);
+
+        p.despawn();
+    }
+
+    public function updatePlayerData(serverPlayerId : int, idName : name, x : float, y : float, z : float, w : float, heading : float, speed : float, 
+                                            area : int, clientInGame : bool, heldItem : string, offhandItem : string, inCombat : bool, 
+                                            isSwimming : bool, curState : name, lastJumpTime : float, lastJumpType : EJumpType, 
+                                            lastClimbType : EClimbHeightType, isDiving : bool, isFalling : bool, lastLightAttackTime : float, 
+                                            lastHeavyAttackTime : float, lastDodgeTime : float, lastRollTime : float, isGuarded : bool, lastHit : float,
+                                            lastParry : float, lastFinisher : float, finisherMonster : bool, signType : ESignType, lastSign : float, isSailing : bool, isMounted : bool,
+                                            horseSpeed : float, aimingCrossbow : bool, isLadder : bool, currentState : name, bombSelected : bool, isAlive : bool,
+                                            lastEmote : int, lastEmoteTime : float, lastChatTime : float, lastChat : string, chillOutAnim : name, yaw : float, stamina : float, swirling : bool, rend : bool,
+                                            channeling : bool, menuName : string, lastActionTime : float, lastAction : EPlayerExplorationAction,
+                                            steel : name, silver : name, armor : name, gloves : name, pants : name, boots : name, head : name, hair : name, steelScab : name, silverScab : name, crossbow : name, mask : name,
+                                            isRiding : bool, ridingPlayerId : int, outgoingTradeTo : string, outgoingTradeItem : name, outgoingTradePrice : int, outgoingTradeFlag : int, horseAppearance : string,
+                                            morphActive : bool, morphType : name, morphAppearance : name, morphRotation : float) 
     {
         var i : int;
         var p : r_RemotePlayer;
-        var position: Vector;
-        var oneliner : MP_SU_Oneliner;
-        var foundGlobal : bool;
+        var gp : r_RemotePlayer;
+        var position : Vector;
         var id : string;
-        var username : string;
+        var playerUsername : string;
+        var now : float;
+        var createdLocal : bool;
+        var currentArea : int;
 
         setServerReceived();
+        ensurePlayerHashMaps();
+
+        if(serverPlayerId <= 0)
+        {
+            return;
+        }
 
         id = NameToString(idName);
-        username = id;
+        playerUsername = id;
+        now = theGame.GetEngineTimeAsSeconds();
+        createdLocal = false;
+
+        position.X = x;
+        position.Y = y;
+        position.Z = z;
+        position.W = w;
 
         if((id == theGame.r_getMultiplayerClient().getUserId()) && !theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_ShowSelf'))
         {
+            disconnectByServerId(serverPlayerId);
+            disconnectGlobalByServerId(serverPlayerId);
+
             disconnect(id);
+            disconnectGlobal(id);
+
             return;
         }
 
@@ -4611,305 +3845,289 @@ statemachine class r_MultiplayerClient
             return;
         }
 
-        position.X = x;
-        position.Y = y;
-        position.Z = z;
-        position.W = w;
-
         if(!clientInGame)
         {
+            disconnectGlobalByServerId(serverPlayerId);
+            disconnectByServerId(serverPlayerId);
+
             disconnectGlobal(id);
+            disconnect(id);
+
+            return;
+        }
+
+        gp = hm_getRemotePlayer(globalPlayersByServerId, serverPlayerId);
+
+        if(gp && gp.id != id)
+        {
+            hm_removeRemotePlayer(globalPlayersByServerId, serverPlayerId);
+            gp = NULL;
+        }
+
+        if(!gp)
+        {
+            for(i = globalPlayers.Size() - 1; i >= 0; i -= 1)
+            {
+                if(globalPlayers[i] && globalPlayers[i].id == id)
+                {
+                    gp = globalPlayers[i];
+
+                    if(gp.serverPlayerId > 0)
+                    {
+                        hm_removeRemotePlayer(globalPlayersByServerId, gp.serverPlayerId);
+                    }
+
+                    gp.serverPlayerId = serverPlayerId;
+                    hm_insertRemotePlayer(globalPlayersByServerId, serverPlayerId, gp);
+
+                    break;
+                }
+            }
+        }
+
+        if(gp)
+        {
+            gp.pos = position;
+            gp.username = playerUsername;
+            gp.id = id;
+            gp.serverPlayerId = serverPlayerId;
+            gp.idName = idName;
+            gp.area = area;
+            gp.lastUpdate = now;
+        }
+        else
+        {
+            gp = new r_RemotePlayer in this;
+
+            gp.serverPlayerId = serverPlayerId;
+            gp.id = id;
+            gp.username = playerUsername;
+            gp.idName = idName;
+            gp.pos = position;
+            gp.area = area;
+            gp.lastUpdate = now;
+
+            gp.inParty = false;
+            gp.joinedParty = "";
+            gp.lastInParty = false;
+            gp.lastJoinedParty = "";
+
+            globalPlayers.PushBack(gp);
+            hm_insertRemotePlayer(globalPlayersByServerId, serverPlayerId, gp);
+
+            if(!theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_HideJoinNotis'))
+            {
+                theGame.GetGuiManager().ShowNotification(gp.username + " " + GetLocStringById(2111114208));
+            }
+        }
+
+        currentArea = theGame.GetCommonMapManager().GetCurrentArea();
+
+        if(currentArea != area)
+        {
+            disconnectByServerId(serverPlayerId);
             disconnect(id);
             return;
         }
 
-        foundGlobal = false;
-        for (i = 0; i < globalPlayers.Size(); i += 1)
+        p = hm_getRemotePlayer(playersByServerId, serverPlayerId);
+
+        if(p && p.id != id)
         {
-            if (globalPlayers[i].id == id)
-            {
-                globalPlayers[i].pos = position;
-                globalPlayers[i].username = username;
-                globalPlayers[i].idName = idName;
-                globalPlayers[i].area = area;
-                globalPlayers[i].lastUpdate = theGame.GetEngineTimeAsSeconds(); 
-                foundGlobal = true;
-                break;
-            }
+            hm_removeRemotePlayer(playersByServerId, serverPlayerId);
+            p = NULL;
         }
 
-        if (!foundGlobal)
+        if(!p)
         {
-            p = new r_RemotePlayer in this;
-            p.id = id;
-            p.username = username;
-            p.idName = idName;
-            p.pos = position;
-            p.area = area;
-            p.lastUpdate = theGame.GetEngineTimeAsSeconds();
-
-            p.inParty = false;
-            p.joinedParty = "";
-            p.lastInParty = false;
-            p.lastJoinedParty = "";
-            globalPlayers.PushBack(p);
-
-            if(!theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_HideJoinNotis'))
+            for(i = players.Size() - 1; i >= 0; i -= 1)
             {
-                theGame.GetGuiManager().ShowNotification(p.username + " " + GetLocStringById(2111114208));
-            }
-        }
-
-        for(i = 0; i < players.Size(); i+=1)
-        {
-            if(players[i].id == id)
-            {
-                if(theGame.GetCommonMapManager().GetCurrentArea() != area)
+                if(players[i] && players[i].id == id)
                 {
-                    disconnect(id);
-                    return;
+                    p = players[i];
+
+                    if(p.serverPlayerId > 0)
+                    {
+                        hm_removeRemotePlayer(playersByServerId, p.serverPlayerId);
+                    }
+
+                    p.serverPlayerId = serverPlayerId;
+                    hm_insertRemotePlayer(playersByServerId, serverPlayerId, p);
+
+                    break;
                 }
-
-                players[i].username = username;
-                players[i].idName = idName;
-                players[i].lastUpdate = theGame.GetEngineTimeAsSeconds();
-                players[i].pos = position;
-                players[i].heading = heading;
-                players[i].speed = speed;
-                players[i].area = area;
-                players[i].heldItem = heldItem;
-                players[i].heldSecondaryItem = offhandItem;
-                players[i].inCombat = inCombat;
-                players[i].isSwimming = isSwimming;
-                players[i].curState = curState;
-                players[i].lastJumpTime = lastJumpTime;
-                players[i].lastJumpType = lastJumpType;
-                players[i].lastClimbType = lastClimbType;
-                players[i].isDiving = isDiving;
-                players[i].isFalling = isFalling;
-                players[i].lastLightAttackTime = lastLightAttackTime;
-                players[i].lastHeavyAttackTime = lastHeavyAttackTime;
-                players[i].lastDodgeTime = lastDodgeTime;
-                players[i].lastRollTime = lastRollTime;
-                players[i].isGuarded = isGuarded;
-                players[i].lastHit = lastHit;
-                players[i].lastParry = lastParry;
-                players[i].lastFinisher = lastFinisher;
-                players[i].finisherMonster = finisherMonster;
-                players[i].signType = signType;
-                players[i].lastSign = lastSign;
-                players[i].isSailing = isSailing;
-                players[i].isMounted = isMounted;
-                players[i].horseSpeed = horseSpeed;
-                players[i].aimingCrossbow = aimingCrossbow;
-                players[i].isLadder = isLadder;
-                players[i].currentState = currentState;
-                players[i].bombSelected = bombSelected;
-                players[i].isAlive = isAlive;
-                players[i].lastEmote = lastEmote;
-                players[i].lastEmoteTime = lastEmoteTime;
-                players[i].lastChatTime = lastChatTime;
-                players[i].lastChat = lastChat;
-                players[i].chillOutAnim = chillOutAnim;
-                players[i].yaw = yaw;
-                players[i].stamina = stamina;
-                players[i].swirling = swirling;
-                players[i].rend = rend;
-                players[i].channeling = channeling;
-                players[i].menuName = menuName;
-                players[i].lastActionTime = lastActionTime;
-                players[i].lastAction = lastAction;
-                players[i].isRiding = isRiding;
-                players[i].ridingPlayerId = ridingPlayerId;
-                players[i].outgoingTradeTo = outgoingTradeTo;
-                players[i].outgoingTradeItem = outgoingTradeItem;
-                players[i].outgoingTradePrice = outgoingTradePrice;
-                players[i].outgoingTradeFlag = outgoingTradeFlag;
-                players[i].horseAppearance = horseAppearance;
-
-                players[i].morphActive = morphActive;
-                players[i].morphType = morphType;
-                players[i].morphAppearance = morphAppearance;
-                players[i].morphRotation = morphRotation;
-
-                // armor
-                players[i].eq_steel = steel;
-                players[i].eq_silver = silver;
-                players[i].eq_armor = armor;
-                players[i].eq_gloves = gloves;
-                players[i].eq_pants = pants;
-                players[i].eq_boots = boots;
-                players[i].eq_head = head;
-                players[i].eq_hair = hair;
-                players[i].eq_steelScab = steelScab;
-                players[i].eq_silverScab = silverScab;
-                players[i].eq_crossbow = crossbow;
-                players[i].eq_mask = mask;
-                return;
             }
         }
 
-        if(!clientInGame || theGame.IsPaused() || theGame.GetPhotomodeEnabled())
-        {
-            return;
-        }
-        
-        if(theGame.GetCommonMapManager().GetCurrentArea() == area)
+        if(!p)
         {
             p = new r_RemotePlayer in this;
+
+            p.serverPlayerId = serverPlayerId;
             p.id = id;
-            p.username = username;
+            p.username = playerUsername;
             p.idName = idName;
-            p.lastUpdate = theGame.GetEngineTimeAsSeconds();
-            p.pos = position;
-            p.heading = heading;
-            p.speed = speed;
-            p.area = area;
-            p.heldItem = heldItem;
-            p.heldSecondaryItem = offhandItem;
-            p.inCombat = inCombat;
-            p.isSwimming = isSwimming;
-            p.curState = curState;
-            p.lastJumpTime = lastJumpTime;
-            p.lastJumpType = lastJumpType;
-            p.lastClimbType = lastClimbType;
-            p.isDiving = isDiving;
-            p.isFalling = isFalling;
-            p.lastLightAttackTime = lastLightAttackTime;
-            p.lastHeavyAttackTime = lastHeavyAttackTime;
-            p.lastDodgeTime = lastDodgeTime;
-            p.lastRollTime = lastRollTime;
-            p.isGuarded = isGuarded;
-            p.lastHit = lastHit;
-            p.lastParry = lastParry;
-            p.lastFinisher = lastFinisher;
-            p.finisherMonster = finisherMonster;
-            p.signType = signType;
-            p.lastSign = lastSign;
-            p.isSailing = isSailing;
-            p.isMounted = isMounted;
-            p.horseSpeed = horseSpeed;
-            p.aimingCrossbow = aimingCrossbow;
-            p.isLadder = isLadder;
-            p.currentState = currentState;
-            p.bombSelected = bombSelected;
-            p.isAlive = isAlive;
-            p.lastEmote = lastEmote;
-            p.lastEmoteTime = lastEmoteTime;
-            p.lastChatTime = lastChatTime;
-            p.lastChat = lastChat;
-            p.chillOutAnim = chillOutAnim;
-            p.yaw = yaw;
-            p.stamina = stamina;
-            p.swirling = swirling;
-            p.rend = rend;
-            p.channeling = channeling;
-            p.menuName = menuName;
-            p.lastActionTime = lastActionTime;
-            p.lastAction = lastAction;
-            p.isRiding = isRiding;
-            p.ridingPlayerId = ridingPlayerId;
-            p.outgoingTradeTo = outgoingTradeTo;
-            p.outgoingTradeItem = outgoingTradeItem;
-            p.outgoingTradePrice = outgoingTradePrice;
-            p.outgoingTradeFlag = outgoingTradeFlag;
-            p.horseAppearance = horseAppearance;
-
-            p.morphActive = morphActive;
-            p.morphType = morphType;
-            p.morphAppearance = morphAppearance;
-
-            // armor
-            p.eq_steel = steel;
-            p.eq_silver = silver;
-            p.eq_armor = armor;
-            p.eq_gloves = gloves;
-            p.eq_pants = pants;
-            p.eq_boots = boots;
-            p.eq_head = head;
-            p.eq_hair = hair;
-            p.eq_steelScab = steelScab;
-            p.eq_silverScab = silverScab;
-            p.eq_crossbow = crossbow;
-            p.eq_mask = mask;
 
             p.inParty = false;
             p.joinedParty = "";
             p.lastInParty = false;
             p.lastJoinedParty = "";
-            p.Init();
 
             players.PushBack(p);
+            hm_insertRemotePlayer(playersByServerId, serverPlayerId, p);
+
+            createdLocal = true;
+        }
+
+        p.serverPlayerId = serverPlayerId;
+        p.id = id;
+        p.username = playerUsername;
+        p.idName = idName;
+        p.lastUpdate = now;
+        p.pos = position;
+        p.heading = heading;
+        p.speed = speed;
+        p.area = area;
+        p.heldItem = heldItem;
+        p.heldSecondaryItem = offhandItem;
+        p.inCombat = inCombat;
+        p.isSwimming = isSwimming;
+        p.curState = curState;
+        p.lastJumpTime = lastJumpTime;
+        p.lastJumpType = lastJumpType;
+        p.lastClimbType = lastClimbType;
+        p.isDiving = isDiving;
+        p.isFalling = isFalling;
+        p.lastLightAttackTime = lastLightAttackTime;
+        p.lastHeavyAttackTime = lastHeavyAttackTime;
+        p.lastDodgeTime = lastDodgeTime;
+        p.lastRollTime = lastRollTime;
+        p.isGuarded = isGuarded;
+        p.lastHit = lastHit;
+        p.lastParry = lastParry;
+        p.lastFinisher = lastFinisher;
+        p.finisherMonster = finisherMonster;
+        p.signType = signType;
+        p.lastSign = lastSign;
+        p.isSailing = isSailing;
+        p.isMounted = isMounted;
+        p.horseSpeed = horseSpeed;
+        p.aimingCrossbow = aimingCrossbow;
+        p.isLadder = isLadder;
+        p.currentState = currentState;
+        p.bombSelected = bombSelected;
+        p.isAlive = isAlive;
+        p.lastEmote = lastEmote;
+        p.lastEmoteTime = lastEmoteTime;
+        p.lastChatTime = lastChatTime;
+        p.lastChat = lastChat;
+        p.chillOutAnim = chillOutAnim;
+        p.yaw = yaw;
+        p.stamina = stamina;
+        p.swirling = swirling;
+        p.rend = rend;
+        p.channeling = channeling;
+        p.menuName = menuName;
+        p.lastActionTime = lastActionTime;
+        p.lastAction = lastAction;
+        p.isRiding = isRiding;
+        p.ridingPlayerId = ridingPlayerId;
+        p.outgoingTradeTo = outgoingTradeTo;
+        p.outgoingTradeItem = outgoingTradeItem;
+        p.outgoingTradePrice = outgoingTradePrice;
+        p.outgoingTradeFlag = outgoingTradeFlag;
+        p.horseAppearance = horseAppearance;
+
+        p.morphActive = morphActive;
+        p.morphType = morphType;
+        p.morphAppearance = morphAppearance;
+        p.morphRotation = morphRotation;
+
+        p.eq_steel = steel;
+        p.eq_silver = silver;
+        p.eq_armor = armor;
+        p.eq_gloves = gloves;
+        p.eq_pants = pants;
+        p.eq_boots = boots;
+        p.eq_head = head;
+        p.eq_hair = hair;
+        p.eq_steelScab = steelScab;
+        p.eq_silverScab = silverScab;
+        p.eq_crossbow = crossbow;
+        p.eq_mask = mask;
+
+        if(createdLocal)
+        {
+            p.Init();
         }
     }
 
-    public function updatePlayerData2(idName : name, cpcPlayerType : ENR_PlayerType, cpcHead : name, cpcHair : string, cpcBody : string, cpcTorso : string, cpcArms : string, cpcGloves : string, cpcDress : string, cpcLegs : string, cpcShoes : string, cpcMisc : string,
-                                    cpcItem1 : string, cpcItem2 : string, cpcItem3 : string, cpcItem4 : string, cpcItem5 : string, cpcItem6 : string, cpcItem7 : string, cpcItem8 : string, cpcItem9 : string, cpcItem10 : string) 
+    public function updatePlayerData2(serverPlayerId : int, idName : name, cpcPlayerType : ENR_PlayerType, cpcHead : name, cpcHair : string, cpcBody : string, cpcTorso : string, cpcArms : string, cpcGloves : string, cpcDress : string, cpcLegs : string, cpcShoes : string, cpcMisc : string,
+                                        cpcItem1 : string, cpcItem2 : string, cpcItem3 : string, cpcItem4 : string, cpcItem5 : string, cpcItem6 : string, cpcItem7 : string, cpcItem8 : string, cpcItem9 : string, cpcItem10 : string) 
     {
-        var i : int;
-        var foundGlobal : bool;
-        var id : string;
+        var p : r_RemotePlayer;
+        var gp : r_RemotePlayer;
+        var now : float;
 
         setServerReceived();
+        ensurePlayerHashMaps();
 
-        id = NameToString(idName);
-
-        foundGlobal = false;
-        for (i = 0; i < globalPlayers.Size(); i += 1)
-        {
-            if (globalPlayers[i].id == id)
-            {
-                globalPlayers[i].lastUpdate = theGame.GetEngineTimeAsSeconds(); 
-                globalPlayers[i].cpcPlayerType = cpcPlayerType; 
-                foundGlobal = true;
-                break;
-            }
-        }
-
-        if (!foundGlobal)
+        if(serverPlayerId <= 0)
         {
             return;
         }
 
-        for(i = 0; i < players.Size(); i+=1)
+        now = theGame.GetEngineTimeAsSeconds();
+
+        gp = hm_getRemotePlayer(globalPlayersByServerId, serverPlayerId);
+
+        if(!gp)
         {
-            if(players[i].id == id)
-            {
-                players[i].lastUpdate = theGame.GetEngineTimeAsSeconds();
-
-                //cpc
-                players[i].cpcPlayerType = cpcPlayerType;
-                players[i].cpcHead = cpcHead;
-                players[i].cpcHair = cpcHair;
-                players[i].cpcBody = cpcBody;
-                players[i].cpcTorso = cpcTorso;
-                players[i].cpcArms = cpcArms;
-                players[i].cpcGloves = cpcGloves;
-                players[i].cpcDress = cpcDress;
-                players[i].cpcLegs = cpcLegs;
-                players[i].cpcShoes = cpcShoes;
-                players[i].cpcMisc = cpcMisc;
-
-                players[i].cpcItem1 = cpcItem1;
-                players[i].cpcItem2 = cpcItem2;
-                players[i].cpcItem3 = cpcItem3;
-                players[i].cpcItem4 = cpcItem4;
-                players[i].cpcItem5 = cpcItem5;
-                players[i].cpcItem6 = cpcItem6;
-                players[i].cpcItem7 = cpcItem7;
-                players[i].cpcItem8 = cpcItem8;
-                players[i].cpcItem9 = cpcItem9;
-                players[i].cpcItem10 = cpcItem10;
-                return;
-            }
+            return;
         }
+
+        gp.lastUpdate = now;
+        gp.cpcPlayerType = cpcPlayerType;
+
+        p = hm_getRemotePlayer(playersByServerId, serverPlayerId);
+
+        if(!p)
+        {
+            return;
+        }
+
+        p.lastUpdate = now;
+
+        //cpc
+        p.cpcPlayerType = cpcPlayerType;
+        p.cpcHead = cpcHead;
+        p.cpcHair = cpcHair;
+        p.cpcBody = cpcBody;
+        p.cpcTorso = cpcTorso;
+        p.cpcArms = cpcArms;
+        p.cpcGloves = cpcGloves;
+        p.cpcDress = cpcDress;
+        p.cpcLegs = cpcLegs;
+        p.cpcShoes = cpcShoes;
+        p.cpcMisc = cpcMisc;
+
+        p.cpcItem1 = cpcItem1;
+        p.cpcItem2 = cpcItem2;
+        p.cpcItem3 = cpcItem3;
+        p.cpcItem4 = cpcItem4;
+        p.cpcItem5 = cpcItem5;
+        p.cpcItem6 = cpcItem6;
+        p.cpcItem7 = cpcItem7;
+        p.cpcItem8 = cpcItem8;
+        p.cpcItem9 = cpcItem9;
+        p.cpcItem10 = cpcItem10;
     }
 
-    public function updatePlayerData3(idName : name, outgoingGwentTo : string, outgoingGwentRequest : E_GwentRequest, outgoingGwentBet : int, outgoingGwentSeed : int, lastGwentAction : string, lastGwentActionTime : float, gwentData : string)
+    public function updatePlayerData3(serverPlayerId : int, idName : name, outgoingGwentTo : string, outgoingGwentRequest : E_GwentRequest, outgoingGwentBet : int, outgoingGwentSeed : int, lastGwentAction : string, lastGwentActionTime : float, gwentData : string)
     {
-        var i : int;
-        var foundGlobal : bool;
-        var id : string;
+        var p : r_RemotePlayer;
+        var gp : r_RemotePlayer;
+        var now : float;
 
         var remaining : string;
         var token : string;
@@ -4921,185 +4139,180 @@ statemachine class r_MultiplayerClient
         var deck : SDeckDefinition;
 
         setServerReceived();
+        ensurePlayerHashMaps();
 
-        id = NameToString(idName);
-
-        foundGlobal = false;
-        for (i = 0; i < globalPlayers.Size(); i += 1)
-        {
-            if (globalPlayers[i].id == id)
-            {
-                globalPlayers[i].lastUpdate = theGame.GetEngineTimeAsSeconds(); 
-                foundGlobal = true;
-                break;
-            }
-        }
-
-        if (!foundGlobal)
+        if(serverPlayerId <= 0)
         {
             return;
         }
 
-        for(i = 0; i < players.Size(); i+=1)
+        now = theGame.GetEngineTimeAsSeconds();
+
+        gp = hm_getRemotePlayer(globalPlayersByServerId, serverPlayerId);
+
+        if(!gp)
         {
-            if(players[i].id == id)
-            {
-                players[i].lastUpdate = theGame.GetEngineTimeAsSeconds();
-                players[i].outgoingGwentTo = outgoingGwentTo;
-                players[i].outgoingGwentRequest = outgoingGwentRequest;
-                players[i].outgoingGwentBet = outgoingGwentBet;
-                players[i].outgoingGwentSeed = outgoingGwentSeed;
-                players[i].lastGwentAction = lastGwentAction;
-                players[i].lastGwentActionTime = lastGwentActionTime;
-
-                remaining = gwentData;
-
-                // faction name
-                if (!StrSplitFirst(remaining, " ", factionName, remaining))
-                {
-                    return;
-                }
-
-                // leader index
-                if (!StrSplitFirst(remaining, " ", token, remaining))
-                {
-                    return;
-                }
-
-                leaderIndex = StringToInt(token, -1);
-
-                // cards
-                while (StrSplitFirst(remaining, " ", token, remaining))
-                {
-                    cardValue = StringToInt(token, -1);
-                    gwentCards.PushBack(cardValue);
-                }
-
-                // last remaining card
-                if (StrLen(remaining) > 0)
-                {
-                    cardValue = StringToInt(remaining, -1);
-                    gwentCards.PushBack(cardValue);
-                }
-
-                deck.cardIndices = gwentCards;
-                deck.leaderIndex = leaderIndex;
-                deck.unlocked = true;
-                deck.specialCard = -1;
-
-                players[i].setDeck(deck);
-                players[i].setFaction(leaderIndex);
-                return;
-            }
+            return;
         }
+
+        gp.lastUpdate = now;
+
+        p = hm_getRemotePlayer(playersByServerId, serverPlayerId);
+
+        if(!p)
+        {
+            return;
+        }
+
+        p.lastUpdate = now;
+        p.outgoingGwentTo = outgoingGwentTo;
+        p.outgoingGwentRequest = outgoingGwentRequest;
+        p.outgoingGwentBet = outgoingGwentBet;
+        p.outgoingGwentSeed = outgoingGwentSeed;
+        p.lastGwentAction = lastGwentAction;
+        p.lastGwentActionTime = lastGwentActionTime;
+
+        remaining = gwentData;
+
+        // faction name
+        if (!StrSplitFirst(remaining, " ", factionName, remaining))
+        {
+            return;
+        }
+
+        // leader index
+        if (!StrSplitFirst(remaining, " ", token, remaining))
+        {
+            return;
+        }
+
+        leaderIndex = StringToInt(token, -1);
+
+        // cards
+        while (StrSplitFirst(remaining, " ", token, remaining))
+        {
+            cardValue = StringToInt(token, -1);
+            gwentCards.PushBack(cardValue);
+        }
+
+        // last remaining card
+        if (StrLen(remaining) > 0)
+        {
+            cardValue = StringToInt(remaining, -1);
+            gwentCards.PushBack(cardValue);
+        }
+
+        deck.cardIndices = gwentCards;
+        deck.leaderIndex = leaderIndex;
+        deck.unlocked = true;
+        deck.specialCard = -1;
+
+        p.setDeck(deck);
+        p.setFaction(leaderIndex);
     }
 
-    public function updatePlayerData4(idName : name, inParty : bool, joinedParty : string, weather : name, day : int, hour : int, minute : int, second : int, lastDialogIndex : int, lastDialogCount : int, dialogChoices : string, 
-                                        dialogChoicesActive : bool, armorDye : int, gloveDye : int, pantDye : int, bootDye : int, health : float)
+    public function updatePlayerData4(serverPlayerId : int, idName : name, inParty : bool, joinedParty : string, weather : name, day : int, hour : int, minute : int, second : int, lastDialogIndex : int, lastDialogCount : int, dialogChoices : string, 
+                                            dialogChoicesActive : bool, armorDye : int, gloveDye : int, pantDye : int, bootDye : int, health : float)
     {
-        var i : int;
         var j : int;
-        var foundGlobal : bool;
-        var id : string;
+        var p : r_RemotePlayer;
+        var gp : r_RemotePlayer;
+        var now : float;
         var parsedDialogChoices : array<wo_SSceneChoice>;
 
         setServerReceived();
+        ensurePlayerHashMaps();
 
-        id = NameToString(idName);
+        if(serverPlayerId <= 0)
+        {
+            return;
+        }
+
+        now = theGame.GetEngineTimeAsSeconds();
 
         if(joinedParty == "none")
         {
             joinedParty = "";
         }
 
-        foundGlobal = false;
+        gp = hm_getRemotePlayer(globalPlayersByServerId, serverPlayerId);
 
-        for (i = 0; i < globalPlayers.Size(); i += 1)
-        {
-            if (globalPlayers[i].id == id)
-            {
-                globalPlayers[i].lastUpdate = theGame.GetEngineTimeAsSeconds();
-
-                if(globalPlayers[i].inParty != inParty || globalPlayers[i].joinedParty != joinedParty)
-                {
-                    if(inParty && joinedParty == username && (!globalPlayers[i].lastInParty || globalPlayers[i].lastJoinedParty != username))
-                    {
-                        if(!seenPartyPlayers.Contains(globalPlayers[i].username))
-                        {
-                            theGame.GetGuiManager().ShowNotification(globalPlayers[i].username + " " + GetLocStringById(2111114198));
-                            mpghosts_playSound('gui_global_panel_open');
-                            seenPartyPlayers.PushBack(globalPlayers[i].username);
-                        }
-                    }
-                    else if(globalPlayers[i].lastInParty && globalPlayers[i].lastJoinedParty == username && (!inParty || joinedParty != username))
-                    {
-                        theGame.GetGuiManager().ShowNotification(globalPlayers[i].username + " " + GetLocStringById(2111114199));
-                        mpghosts_playSound('gui_global_panel_close');
-
-                        for(j = 0; j < seenPartyPlayers.Size(); j+=1)
-                        {
-                            if(seenPartyPlayers[j] == globalPlayers[i].username)
-                            {
-                                seenPartyPlayers.Erase(j);
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                globalPlayers[i].inParty = inParty;
-                globalPlayers[i].joinedParty = joinedParty;
-                globalPlayers[i].lastInParty = inParty;
-                globalPlayers[i].lastJoinedParty = joinedParty;
-                globalPlayers[i].health = health;
-
-                foundGlobal = true;
-                break;
-            }
-        }
-
-        if (!foundGlobal)
+        if(!gp)
         {
             return;
         }
 
-        for(i = 0; i < players.Size(); i += 1)
+        gp.lastUpdate = now;
+
+        if(gp.inParty != inParty || gp.joinedParty != joinedParty)
         {
-            if(players[i].id == id)
+            if(inParty && joinedParty == username && (!gp.lastInParty || gp.lastJoinedParty != username))
             {
-                players[i].lastUpdate = theGame.GetEngineTimeAsSeconds();
-
-                players[i].inParty = inParty;
-                players[i].joinedParty = joinedParty;
-                players[i].lastInParty = inParty;
-                players[i].lastJoinedParty = joinedParty;
-                players[i].weather = weather;
-                players[i].day = day;
-                players[i].hour = hour;
-                players[i].minute = minute;
-                players[i].second = second;
-                players[i].lastDialogIndex = lastDialogIndex;
-                players[i].lastDialogCount = lastDialogCount;
-                players[i].dialogChoicesActive = dialogChoicesActive;
-                players[i].armorDye = armorDye;
-                players[i].gloveDye = gloveDye;
-                players[i].pantDye = pantDye;
-                players[i].bootDye = bootDye;
-                players[i].health = health;
-
-                players[i].dialogChoices.Clear();
-
-                if(dialogChoices != "" && dialogChoices != "none")
+                if(!seenPartyPlayers.Contains(gp.username))
                 {
-                    parseDialogChoicesData(dialogChoices, parsedDialogChoices);
+                    theGame.GetGuiManager().ShowNotification(gp.username + " " + GetLocStringById(2111114198));
+                    mpghosts_playSound('gui_global_panel_open');
+                    seenPartyPlayers.PushBack(gp.username);
+                }
+            }
+            else if(gp.lastInParty && gp.lastJoinedParty == username && (!inParty || joinedParty != username))
+            {
+                theGame.GetGuiManager().ShowNotification(gp.username + " " + GetLocStringById(2111114199));
+                mpghosts_playSound('gui_global_panel_close');
 
-                    for(j = 0; j < parsedDialogChoices.Size(); j += 1)
+                for(j = 0; j < seenPartyPlayers.Size(); j+=1)
+                {
+                    if(seenPartyPlayers[j] == gp.username)
                     {
-                        players[i].dialogChoices.PushBack(parsedDialogChoices[j]);
+                        seenPartyPlayers.Erase(j);
+                        break;
                     }
                 }
+            }
+        }
 
-                return;
+        gp.inParty = inParty;
+        gp.joinedParty = joinedParty;
+        gp.lastInParty = inParty;
+        gp.lastJoinedParty = joinedParty;
+        gp.health = health;
+
+        p = hm_getRemotePlayer(playersByServerId, serverPlayerId);
+
+        if(!p)
+        {
+            return;
+        }
+
+        p.lastUpdate = now;
+
+        p.inParty = inParty;
+        p.joinedParty = joinedParty;
+        p.lastInParty = inParty;
+        p.lastJoinedParty = joinedParty;
+        p.weather = weather;
+        p.day = day;
+        p.hour = hour;
+        p.minute = minute;
+        p.second = second;
+        p.lastDialogIndex = lastDialogIndex;
+        p.lastDialogCount = lastDialogCount;
+        p.dialogChoicesActive = dialogChoicesActive;
+        p.armorDye = armorDye;
+        p.gloveDye = gloveDye;
+        p.pantDye = pantDye;
+        p.bootDye = bootDye;
+        p.health = health;
+
+        p.dialogChoices.Clear();
+
+        if(dialogChoices != "" && dialogChoices != "none")
+        {
+            parseDialogChoicesData(dialogChoices, parsedDialogChoices);
+
+            for(j = 0; j < parsedDialogChoices.Size(); j += 1)
+            {
+                p.dialogChoices.PushBack(parsedDialogChoices[j]);
             }
         }
     }
@@ -5153,19 +4366,111 @@ statemachine class r_MultiplayerClient
         }
     }
 
+    public function disconnectByServerId(serverPlayerId : int)
+    {
+        var p : r_RemotePlayer;
+
+        ensurePlayerHashMaps();
+
+        if(serverPlayerId <= 0)
+        {
+            return;
+        }
+
+        p = hm_getRemotePlayer(playersByServerId, serverPlayerId);
+
+        if(!p)
+        {
+            return;
+        }
+
+        hm_removeRemotePlayer(playersByServerId, serverPlayerId);
+
+        cleanupRemotePlayer(p);
+        players.Remove(p);
+
+        if(ridingPlayer == p)
+        {
+            ridingPlayer = NULL;
+        }
+
+        if(outgoingTradeTo == p)
+        {
+            outgoingTradeTo = NULL;
+        }
+
+        if(gwentOpponent == p)
+        {
+            gwentOpponent = NULL;
+        }
+    }
+
+    public function disconnectGlobalByServerId(serverPlayerId : int)
+    {
+        var gp : r_RemotePlayer;
+
+        ensurePlayerHashMaps();
+
+        if(serverPlayerId <= 0)
+        {
+            return;
+        }
+
+        gp = hm_getRemotePlayer(globalPlayersByServerId, serverPlayerId);
+
+        if(!gp)
+        {
+            return;
+        }
+
+        if(gp.username != "" && gp.id != id)
+        {
+            if(!theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_HideJoinNotis'))
+            {
+                theGame.GetGuiManager().ShowNotification(gp.username + " " + GetLocStringById(2111114209));
+            }
+        }
+
+        globalPlayers.Remove(gp);
+        hm_removeRemotePlayer(globalPlayersByServerId, serverPlayerId);
+    }
+
     public function disconnect(id : string)
     {
         var i : int;
+        var p : r_RemotePlayer;
 
-        for(i = 0; i < players.Size(); i+=1)
+        ensurePlayerHashMaps();
+
+        for(i = players.Size() - 1; i >= 0; i -= 1)
         {
-            if(players[i].id == id)
+            p = players[i];
+
+            if(p && p.id == id)
             {
-                MP_SUOL_getManager().deleteByTag("MPGhost" + id);
-                MP_SUOL_getManager().deleteByTag("MPGhostStatus" + id);
-                MP_SUOL_getManager().deleteByTag("MPGhostDummy" + id);
-                players[i].despawn();
-                players.Remove(players[i]);
+                if(p.serverPlayerId > 0)
+                {
+                    hm_removeRemotePlayer(playersByServerId, p.serverPlayerId);
+                }
+
+                cleanupRemotePlayer(p);
+                players.Erase(i);
+
+                if(ridingPlayer == p)
+                {
+                    ridingPlayer = NULL;
+                }
+
+                if(outgoingTradeTo == p)
+                {
+                    outgoingTradeTo = NULL;
+                }
+
+                if(gwentOpponent == p)
+                {
+                    gwentOpponent = NULL;
+                }
+
                 return;
             }
         }
@@ -5174,18 +4479,29 @@ statemachine class r_MultiplayerClient
     public function disconnectGlobal(_id : string)
     {
         var i : int;
-        for(i = 0; i < globalPlayers.Size(); i+=1)
+        var gp : r_RemotePlayer;
+
+        for(i = 0; i < globalPlayers.Size(); i += 1)
         {
-            if(globalPlayers[i].id == _id)
+            gp = globalPlayers[i];
+
+            if(gp && gp.id == _id)
             {
-                if(globalPlayers[i].username != "" && globalPlayers[i].id != id)
+                if(gp.serverPlayerId > 0)
+                {
+                    disconnectGlobalByServerId(gp.serverPlayerId);
+                    return;
+                }
+
+                if(gp.username != "" && gp.id != id)
                 {
                     if(!theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_HideJoinNotis'))
                     {
-                        theGame.GetGuiManager().ShowNotification(globalPlayers[i].username + " " + GetLocStringById(2111114209));
+                        theGame.GetGuiManager().ShowNotification(gp.username + " " + GetLocStringById(2111114209));
                     }
                 }
-                globalPlayers.Remove(globalPlayers[i]);
+
+                globalPlayers.Remove(gp);
                 return;
             }
         }
@@ -5194,17 +4510,26 @@ statemachine class r_MultiplayerClient
     public function destroyAll()
     {
         var i : int;
-        for(i = 0; i < players.Size(); i+=1)
+
+        ensurePlayerHashMaps();
+
+        for(i = players.Size() - 1; i >= 0; i -= 1)
         {
-            MP_SUOL_getManager().deleteByTag("MPGhost" + players[i].id);
-            MP_SUOL_getManager().deleteByTag("MPGhostStatus" + players[i].id);
-            MP_SUOL_getManager().deleteByTag("MPGhostDummy" + players[i].id);
-            players[i].despawn();
+            if(players[i])
+            {
+                cleanupRemotePlayer(players[i]);
+            }
+
+            players.Erase(i);
         }
 
         destroyAllRiderHorseAnchors();
 
-        players.Clear();
+        playersByServerId = (new MP_SU_HashMap in this).init();
+
+        ridingPlayer = NULL;
+        outgoingTradeTo = NULL;
+        gwentOpponent = NULL;
     }
 
     public function DisplayUserMessage(message: WitcherOnline_PlayerNotification) {
@@ -5409,6 +4734,33 @@ statemachine class r_MultiplayerClient
 
         cpcPlayerType = NR_GetPlayerManager().GetCurrentPlayerType();
         
+        inventory = getEmoteInventory();
+
+        m_popupData = new W3ItemSelectionPopupData in theGame.GetGuiManager();
+        m_popupData.targetInventory = inventory;
+        m_popupData.overrideQuestItemRestrictions = true;
+
+        m_popupData.selectionMode = EISPM_RadialMenuSilverOil;
+        m_popupData.wo_isEmotes = true;
+        
+        theGame.RequestPopup('ItemSelectionPopup', m_popupData);
+    }
+
+    event OnEmoteMenu( action : SInputAction )
+	{
+		if( IsPressed( action ) )
+		{
+            emoteMenu();
+        }	
+	}
+
+    function getEmoteInventory() : CInventoryComponent
+    {
+        var inventory : CInventoryComponent;
+        var cpcPlayerType : ENR_PlayerType;
+
+        cpcPlayerType = NR_GetPlayerManager().GetCurrentPlayerType();
+        
         inventory = new CInventoryComponent in this;
         inventory.AddAnItem('wo_emote1', 1);
         inventory.AddAnItem('wo_emote2', 1);
@@ -5471,23 +4823,8 @@ statemachine class r_MultiplayerClient
             inventory.AddAnItem('wo_emote54', 1);
         }
 
-        m_popupData = new W3ItemSelectionPopupData in theGame.GetGuiManager();
-        m_popupData.targetInventory = inventory;
-        m_popupData.overrideQuestItemRestrictions = true;
-
-        m_popupData.selectionMode = EISPM_RadialMenuSilverOil;
-        m_popupData.wo_isEmotes = true;
-        
-        theGame.RequestPopup('ItemSelectionPopup', m_popupData);
+        return inventory;
     }
-
-    event OnEmoteMenu( action : SInputAction )
-	{
-		if( IsPressed( action ) )
-		{
-            emoteMenu();
-        }	
-	}
 
     function getChatInventory() : CInventoryComponent
     {
@@ -5659,7 +4996,7 @@ statemachine class r_MultiplayerClient
     }
 }
 
-exec function wo_get(playerId : string)
+exec function wo_get(playerId : int, username : string)
 {
     var pos : Vector;
     var list : string;
@@ -5704,7 +5041,7 @@ exec function wo_get(playerId : string)
 
     var transformedNPC : CActor;
 
-    theGame.r_getMultiplayerClient().setUserId(playerId);
+    theGame.r_getMultiplayerClient().setUserId(playerId, username);
     theGame.r_getMultiplayerClient().setReceived();
 
     inv = thePlayer.GetInventory();
@@ -6093,13 +5430,13 @@ exec function wo_get(playerId : string)
 
     ridingPlayer = theGame.r_getMultiplayerClient().getRidingPlayer();
 
-    if(ridingPlayer && ridingPlayer.id != "")
+    if(ridingPlayer && ridingPlayer.serverPlayerId > 0)
     {
-        list += ridingPlayer.id;
+        list += ridingPlayer.serverPlayerId;
     }
     else
     {
-        list += "none";
+        list += "0";
     }
     list += " ";
 
@@ -6190,7 +5527,7 @@ exec function wo_get(playerId : string)
     Log("wo "+list);
 }
 
-exec function wo_get2(playerId : string)
+exec function wo_get2(playerId : int, username : string)
 {
     var pos : Vector;
     var list : string;
@@ -6204,7 +5541,7 @@ exec function wo_get2(playerId : string)
     var heads : array< name >;
     var curType : ENR_PlayerType;
 
-    theGame.r_getMultiplayerClient().setUserId(playerId);
+    theGame.r_getMultiplayerClient().setUserId(playerId, username);
     theGame.r_getMultiplayerClient().setReceived();
 
     inv = thePlayer.GetInventory();
@@ -6358,7 +5695,7 @@ exec function wo_get2(playerId : string)
     Log("wo2 "+list);
 }
 
-exec function wo_get3(playerId : string)
+exec function wo_get3(playerId : int, username : string)
 {
     var manager : CR4GwintManager;
     var selectedFaction : eGwintFaction;
@@ -6368,7 +5705,7 @@ exec function wo_get3(playerId : string)
     var outgoingGwentTo : string;
     var lastGwentAction : string;
     
-    theGame.r_getMultiplayerClient().setUserId(playerId);
+    theGame.r_getMultiplayerClient().setUserId(playerId, username);
     theGame.r_getMultiplayerClient().setReceived();
 
     manager = theGame.GetGwintManager();
@@ -6428,7 +5765,7 @@ exec function wo_get3(playerId : string)
     Log("wo3 "+list);
 }
 
-exec function wo_get4(playerId : string)
+exec function wo_get4(playerId : int, username : string)
 {
     var list : string;
     var joinedParty : string;
@@ -6444,7 +5781,7 @@ exec function wo_get4(playerId : string)
     var color : name;
     var limit : int;
     
-    theGame.r_getMultiplayerClient().setUserId(playerId);
+    theGame.r_getMultiplayerClient().setUserId(playerId, username);
     theGame.r_getMultiplayerClient().setReceived();
 
     list += theGame.r_getMultiplayerClient().getInParty();
@@ -6614,7 +5951,7 @@ exec function wo_get4(playerId : string)
     Log("wo4 "+list);
 }
 
-exec function wo_update(id : name, x : float, y : float, z : float, w : float, heading : float, speed : float, area : int, 
+exec function wo_update(serverPlayerId : int, id : name, x : float, y : float, z : float, w : float, heading : float, speed : float, area : int, 
                                         inGame : bool, heldItem : string, offhandItem : string, inCombat : bool, isSwimming : bool, curState : name, 
                                         lastJumpTime : float, lastJumpType : EJumpType, lastClimbType : EClimbHeightType, isDiving : bool, isFalling : bool,
                                         lastLightAttackTime : float, lastHeavyAttackTime : float, lastDodgeTime : float, lastRollTime : float, isGuarded : bool,
@@ -6623,10 +5960,10 @@ exec function wo_update(id : name, x : float, y : float, z : float, w : float, h
                                         lastEmote : int, lastEmoteTime : float, lastChatTime : float, lastChat : string, chillOutAnim : name, yaw : float, stamina : float, swirling : bool, rend : bool,
                                         channeling : bool, menuName : string, lastActionTime : float, lastAction : EPlayerExplorationAction,
                                         steel : name, silver : name, armor : name, gloves : name, pants : name, boots : name, head : name, hair : name, steelScab : name, silverScab : name, crossbow : name, mask : name,
-                                        isRiding : bool, ridingPlayerId : string, outgoingTradeTo : string, outgoingTradeItem : name, outgoingTradePrice : int, outgoingTradeFlag : int, horseAppearance : string,
+                                        isRiding : bool, ridingPlayerId : int, outgoingTradeTo : string, outgoingTradeItem : name, outgoingTradePrice : int, outgoingTradeFlag : int, horseAppearance : string,
                                         morphActive : bool, morphType : name, morphAppearance : name, morphRotation : float) 
 {
-    theGame.r_getMultiplayerClient().updatePlayerData(id, x, y, z, w, heading, speed, area, inGame, heldItem, offhandItem, inCombat, isSwimming, 
+    theGame.r_getMultiplayerClient().updatePlayerData(serverPlayerId, id, x, y, z, w, heading, speed, area, inGame, heldItem, offhandItem, inCombat, isSwimming, 
                                                             curState, lastJumpTime, lastJumpType, lastClimbType, isDiving, isFalling, lastLightAttackTime,
                                                             lastHeavyAttackTime, lastDodgeTime, lastRollTime, isGuarded, lastHit, lastParry, lastFinisher, finisherMonster,
                                                             signType, lastSign, isSailing, isMounted, horseSpeed, aimingCrossbow, isLadder, currentState, bombSelected, isAlive,
@@ -6637,23 +5974,23 @@ exec function wo_update(id : name, x : float, y : float, z : float, w : float, h
                                                             morphActive, morphType, morphAppearance, morphRotation);
 }
 
-exec function wo_update2(id : name, cpcPlayerType : ENR_PlayerType, cpcHead : name, cpcHair : string, cpcBody : string, cpcTorso : string, cpcArms : string, cpcGloves : string, cpcDress : string, cpcLegs : string, 
+exec function wo_update2(serverPlayerId : int, id : name, cpcPlayerType : ENR_PlayerType, cpcHead : name, cpcHair : string, cpcBody : string, cpcTorso : string, cpcArms : string, cpcGloves : string, cpcDress : string, cpcLegs : string, 
                          cpcShoes : string, cpcMisc : string, cpcItem1 : string, cpcItem2 : string, cpcItem3 : string, cpcItem4 : string, cpcItem5 : string, cpcItem6 : string, cpcItem7 : string, cpcItem8 : string, 
                          cpcItem9 : string, cpcItem10 : string)
 {
-    theGame.r_getMultiplayerClient().updatePlayerData2(id, cpcPlayerType, cpcHead, cpcHair, cpcBody, cpcTorso, cpcArms, cpcGloves, cpcDress, cpcLegs, cpcShoes, cpcMisc,
+    theGame.r_getMultiplayerClient().updatePlayerData2(serverPlayerId, id, cpcPlayerType, cpcHead, cpcHair, cpcBody, cpcTorso, cpcArms, cpcGloves, cpcDress, cpcLegs, cpcShoes, cpcMisc,
                                                        cpcItem1, cpcItem2, cpcItem3, cpcItem4, cpcItem5, cpcItem6, cpcItem7, cpcItem8, cpcItem9, cpcItem10);
 }
 
-exec function wo_update3(id : name, outgoingGwentTo : string, outgoingGwentRequest : E_GwentRequest, outgoingGwentBet : int, outgoingGwentSeed : int, lastGwentAction : string, lastGwentActionTime : float, gwentData : string)
+exec function wo_update3(serverPlayerId : int, id : name, outgoingGwentTo : string, outgoingGwentRequest : E_GwentRequest, outgoingGwentBet : int, outgoingGwentSeed : int, lastGwentAction : string, lastGwentActionTime : float, gwentData : string)
 {
-    theGame.r_getMultiplayerClient().updatePlayerData3(id, outgoingGwentTo, outgoingGwentRequest, outgoingGwentBet, outgoingGwentSeed, lastGwentAction, lastGwentActionTime, gwentData);
+    theGame.r_getMultiplayerClient().updatePlayerData3(serverPlayerId, id, outgoingGwentTo, outgoingGwentRequest, outgoingGwentBet, outgoingGwentSeed, lastGwentAction, lastGwentActionTime, gwentData);
 }
 
-exec function wo_update4(id : name, inParty : bool, joinedParty : string, weather : name, day : int, hour : int, minute : int, second : int, lastDialogIndex : int, lastDialogCount : int, dialogChoices : string, 
+exec function wo_update4(serverPlayerId : int, id : name, inParty : bool, joinedParty : string, weather : name, day : int, hour : int, minute : int, second : int, lastDialogIndex : int, lastDialogCount : int, dialogChoices : string, 
                          dialogChoicesActive : bool, armorDye : int, gloveDye : int, pantDye : int, bootDye : int, health : float)
 {
-    theGame.r_getMultiplayerClient().updatePlayerData4(id, inParty, joinedParty, weather, day, hour, minute, second, lastDialogIndex , lastDialogCount, dialogChoices, dialogChoicesActive, armorDye, gloveDye, pantDye, bootDye, health);
+    theGame.r_getMultiplayerClient().updatePlayerData4(serverPlayerId, id, inParty, joinedParty, weather, day, hour, minute, second, lastDialogIndex , lastDialogCount, dialogChoices, dialogChoicesActive, armorDye, gloveDye, pantDye, bootDye, health);
 }
 
 exec function mpghosts_disconnect(id :string)
@@ -7468,7 +6805,7 @@ exec function list()
 
         finalTotal += 1;
 
-        regionName = SUH_normalizeRegion(AreaTypeToName(players[i].area));
+        regionName = theGame.r_getMultiplayerClient().normalizeRegion(AreaTypeToName(players[i].area));
 
         if(regionName == "no_mans_land")
         {
@@ -7509,7 +6846,7 @@ exec function list()
     finalTotal += 1;
     localFinalTotal += 1;
 
-    currentRegion = SUH_normalizeRegion(AreaTypeToName(theGame.GetCommonMapManager().GetCurrentArea()));
+    currentRegion = theGame.r_getMultiplayerClient().normalizeRegion(AreaTypeToName(theGame.GetCommonMapManager().GetCurrentArea()));
 
     if(currentRegion == "no_mans_land")
     {
@@ -7669,7 +7006,6 @@ state WO_Tick in r_MultiplayerClient
             parent.updatePlayerChat();
             parent.updateLocalEmoteLoop();
             parent.pruneGlobalPlayers(5);
-            parent.updateMenuPositions();
             parent.checkOutgoingTrades();
             parent.checkIncomingGwentRequests();
             parent.checkRidingAttachment();
@@ -7681,11 +7017,6 @@ state WO_Tick in r_MultiplayerClient
             SleepOneFrame();
         }
     }
-}
-
-exec function scrollmenu()
-{
-    theGame.r_getMultiplayerClient().updateMenuIndex(true);
 }
 
 exec function usernameTaken(username : string)
