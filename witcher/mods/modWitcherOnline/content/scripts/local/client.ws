@@ -3172,8 +3172,8 @@ statemachine class r_MultiplayerClient
 
         addChill('geralt_relaxed_sitting_and_resting_2', 8.7);
         addChill('boat_passenger_sit_idle', 2.33);
-        addChill('horse_standing_idle01', 7.33);
-        addChill('man_work_relaxed_sitting_and_resting_1', 11.43);
+        addChill('low_sitting_bored_idle', 16.73);
+        addChill('horse_breathing_slow', 2.6);
     }
 
     public function findChillDuration(t : name) : float 
@@ -3935,6 +3935,10 @@ statemachine class r_MultiplayerClient
         if(p && p.id != id)
         {
             hm_removeRemotePlayer(playersByServerId, serverPlayerId);
+
+            cleanupRemotePlayer(p);
+            players.Remove(p);
+
             p = NULL;
         }
 
@@ -3948,8 +3952,14 @@ statemachine class r_MultiplayerClient
 
                     if(p.serverPlayerId > 0)
                     {
+                        if(p.serverPlayerId != serverPlayerId)
+                        {
+                            MP_SUOL_getManager().deleteRemotePlayerOneliners(p.serverPlayerId);
+                        }
+
                         hm_removeRemotePlayer(playersByServerId, p.serverPlayerId);
                     }
+
 
                     p.serverPlayerId = serverPlayerId;
                     hm_insertRemotePlayer(playersByServerId, serverPlayerId, p);
@@ -6483,7 +6493,7 @@ function mpghosts_emote(num : int)
     {
         if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
         {
-            anim = 'man_work_relaxed_sitting_and_resting_1';
+            anim = 'low_sitting_bored_idle';
         }
         else
         {
@@ -6499,7 +6509,7 @@ function mpghosts_emote(num : int)
     }
     else if (num == 31)
     {
-        anim = 'horse_standing_idle01';
+        anim = 'horse_breathing_slow';
         loop = true;
     }
     else if (num == 32)

@@ -39,14 +39,28 @@ statemachine class MP_SUOL_Manager {
   /// an internal counter
   private var oneliner_counter: int;
 
-  /// A list of all the active oneliners
   protected var oneliners: array<MP_SU_Oneliner>;
   private var onelinersByIntTag: MP_SU_HashMap;
 
-  private function ensureIntTagIndex() {
-    if(!this.onelinersByIntTag) {
-      this.onelinersByIntTag = (new MP_SU_HashMap in this).init();
-    }
+  private function ensureIntTagIndex()
+  {
+      var i: int;
+
+      if(!this.onelinersByIntTag)
+      {
+          this.onelinersByIntTag = (new MP_SU_HashMap in this).init();
+
+          for(i = 0; i < this.oneliners.Size(); i += 1)
+          {
+              if(this.oneliners[i] && this.oneliners[i].intTag > 0)
+              {
+                  this.onelinersByIntTag.insert(
+                      this.oneliners[i].intTag,
+                      hm_fromOneliner(this.oneliners[i])
+                  );
+              }
+          }
+      }
   }
 
   private function indexOneliner(oneliner: MP_SU_Oneliner) {
@@ -72,26 +86,70 @@ statemachine class MP_SUOL_Manager {
     }
   }
 
-  public function findByIntTag(intTag: int): MP_SU_Oneliner {
-    this.ensureIntTagIndex();
+  public function findByIntTag(intTag: int): MP_SU_Oneliner
+  {
+      var indexed: MP_SU_Oneliner;
+      var i: int;
 
-    if(intTag <= 0) {
+      this.ensureIntTagIndex();
+
+      if(intTag <= 0)
+      {
+          return NULL;
+      }
+
+      indexed = hm_getOneliner(this.onelinersByIntTag, intTag);
+
+      if(indexed)
+      {
+          return indexed;
+      }
+
+      for(i = this.oneliners.Size() - 1; i >= 0; i -= 1)
+      {
+          if(this.oneliners[i] &&
+            this.oneliners[i].intTag == intTag)
+          {
+              this.indexOneliner(this.oneliners[i]);
+              return this.oneliners[i];
+          }
+      }
+
       return NULL;
-    }
-
-    return hm_getOneliner(this.onelinersByIntTag, intTag);
   }
 
-  public function deleteByIntTag(intTag: int): MP_SU_Oneliner {
-    var oneliner: MP_SU_Oneliner;
+  public function deleteByIntTag(intTag: int): MP_SU_Oneliner
+  {
+      var firstDeleted: MP_SU_Oneliner;
+      var current: MP_SU_Oneliner;
+      var i: int;
 
-    oneliner = this.findByIntTag(intTag);
+      if(intTag <= 0)
+      {
+          return NULL;
+      }
 
-    if(oneliner) {
-      this.deleteOneliner(oneliner);
-    }
+      for(i = this.oneliners.Size() - 1; i >= 0; i -= 1)
+      {
+          current = this.oneliners[i];
 
-    return oneliner;
+          if(current && current.intTag == intTag)
+          {
+              if(!firstDeleted)
+              {
+                  firstDeleted = current;
+              }
+
+              this.deleteOneliner(current);
+          }
+      }
+
+      if(this.onelinersByIntTag)
+      {
+          this.onelinersByIntTag.remove(intTag);
+      }
+
+      return firstDeleted;
   }
 
   public function deleteRemotePlayerOneliners(serverPlayerId: int) {
@@ -132,38 +190,39 @@ statemachine class MP_SUOL_Manager {
   //////////////////////////////////////////////////////////////////////////////
   // public API:
 
-  public function createOneliner(oneliner: MP_SU_Oneliner) {
-    var should_initialize_and_render: bool;
-    var existing: MP_SU_Oneliner;
+  public function createOneliner(oneliner: MP_SU_Oneliner)
+  {
+      var should_initialize_and_render: bool;
 
-    should_initialize_and_render = this.GetCurrentStateName() != 'MP_Render';
+      should_initialize_and_render =
+          this.GetCurrentStateName() != 'MP_Render';
 
-    if(should_initialize_and_render) {
-      this.initialize();
-    }
-
-    if(oneliner && oneliner.intTag > 0) {
-      existing = this.findByIntTag(oneliner.intTag);
-
-      if(existing && existing != oneliner) {
-        this.deleteOneliner(existing);
+      if(should_initialize_and_render)
+      {
+          this.initialize();
       }
-    }
 
-    oneliner.id = this.getNewId();
-    this.fxCreateOnelinerSFF.InvokeSelfTwoArgs(
-      FlashArgInt(oneliner.id),
-      FlashArgString(oneliner.text)
-    );
-    this.oneliners.PushBack(oneliner);
-    this.indexOneliner(oneliner);
+      if(oneliner && oneliner.intTag > 0)
+      {
+          this.deleteByIntTag(oneliner.intTag);
+      }
 
-    if(should_initialize_and_render) {
-      this.GotoState('MP_Render');
-    }
+      oneliner.id = this.getNewId();
+
+      this.fxCreateOnelinerSFF.InvokeSelfTwoArgs(
+          FlashArgInt(oneliner.id),
+          FlashArgString(oneliner.text)
+      );
+
+      this.oneliners.PushBack(oneliner);
+      this.indexOneliner(oneliner);
+
+      if(should_initialize_and_render)
+      {
+          this.GotoState('MP_Render');
+      }
   }
 
-  /// Updates the flash values with the oneliner's new/current text
   public function updateOneliner(oneliner: MP_SU_Oneliner) {
     this.module_flash
       .GetChildFlashSprite("mcOneliner" + oneliner.id)

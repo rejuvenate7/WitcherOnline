@@ -615,6 +615,10 @@ statemachine class r_RemotePlayer
     {
         MP_SUOL_getManager().deleteRemotePlayerOneliners(serverPlayerId);
 
+        MP_SUOL_getManager().deleteByTag("MPGhost" + id);
+        MP_SUOL_getManager().deleteByTag("MPGhostStatus" + id);
+        MP_SUOL_getManager().deleteByTag("MPGhostDummy" + id);
+
         createOneliner();
         createStatusOneliner();
     }
@@ -664,10 +668,10 @@ statemachine class r_RemotePlayer
 
     private function createOneliner()
     {
-        var tag : string;
-        var oneliner     : MP_SU_OnelinerEntity;
-        var finalUsername : string;
-        var color : string;
+        var tag: string;
+        var oneliner: MP_SU_OnelinerEntity;
+        var finalUsername: string;
+        var color: string;
 
         tag = "MPGhost" + id;
 
@@ -691,26 +695,32 @@ statemachine class r_RemotePlayer
             return;
         }
 
+        MP_SUOL_getManager().deleteByTag(tag);
+
         oneliner = new MP_SU_OnelinerEntity in theInput;
+
         oneliner.text = (new MP_SUOL_TagBuilder in theInput)
         .tag("font")
         .attr("size", "20")
         .attr("color", color)
         .text(finalUsername);
+
         oneliner.visible = true;
         oneliner.entity = ghost;
         oneliner.tag = tag;
         oneliner.intTag = MP_SUOL_usernameKey(serverPlayerId);
-        oneliner.render_distance = StringToInt(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_RenderDistance'));
+
+        oneliner.render_distance = StringToInt(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main','MPGhosts_RenderDistance'));
+
         MP_SUOL_getManager().createOneliner(oneliner);
     }
 
     private function createDummyOneliner()
     {
         var oneliner: MP_SU_Oneliner;
-        var tag : string;
-        var finalUsername : string;
-        var color : string;
+        var tag: string;
+        var finalUsername: string;
+        var color: string;
 
         tag = "MPGhostDummy" + id;
 
@@ -725,29 +735,35 @@ statemachine class r_RemotePlayer
             finalUsername = username;
         }
 
+        MP_SUOL_getManager().deleteByTag(tag);
+
         oneliner = new MP_SU_Oneliner in theInput;
+
         oneliner.text = (new MP_SUOL_TagBuilder in theInput)
         .tag("font")
         .attr("size", "20")
         .attr("color", color)
         .text(finalUsername);
+
         oneliner.position = pos;
         oneliner.tag = tag;
         oneliner.intTag = MP_SUOL_dummyKey(serverPlayerId);
         oneliner.visible = true;
-        oneliner.render_distance = StringToInt(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_RenderDistance'));
+
+        oneliner.render_distance = StringToInt(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main','MPGhosts_RenderDistance'));
 
         MP_SUOL_getManager().createOneliner(oneliner);
     }
 
     private function createStatusOneliner()
     {
-        var tag : string;
-        var chatOneliner     : MP_SU_OnelinerEntity;
+        var tag: string;
+        var chatOneliner: MP_SU_OnelinerEntity;
 
         tag = "MPGhostStatus" + id;
 
         lastStatus = "";
+
         chatOneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByIntTag(MP_SUOL_statusKey(serverPlayerId));
 
         if(chatOneliner)
@@ -756,7 +772,9 @@ statemachine class r_RemotePlayer
             chatOneliner.visible = false;
             return;
         }
-        
+
+        MP_SUOL_getManager().deleteByTag(tag);
+
         chatOneliner = new MP_SU_OnelinerEntity in theInput;
         chatOneliner.head = true;
         chatOneliner.visible = false;
@@ -764,6 +782,7 @@ statemachine class r_RemotePlayer
         chatOneliner.tag = tag;
         chatOneliner.intTag = MP_SUOL_statusKey(serverPlayerId);
         chatOneliner.render_distance = 100;
+
         MP_SUOL_getManager().createOneliner(chatOneliner);
     }
 
@@ -1144,7 +1163,6 @@ statemachine class r_RemotePlayer
     {
         var tag : string;
         var statusTag : string; 
-        var dummyTag : string; 
         var now : float = theGame.GetEngineTimeAsSeconds();
         var oneliner     : MP_SU_OnelinerEntity;
         var chatOneliner     : MP_SU_OnelinerEntity;
@@ -1162,15 +1180,24 @@ statemachine class r_RemotePlayer
         if (!oneliner)
         {
             createOneliner();
+            oneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByIntTag(MP_SUOL_usernameKey(serverPlayerId));
         }
 
         if(!chatOneliner)
         {
             createStatusOneliner();
+            chatOneliner = (MP_SU_OnelinerEntity)MP_SUOL_getManager().findByIntTag(MP_SUOL_statusKey(serverPlayerId));
         }
 
-        oneliner.render_distance = StringToInt(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_RenderDistance'));
-        chatOneliner.render_distance = StringToInt(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_RenderDistance'));
+        if(oneliner)
+        {
+            oneliner.render_distance = StringToInt(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_RenderDistance'));
+        }
+
+        if(chatOneliner)
+        {
+            chatOneliner.render_distance = StringToInt(theGame.GetInGameConfigWrapper().GetVarValue('MPGhosts_Main', 'MPGhosts_RenderDistance'));
+        }
     }
 
     private function repairGhost()
@@ -1292,7 +1319,7 @@ statemachine class r_RemotePlayer
             }
             else
             {
-                ridingPlayer = mpghosts_getPlayerById(ridingPlayerId);
+                ridingPlayer = hm_getRemotePlayer(theGame.r_getMultiplayerClient().getPlayerMap(), ridingPlayerId);
 
                 if(!ridingPlayer || !ridingPlayer.ghost)
                     return;
@@ -1912,7 +1939,7 @@ statemachine class r_RemotePlayer
             {
                 if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
                 {
-                    queueAnim('man_work_relaxed_sitting_and_resting_1', 11.43, 0, 0, 'emote', true, true);
+                    queueAnim('low_sitting_bored_idle', 16.73, 0, 0, 'emote', true, true);
                 }
                 else
                 {
@@ -1925,7 +1952,7 @@ statemachine class r_RemotePlayer
             }
             else if (lastEmote == 31)
             {
-                queueAnim('horse_standing_idle01', 7.33, 0, 0, 'emote', true, true);
+                queueAnim('horse_breathing_slow', 2.6, 0, 0, 'emote', true, true);
             }
             else if (lastEmote == 32)
             {
