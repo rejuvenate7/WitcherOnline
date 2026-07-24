@@ -1225,14 +1225,18 @@ statemachine class r_RemotePlayer
         var ridingPlayer : r_RemotePlayer;
 
         ridingPlayer = theGame.r_getMultiplayerClient().getRidingPlayer();
-        players = theGame.r_getMultiplayerClient().getPlayers();
 
-        for(i = 0; i < players.Size(); i+=1)
+        if(ghost)
         {
-            if(players[i] && players[i].ghost && players[i].ghost.HasAttachment() && players[i].isRiding && players[i].ridingPlayerId == serverPlayerId)
+            players = theGame.r_getMultiplayerClient().getPlayers();
+            
+            for(i = 0; i < players.Size(); i+=1)
             {
-                theGame.r_getMultiplayerClient().detachRiderSafe(players[i].ghost, true);
-                theGame.r_getMultiplayerClient().fixAttachRotation(players[i].ghost);
+                if(players[i] && players[i].ghost && players[i].ghost.HasAttachment() && players[i].isRiding && players[i].ridingPlayerId == serverPlayerId)
+                {
+                    theGame.r_getMultiplayerClient().detachRiderSafe(players[i].ghost, true);
+                    theGame.r_getMultiplayerClient().fixAttachRotation(players[i].ghost);
+                }
             }
         }
         
@@ -1412,7 +1416,10 @@ statemachine class r_RemotePlayer
 
         if (!isInRange())
         {
-            despawn();   
+            if(ghost || horse || boat || morph)
+            {
+                despawn();
+            }
             updatePin();
             prune();
             return;
@@ -1939,7 +1946,7 @@ statemachine class r_RemotePlayer
             {
                 if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
                 {
-                    queueAnim('low_sitting_bored_idle', 16.73, 0, 0, 'emote', true, true);
+                    queueAnim('high_sitting_determined_idle', 18.4, 0, 0, 'emote', true, true);
                 }
                 else
                 {
@@ -5700,6 +5707,27 @@ statemachine class r_RemotePlayer
             }
 
             prevActionTime = lastActionTime;
+        }
+    }
+
+    public function setCPCPlayerType(newType : ENR_PlayerType)
+    {
+        if(cpcPlayerType == newType)
+        {
+            return;
+        }
+
+        if(this.GetCurrentStateName() == 'WO_UpdateCPC')
+        {
+            this.GotoState('WO_PlayerIdle');
+        }
+
+        cpcPlayerType = newType;
+        cpcNeedsRebuild = true;
+
+        if(ghost)
+        {
+            spawnGhost();
         }
     }
 

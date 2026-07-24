@@ -110,6 +110,7 @@ statemachine class r_MultiplayerClient
     private var localEmoteAnim  : name;
     private var localEmoteForce : bool;
     private var localEmoteLoop  : bool;
+    private var localEmoteRestartAt : float;
 
     private var lastChat : string;
     private var lastChatTime : float;
@@ -325,15 +326,31 @@ statemachine class r_MultiplayerClient
         return ret;
     }
 
+    private var lastCompanionUpdateAt : float;
+
     public function updateCompanionIcons()
     {
         var party : array<r_RemotePlayer>;
-        var now : float = theGame.GetEngineTimeAsSeconds();
+        var now : float;
 
         if(!thePlayer)
         {
             return;
         }
+
+        now = theGame.GetEngineTimeAsSeconds();
+
+        if(now < lastCompanionUpdateAt)
+        {
+            lastCompanionUpdateAt = 0.0f;
+        }
+
+        if((now - lastCompanionUpdateAt) < 0.25f)
+        {
+            return;
+        }
+
+        lastCompanionUpdateAt = now;
 
         party = getPartyMembers();
 
@@ -494,7 +511,7 @@ statemachine class r_MultiplayerClient
             {
                 total += 1;
 
-                remotePlayer = mpghosts_getPlayer(globalPlayers[i].username);
+                remotePlayer = hm_getRemotePlayer(playersByServerId, globalPlayers[i].serverPlayerId);
 
                 if(!isRemotePlayerCloseForDialogSync(remotePlayer))
                 {
@@ -2284,6 +2301,10 @@ statemachine class r_MultiplayerClient
             GetWitcherPlayer().DisplayHudMessage(GetLocStringById(2111114227));
             return;
         }
+        else if(player.isRiding && player.ridingPlayerId == serverPlayerId)
+        {
+            return;
+        }
 
         ridingPlayer = player;
         ridingEnabled = true;
@@ -2387,18 +2408,38 @@ statemachine class r_MultiplayerClient
     {
         var attach_rot : EulerAngles;
         var attach_vec : Vector;
+        var cpcPlayerType : ENR_PlayerType;
+        var riderPlayer : r_RemotePlayer;
+
+        cpcPlayerType = NR_GetPlayerManager().GetCurrentPlayerType();
+
+        riderPlayer = mpghosts_getPlayerFromActor(rider);
 
         if(!rider || !toAttach)
             return;
 
         destroyRiderHorseAnchor(rider, true);
-        
-        attach_rot.Roll = 0.0f;
-		attach_rot.Pitch = 0.0f;
-		attach_rot.Yaw = 0.0f;
-		attach_vec.X = 0.0f;
-		attach_vec.Y = -0.2f;
-		attach_vec.Z = 1.0f;
+
+        if((rider == thePlayer && (cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)) 
+            || (riderPlayer && (riderPlayer.cpcPlayerType != ENR_PlayerGeralt && riderPlayer.cpcPlayerType != ENR_PlayerWitcher && riderPlayer.cpcPlayerType != ENR_PlayerUnknown)))
+        {
+            // is female
+            attach_rot.Roll = 0.0f;
+            attach_rot.Pitch = 0.0f;
+            attach_rot.Yaw = 0.0f;
+            attach_vec.X = 0.0f;
+            attach_vec.Y = -0.05f;
+            attach_vec.Z = 1.15f;
+        }
+        else
+        {
+            attach_rot.Roll = 0.0f;
+            attach_rot.Pitch = 0.0f;
+            attach_rot.Yaw = 0.0f;
+            attach_vec.X = 0.0f;
+            attach_vec.Y = -0.2f;
+            attach_vec.Z = 1.0f;
+        }
 
         if(horseOffset)
         {
@@ -2910,9 +2951,28 @@ statemachine class r_MultiplayerClient
 
     public function setLocalEmoteState(anim : name, forceAnim : bool, loop : bool)
     {
+        var duration : float;
+        var restartLead : float;
+
         localEmoteAnim = anim;
         localEmoteForce = forceAnim;
         localEmoteLoop = loop;
+        localEmoteRestartAt = 0.0f;
+
+        if(loop && anim != '')
+        {
+            duration = getLocalEmoteDuration();
+
+            restartLead = 0.08f;
+
+            if(duration > restartLead)
+            {
+                localEmoteRestartAt =
+                    theGame.GetEngineTimeAsSeconds()
+                    + duration
+                    - restartLead;
+            }
+        }
     }
 
     public function clearLocalEmoteState()
@@ -2920,6 +2980,7 @@ statemachine class r_MultiplayerClient
         localEmoteAnim = '';
         localEmoteForce = false;
         localEmoteLoop = false;
+        localEmoteRestartAt = 0.0f;
 
         stopRiding();
     }
@@ -2975,23 +3036,30 @@ statemachine class r_MultiplayerClient
     public function updateLocalEmoteLoop()
     {
         var now : float;
-        var dur : float;
+        var duration : float;
+        var restartLead : float;
 
         if(lastEmote < 0)
+        {
             return;
+        }
 
         if(!localEmoteLoop && localEmoteAnim != '')
         {
-            if(theGame.GetEngineTimeAsSeconds() >= emoteCancelledTime )
+            if(theGame.GetEngineTimeAsSeconds() >= emoteCancelledTime)
             {
                 clearLocalEmoteState();
                 setEmote(-2);
                 unmountItems(thePlayer);
             }
+
+            return;
         }
 
         if(!localEmoteLoop || localEmoteAnim == '')
+        {
             return;
+        }
 
         if(theInput.IsActionJustPressed('Jump') || theInput.IsActionJustPressed('Roll') || theInput.IsActionJustPressed('Dodge') || theInput.IsActionJustPressed('CbtRoll'))
         {
@@ -2999,18 +3067,28 @@ statemachine class r_MultiplayerClient
             setEmote(-2);
             mpghosts_playerEmote('');
             unmountItems(thePlayer);
+
             emoteCancelledTime = theGame.GetEngineTimeAsSeconds();
+
             return;
         }
 
         now = theGame.GetEngineTimeAsSeconds();
-        dur = getLocalEmoteDuration();
+        duration = getLocalEmoteDuration();
+        restartLead = 0.08f;
 
-        if((now - lastEmoteTime) >= dur )
+        if(localEmoteRestartAt <= 0.0f)
+        {
+            localEmoteRestartAt = now + duration - restartLead;
+
+            return;
+        }
+
+        if(now >= localEmoteRestartAt)
         {
             mpghosts_playerEmote(localEmoteAnim, true);
 
-            lastEmoteTime = now;
+            localEmoteRestartAt = now + duration - restartLead;
         }
     }
 
@@ -3172,8 +3250,8 @@ statemachine class r_MultiplayerClient
 
         addChill('geralt_relaxed_sitting_and_resting_2', 8.7);
         addChill('boat_passenger_sit_idle', 2.33);
-        addChill('low_sitting_bored_idle', 16.73);
-        addChill('horse_breathing_slow', 2.6);
+        addChill('high_sitting_determined_idle', 18.4);
+        addChill('horse_breathing_slow', 2.60);
     }
 
     public function findChillDuration(t : name) : float 
@@ -4109,7 +4187,8 @@ statemachine class r_MultiplayerClient
         p.lastUpdate = now;
 
         //cpc
-        p.cpcPlayerType = cpcPlayerType;
+        //p.cpcPlayerType = cpcPlayerType;
+        p.setCPCPlayerType(cpcPlayerType);
         p.cpcHead = cpcHead;
         p.cpcHair = cpcHair;
         p.cpcBody = cpcBody;
@@ -6493,7 +6572,7 @@ function mpghosts_emote(num : int)
     {
         if(cpcPlayerType != ENR_PlayerGeralt && cpcPlayerType != ENR_PlayerWitcher && cpcPlayerType != ENR_PlayerUnknown)
         {
-            anim = 'low_sitting_bored_idle';
+            anim = 'high_sitting_determined_idle';
         }
         else
         {
