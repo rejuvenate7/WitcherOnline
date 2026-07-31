@@ -1982,11 +1982,6 @@ statemachine class r_MultiplayerClient
 
     public function setGwentSeed()
     {
-        outgoingGwentSeed = RandRange(999999, 1);
-    }
-
-    public function setGwentSeed()
-    {
         var stamp : int;
         var raw : int;
 
@@ -1999,6 +1994,11 @@ statemachine class r_MultiplayerClient
         raw = RandRange(999999, 1);
 
         outgoingGwentSeed = raw + stamp;
+    }
+
+    public function setGwentGameType(val : E_GwentGameType)
+    {
+        requestedGwentGameType = val;
     }
 
     public function getNextPlayerNum() : int
