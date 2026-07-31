@@ -1387,3 +1387,16 @@ function SetInventoryFlashObjectForItem( item : SItemUniqueId, out flashObject :
         flashObject.SetMemberFlashBool( "cantEquip", false );
     }
 }
+
+@wrapMethod(CBehTreeTaskSheathWeapons)
+function OnActivate() : EBTNodeStatus
+{
+    if(GetActor().HasTag('MPEntity'))
+    {
+        return BTNS_Active;
+    }
+    else
+    {
+        return wrappedMethod();
+    }
+}

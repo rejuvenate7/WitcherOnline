@@ -1985,9 +1985,20 @@ statemachine class r_MultiplayerClient
         outgoingGwentSeed = RandRange(999999, 1);
     }
 
-    public function setGwentGameType(val : E_GwentGameType)
+    public function setGwentSeed()
     {
-        requestedGwentGameType = val;
+        var stamp : int;
+        var raw : int;
+
+        stamp = (int)(theGame.GetEngineTimeAsSeconds() * 1000.0);
+        if(stamp < 0)
+        {
+            stamp = -stamp;
+        }
+
+        raw = RandRange(999999, 1);
+
+        outgoingGwentSeed = raw + stamp;
     }
 
     public function getNextPlayerNum() : int
