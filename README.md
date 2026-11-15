@@ -110,4 +110,4 @@ Join the Discord to report any bugs or issues you encounter with the mod.
 ## Credits
 - [rejuvenate7](https://github.com/rejuvenate7) - Lead developer
 - [x4lva](https://github.com/x4lva) - Co-developer, Gwent sync
-- [mapledraws](https://github.com/maosmith) - Co-developer, PvP sync, Reverse-engineer guru
+- [mapledraws](https://github.com/maosmith) - Co-developer, PvP sync, Reverse-engineer guru, folder sync
